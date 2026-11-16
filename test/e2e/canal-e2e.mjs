@@ -370,6 +370,17 @@ const COMPOSE_FILE = resolve(here, VPS ? 'compose.vps.yaml' : 'compose.yaml');
 const CONFIG_DIR = resolve(here, VPS ? 'config-vps' : 'config');
 const PROJECT = VPS ? 'rid-kit-e2e-vps' : 'rid-kit-e2e';
 const NODE_CONTAINER = `${PROJECT}-rid-node-1`;
+// RID_E2E_NODE=installer: the node is installed with install.sh from the delivery bundle on a
+// clean Ubuntu server (test/install/ubuntu.sh), as an entity would do it.
+const INSTALLER = process.env.RID_E2E_NODE === 'installer';
+const KIT = process.env.RID_E2E_KIT ?? resolve(here, '../../dist/rid-node-kit-0.1.0');
+const SERVER = resolve(here, '../install/ubuntu.sh');
+
+function onServer(command, extraEnv = {}) {
+  return spawnSync('bash', [SERVER, '--exec', command], {
+    encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1', ...extraEnv },
+  });
+}
 const PORTAL_OPENAPI = resolve(root, 'infra/mock-providers/salud/openapi.yaml');
 
 function compose(args) {
@@ -383,7 +394,7 @@ function compose(args) {
 }
 
 function nodeLogs() {
-  const r = spawnSync('docker', ['logs', NODE_CONTAINER], { encoding: 'utf8' });
+  const r = INSTALLER ? onServer('docker logs rid-node-rid-node-1') : spawnSync('docker', ['logs', NODE_CONTAINER], { encoding: 'utf8' });
   return `${r.stdout}${r.stderr}`.split('\n');
 }
 
@@ -398,6 +409,55 @@ const events = (msg) =>
     })
     .filter((e) => e && e.msg === msg);
 
+// The entity's side with the delivery bundle, on a clean Ubuntu (K2 closing criterion).
+async function installWithInstaller(token) {
+  step('Instalar con install.sh en un Ubuntu 24.04 limpio (paquete fuera de línea)', 'entidad');
+  const install = spawnSync('bash', [SERVER, KIT], {
+    encoding: 'utf8',
+    env: { ...process.env, MSYS_NO_PATHCONV: '1', RID_INSTALL_PORTAL: API.replace(/\/api\/v1$/, ''), RID_INSTALL_TOKEN: ` ${token}\n` },
+  });
+  info(`${install.stdout}`.trimEnd().split('\n').slice(-12).join('\n').replace(/^/gm, '  '));
+  expect(install.status === 0, `install.sh failed (${install.status}): ${install.stderr}`);
+  ok('Instalado; el token con espacios y salto de línea se guardó limpio');
+
+  const perms = onServer('stat -c "%n %a %u:%g" /opt/rid-node/secrets /opt/rid-node/secrets/enrollment_token /opt/rid-node/.env /opt/rid-node/config/node.yaml').stdout;
+  info(perms.trimEnd().replace(/^/gm, '  '));
+  for (const want of ['/opt/rid-node/secrets 750 0:65532', '/opt/rid-node/secrets/enrollment_token 400 65532:65532', '/opt/rid-node/.env 600 0:0', 'node.yaml 644']) {
+    expect(perms.includes(want), `permissions: expected "${want}"`);
+  }
+  ok('Permisos: secrets/ 750 root:65532, token 400 del usuario del nodo, .env 600');
+
+  const again = onServer('RID_INSTALL_YES=1 bash /root/kit/install.sh </dev/null');
+  expect(again.status === 0 && /no hace falta token/.test(again.stdout), `re-install failed: ${again.stdout}${again.stderr}`);
+  ok('Reinstalar no pide token ni toca la identidad del nodo');
+
+  const lan = readFileSync(resolve(here, '../install/.lan-address'), 'utf8').trim();
+  spawnSync('docker', ['cp', PORTAL_OPENAPI, 'rid-install-test:/root/salud.openapi.yaml'], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
+  const svc = (name, path) =>
+    `RID_INSTALL_SERVICE_NAME=${name} RID_INSTALL_SERVICE_PATH=${path} RID_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
+    `RID_INSTALL_SERVICE_PLAIN_HTTP=s RID_INSTALL_SERVICE_CREDENTIAL=ninguna RID_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
+    `bash /root/kit/install.sh servicio </dev/null`;
+  const added = onServer(svc('afiliacion', '/salud'));
+  info(`${added.stdout}`.trimEnd().split('\n').slice(-5).join('\n').replace(/^/gm, '  '));
+  expect(added.status === 0, `servicio failed: ${added.stdout}${added.stderr}`);
+  ok('Servicio "afiliacion" agregado, validado y aplicado');
+
+  const dup = onServer(svc('otra', '/salud'));
+  const left = onServer('ls /opt/rid-node/config/services').stdout;
+  expect(dup.status !== 0 && !left.includes('otra.yaml') && /repetida/.test(dup.stdout + dup.stderr), `a duplicate service must be refused and undone: ${dup.stdout}${dup.stderr}`);
+  ok('Un servicio con la ruta repetida se rechaza y no deja archivos');
+
+  const backup = onServer('bash /root/kit/install.sh backup && f=$(ls -t /opt/rid-node/backups/*.tar.gz | head -1) && stat -c "%a" "$f" && tar -tzf "$f" | grep -c state.json');
+  expect(backup.status === 0 && /\b600\b/.test(backup.stdout) && /\n1\s*$/.test(backup.stdout), `backup: ${backup.stdout}${backup.stderr}`);
+  ok('Respaldo 0600 con el estado del nodo');
+
+  for (const mode of ['completo', 'canal']) {
+    const m = onServer(`RID_INSTALL_YES=1 bash /root/kit/install.sh modo ${mode} </dev/null`);
+    expect(m.status === 0, `modo ${mode} failed: ${m.stdout}${m.stderr}`);
+  }
+  ok('Cambio de modo completo → canal sin perder el estado');
+}
+
 async function main() {
   console.log(bold(`K1: modo canal contra el portal ${VPS ? `desplegado (${API})` : 'local'}`));
   await preflight();
@@ -409,6 +469,9 @@ async function main() {
   const nodeId = issued.node.id;
   ok(`Nodo ${nodeId} · token de un solo uso`);
 
+  if (INSTALLER) {
+    await installWithInstaller(issued.token);
+  } else {
   step('Instalar el nodo en modo canal (sin capacidades, solo lectura, sin root, sin puertos)', 'entidad');
   mkdirSync(resolve(here, '.run'), { recursive: true });
   writeFileSync(resolve(here, '.run/enrollment_token'), `${issued.token}\n`, { mode: 0o644 });
@@ -416,6 +479,7 @@ async function main() {
   compose(['rm', '-sf', 'rid-node']);
   spawnSync('docker', ['volume', 'rm', '-f', `${PROJECT}_rid-node-state`]);
   compose(['up', '-d', 'rid-node']);
+  }
   const online = await waitFor(
     async () => {
       const n = await elena.call('GET', `/entities/${salud}/nodes/${nodeId}`);
@@ -425,9 +489,16 @@ async function main() {
   );
   ok(`Estado: ${online.status} · túnel ${online.tunnelAddress} · kit ${online.kitVersion}`);
   info(`Servicios declarados: ${JSON.stringify(online.services)}`);
-  const enrolled = events('enrolled')[0];
-  expect(enrolled?.gateway_client === 'rid-gateway.salud', 'the node did not log its enrollment');
-  ok(`Enrolado como ${enrolled.node}; solo acepta a ${enrolled.gateway_client}`);
+  if (INSTALLER) {
+    // The container was recreated by `servicio` and `modo`: the enrollment line is in an older log.
+    const st = onServer('bash /root/kit/install.sh status').stdout;
+    expect(st.includes(`rid-node-${nodeId}`) && /Túnel:\s+último handshake hace/.test(st), `status: ${st}`);
+    ok(`Enrolado como rid-node-${nodeId}, con handshake reciente del túnel`);
+  } else {
+    const enrolled = events('enrolled')[0];
+    expect(enrolled?.gateway_client === 'rid-gateway.salud', 'the node did not log its enrollment');
+    ok(`Enrolado como ${enrolled.node}; solo acepta a ${enrolled.gateway_client}`);
+  }
 
   // The hub learns the node's SNI route from the portal's reconciler; until then the gateway
   // gets a 502. Locally, probe the hub without a client certificate until the node itself
@@ -555,13 +626,22 @@ async function main() {
   expect(!nodeLogs().some((l) => l.includes(PERSON)), 'the node logged the document number');
   ok('El nodo vio al gateway por su nombre, registró la plantilla de la ruta y no el número de documento');
 
-  step('Operación: status y doctor dentro del contenedor', 'entidad');
+  step('Operación: status y doctor', 'entidad');
+  if (INSTALLER) {
+    for (const cmd of ['status', 'doctor']) {
+      const r = onServer(`bash /root/kit/install.sh ${cmd}`);
+      info(`${r.stdout}`.trimEnd().replace(/^/gm, '  '));
+      expect(r.status === 0, `install.sh ${cmd} exited ${r.status}: ${r.stderr}`);
+    }
+    ok('install.sh status y doctor sin errores');
+  } else {
   info(compose(['exec', '-T', 'rid-node', '/rid-node', 'status']).trimEnd().replace(/^/gm, '  '));
   const doctor = spawnSync('docker', ['compose', '-f', COMPOSE_FILE, 'exec', '-T', 'rid-node', '/rid-node', 'doctor'],
     { cwd: here, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   info(`${doctor.stdout}`.trimEnd().replace(/^/gm, '  '));
   expect(doctor.status === 0, `doctor exited ${doctor.status}`);
   ok('doctor sin errores');
+  }
 
   // Cleanup is opt-in: by default the test is left as it finished (node online, version
   // published, subscription active). RID_E2E_CLEANUP=1 revokes and decommissions.

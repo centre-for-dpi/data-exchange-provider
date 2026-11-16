@@ -19,3 +19,4 @@ spikes/**/*.log
 
 # Build output
 /bin/
+/dist/
