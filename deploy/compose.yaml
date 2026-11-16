@@ -1,0 +1,25 @@
+# The provider node, as the installer sets it up in /opt/rid-node (ADR-0002, ARCHITECTURE §4).
+# Outbound only: no published ports. Secrets are files under ./secrets (root:65532 0750, each
+# file 65532:65532 0400), never environment variables.
+name: rid-node
+
+services:
+  rid-node:
+    image: ${RID_NODE_IMAGE:-rid-node}:${RID_NODE_VERSION:?}${RID_NODE_TAG_SUFFIX:-}
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    environment:
+      HTTPS_PROXY: ${HTTPS_PROXY:-}
+      NO_PROXY: ${NO_PROXY:-}
+    volumes:
+      - rid-node-state:/var/lib/rid-node
+      - ./config:/etc/rid-node:ro
+      - ./secrets:/run/secrets:ro
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '5' }
+
+volumes:
+  rid-node-state: {}

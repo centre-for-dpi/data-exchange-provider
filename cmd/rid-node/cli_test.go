@@ -292,3 +292,19 @@ func TestValidateCommand(t *testing.T) {
 		t.Fatalf("code=%d %s", code, out.String())
 	}
 }
+
+// K2: the installer leaves secrets 0400; doctor must not warn about them.
+func TestDoctorSecret0400IsFine(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permissions")
+	}
+	dir := t.TempDir()
+	cred := writeFile(t, dir, "cred", "s3cr3t", 0o400)
+	up := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer up.Close()
+	extra := fmt.Sprintf("services:\n  - { name: certificados, path: /certificados, type: proxy, upstream: %s, allowPlainHttp: true, credential: { header: X-Api-Key, file: %s } }\n", up.URL, cred)
+	_, out := doctorFor(t, portalWithDate(t, 0), extra, nil)
+	if strings.Contains(out, "lo pueden leer otros") {
+		t.Fatalf("%s", out)
+	}
+}
