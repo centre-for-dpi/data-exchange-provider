@@ -40,7 +40,9 @@ Cerrado con `make e2e` contra el portal real (`test/e2e/`). Queda para K2: `inst
   - pruebas de impostores en la conexión TLS;
   - la imagen `-canal` no contiene drivers de bases de datos (`go version -m`).
 
-## K2 — Instalador y guía del modo `canal`
+## K2 — Instalador y guía del modo `canal` ✅ (2026-11-16)
+
+Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/ubuntu.sh`): instalación limpia en Ubuntu 24.04 desde el paquete, servicio de API propia, respaldo y cambio de modo, publicación y consumo por el gateway del portal desplegado (131 s). Queda por probar en una VM real la instalación de Docker Engine desde `download.docker.com`, porque el banco de prueba trae Docker preinstalado.
 
 - `deploy/compose.yaml` (secrets, rotación de logs, sin puertos) e `install.sh`, con la pregunta de modo y los subcomandos `status`, `doctor`, `servicio` (proxy), `logs`, `backup`, `update`, `modo`, `reenrolar`, `stop` y `start`.
 - Paquete fuera de línea (imagen `.tar` con `docker load`) para servidores sin salida al registro.
