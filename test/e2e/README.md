@@ -29,3 +29,19 @@ Variables, tomadas del `.env` del despliegue:
 - los secretos `RID_PORTAL_WEB_CLIENT_SECRET`, `RID_DEMO_USER_PASSWORD` y `RID_DEMO_TOTP_SECRET`.
 
 Los secretos no se guardan en el repositorio.
+
+## Instalación limpia con el instalador
+
+Con `RID_E2E_NODE=installer`, el nodo se instala con `install.sh` desde el paquete (`make bundle`), en un servidor de prueba (`test/install/ubuntu.sh`):
+- **`RID_TEST_DOCKER=preinstalled`** (por defecto): un Ubuntu 24.04 con Docker ya instalado.
+- **`RID_TEST_DOCKER=install`:** un Ubuntu 24.04 con systemd como PID 1 y **sin Docker**. El instalador instala Docker Engine desde `download.docker.com`.
+
+La prueba recorre:
+1. un token equivocado y luego el correcto;
+2. la reinstalación;
+3. `servicio` y `servicio quitar`;
+4. `update` a una versión inexistente;
+5. perder el estado y `restaurar`;
+6. el cambio de modo;
+7. la publicación y el consumo por el gateway.
+
