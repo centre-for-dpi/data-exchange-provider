@@ -44,13 +44,13 @@ check-canal-deps:
 	@found="$$(go list -deps -tags canal ./cmd/rid-node | grep -E '$(CANAL_FORBIDDEN)')"; \
 	if [ -n "$$found" ]; then echo "canal links forbidden packages:"; echo "$$found"; exit 1; fi
 
-# K1 closing test against the portal's development stack (../data-exchange: `pnpm infra:up` and
-# the portal API on :4000). Builds the canal image first.
 # Delivery bundle: dist/rid-node-kit-$(VERSION).tar.gz (install.sh, both images, guide, SHA256SUMS).
 .PHONY: bundle
 bundle:
 	bash deploy/bundle.sh $(VERSION)
 
+# K1 closing test against the portal's development stack (../data-exchange: `pnpm infra:up` and
+# the portal API on :4000). Builds the canal image first.
 .PHONY: e2e
 e2e: image-canal
 	node test/e2e/canal-e2e.mjs
