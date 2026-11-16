@@ -1,0 +1,70 @@
+package server
+
+import (
+	"log/slog"
+	"net/http"
+	"sort"
+	"strings"
+	"time"
+)
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	if s.status == 0 {
+		s.status = code
+	}
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusRecorder) Write(b []byte) (int, error) {
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	return s.ResponseWriter.Write(b)
+}
+
+// Flush keeps streaming working through the recorder.
+func (s *statusRecorder) Flush() {
+	if f, ok := s.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// accessLog writes one "access" event per request: metadata only. Never the real path, the
+// query, a body or a header value (CLAUDE.md, rule 2).
+func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		route := "(unknown)"
+		rec := &statusRecorder{ResponseWriter: w}
+		next.ServeHTTP(rec, withRouteSlot(r, &route))
+		if rec.status == 0 {
+			rec.status = http.StatusOK
+		}
+		client := ""
+		if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
+			client = r.TLS.PeerCertificates[0].Subject.CommonName
+		}
+		ridHeaders := []string{}
+		for name := range r.Header {
+			if lower := strings.ToLower(name); strings.HasPrefix(lower, "x-rid-") {
+				ridHeaders = append(ridHeaders, lower)
+			}
+		}
+		sort.Strings(ridHeaders)
+		logger.Info("access",
+			"request_id", r.Header.Get("X-Request-Id"),
+			"method", r.Method,
+			"route", route,
+			"status", rec.status,
+			"ms", time.Since(start).Milliseconds(),
+			"client", client,
+			"rid_headers", ridHeaders,
+			"query_present", r.URL.RawQuery != "",
+		)
+	})
+}
