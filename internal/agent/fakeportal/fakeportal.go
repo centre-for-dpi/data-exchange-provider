@@ -50,6 +50,9 @@ type Portal struct {
 	OnEnroll func(req contract.EnrollRequest) contract.WireGuard
 	// SignAs, if set, is the DNS name put in the enrollment certificate instead of NodeName.
 	SignAs string
+	// Intermediate signs node certificates, like the portal's step-ca: enroll and renew return
+	// the chain (leaf + intermediate) and caCertificate is the root only.
+	Intermediate testpki.Issuer
 }
 
 // New starts the fake portal.
@@ -64,6 +67,7 @@ func New(t testing.TB) *Portal {
 		Heartbeat: contract.HeartbeatResponse{Status: "online", NextHeartbeatSeconds: 60},
 	}
 	p.PKI = testpki.New(p.NodeName, p.GatewayClientName)
+	p.Intermediate = p.PKI.CA.NewIntermediate("RID test intermediate CA")
 	p.Config = contract.ConfigResponse{ContractVersion: "1", NodeID: id, HeartbeatIntervalSeconds: 60, Services: []contract.PublishedService{}, Notices: []contract.Notice{}}
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(p.serve))
 	srv.TLS = &tls.Config{
@@ -199,7 +203,7 @@ func (p *Portal) enroll(w http.ResponseWriter, body []byte) {
 	if p.SignAs != "" {
 		name = p.SignAs
 	}
-	cert, err := p.PKI.CA.SignCSR(req.CSR, name)
+	cert, err := p.chain(req.CSR, name)
 	if err != nil {
 		problem(w, http.StatusBadRequest, "validation_failed")
 		return
@@ -231,7 +235,7 @@ func (p *Portal) renew(w http.ResponseWriter, body []byte) {
 		problem(w, status, "refused")
 		return
 	}
-	cert, err := p.PKI.CA.SignCSR(req.CSR, p.NodeName)
+	cert, err := p.chain(req.CSR, p.NodeName)
 	if err != nil {
 		problem(w, http.StatusBadRequest, "validation_failed")
 		return
@@ -241,6 +245,15 @@ func (p *Portal) renew(w http.ResponseWriter, body []byte) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(contract.RenewResponse{Certificate: cert, CertificateNotAfter: "2027-05-14T00:00:00Z", PreviousValidUntil: "2026-11-17T00:00:00Z"})
+}
+
+// chain signs with the intermediate and appends it, as the portal's certificatePem does.
+func (p *Portal) chain(csrPEM, name string) (string, error) {
+	leaf, err := p.Intermediate.SignCSR(csrPEM, name)
+	if err != nil {
+		return "", err
+	}
+	return leaf + p.Intermediate.CertPEM(), nil
 }
 
 // RenewCSRs returns the CSRs received by /renew, in order.

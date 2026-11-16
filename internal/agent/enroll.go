@@ -156,7 +156,15 @@ func validateEnrollment(st *state.State) error {
 	if err != nil {
 		return err
 	}
-	if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, DNSName: st.NodeName, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {
+	// The portal sends the chain (leaf + step-ca's intermediate) and only the root as the CA.
+	intermediates := x509.NewCertPool()
+	for _, der := range pair.Certificate[1:] {
+		if c, err := x509.ParseCertificate(der); err == nil {
+			intermediates.AddCert(c)
+		}
+	}
+	if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates, DNSName: st.NodeName,
+		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {
 		return fmt.Errorf("el certificado no es de la red para %s: %w", st.NodeName, err)
 	}
 	if _, err := netip.ParsePrefix(st.WireGuard.Address); err != nil {

@@ -64,6 +64,19 @@ func NewCA(name string) Issuer {
 	return Issuer{cert, key}
 }
 
+// NewIntermediate makes an intermediate CA signed by ca (step-ca signs leaves with one).
+func (ca Issuer) NewIntermediate(name string) Issuer {
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	tpl := &x509.Certificate{
+		SerialNumber: big.NewInt(serial.Add(1)), Subject: pkix.Name{CommonName: name},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(24 * time.Hour),
+		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign, MaxPathLenZero: true,
+	}
+	der, _ := x509.CreateCertificate(rand.Reader, tpl, ca.Cert, &key.PublicKey, ca.Key)
+	cert, _ := x509.ParseCertificate(der)
+	return Issuer{cert, key}
+}
+
 // Issue makes a leaf certificate with a fresh key. DNS names that parse as IPs become IP SANs.
 func (ca Issuer) Issue(cn string, names []string, usage x509.ExtKeyUsage) tls.Certificate {
 	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
