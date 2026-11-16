@@ -1,0 +1,9 @@
+### GET /api/afiliados/numero_documento/1000000001?$filter=estado%20eq%20'retirado'
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:33 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 7ced469b-3b43-4668-9317-f6189c0be17c
+
+{"value":[]}

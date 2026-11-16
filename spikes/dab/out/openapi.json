@@ -1,0 +1,495 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Data API builder - REST Endpoint",
+    "version": "2.1.5"
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "paths": {
+    "/afiliados/numero_documento/{numero_documento}": {
+      "get": {
+        "tags": [
+          "afiliados"
+        ],
+        "description": "Returns an entity.",
+        "parameters": [
+          {
+            "name": "X-MS-API-ROLE",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "A comma separated list of fields to return in the response.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "An OData expression (an expression that returns a boolean value) using the entity's fields to retrieve a subset of the results.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Uses a comma-separated list of expressions to sort response items. Add 'desc' for descending order, otherwise it's ascending by default.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$first",
+            "in": "query",
+            "description": "An integer value that specifies the number of items to return. Default is 100.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "$after",
+            "in": "query",
+            "description": "An opaque string that specifies the cursor position after which results should be returned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "BadRequest"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "NotFound"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Afiliado"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "numero_documento",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/afiliados": {
+      "get": {
+        "tags": [
+          "afiliados"
+        ],
+        "description": "Returns entities.",
+        "parameters": [
+          {
+            "name": "X-MS-API-ROLE",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "A comma separated list of fields to return in the response.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "An OData expression (an expression that returns a boolean value) using the entity's fields to retrieve a subset of the results.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Uses a comma-separated list of expressions to sort response items. Add 'desc' for descending order, otherwise it's ascending by default.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$first",
+            "in": "query",
+            "description": "An integer value that specifies the number of items to return. Default is 100.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "$after",
+            "in": "query",
+            "description": "An opaque string that specifies the cursor position after which results should be returned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "BadRequest"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "NotFound"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Afiliado"
+                      }
+                    },
+                    "nextLink": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hogares/hogar_id/{hogar_id}": {
+      "get": {
+        "tags": [
+          "hogares"
+        ],
+        "description": "Returns an entity.",
+        "parameters": [
+          {
+            "name": "X-MS-API-ROLE",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "A comma separated list of fields to return in the response.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "An OData expression (an expression that returns a boolean value) using the entity's fields to retrieve a subset of the results.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Uses a comma-separated list of expressions to sort response items. Add 'desc' for descending order, otherwise it's ascending by default.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$first",
+            "in": "query",
+            "description": "An integer value that specifies the number of items to return. Default is 100.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "$after",
+            "in": "query",
+            "description": "An opaque string that specifies the cursor position after which results should be returned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "BadRequest"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "NotFound"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Hogar"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "parameters": [
+        {
+          "name": "hogar_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer"
+          }
+        }
+      ]
+    },
+    "/hogares": {
+      "get": {
+        "tags": [
+          "hogares"
+        ],
+        "description": "Returns entities.",
+        "parameters": [
+          {
+            "name": "X-MS-API-ROLE",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$select",
+            "in": "query",
+            "description": "A comma separated list of fields to return in the response.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$filter",
+            "in": "query",
+            "description": "An OData expression (an expression that returns a boolean value) using the entity's fields to retrieve a subset of the results.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$orderby",
+            "in": "query",
+            "description": "Uses a comma-separated list of expressions to sort response items. Add 'desc' for descending order, otherwise it's ascending by default.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "$first",
+            "in": "query",
+            "description": "An integer value that specifies the number of items to return. Default is 100.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "$after",
+            "in": "query",
+            "description": "An opaque string that specifies the cursor position after which results should be returned.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "BadRequest"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "NotFound"
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Hogar"
+                      }
+                    },
+                    "nextLink": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Afiliado": {
+        "type": "object",
+        "properties": {
+          "tipo_documento": {
+            "type": "string",
+            "format": ""
+          },
+          "numero_documento": {
+            "type": "string",
+            "description": "Número del documento de identidad",
+            "format": ""
+          },
+          "eps": {
+            "type": "string",
+            "format": ""
+          },
+          "regimen": {
+            "type": "string",
+            "format": ""
+          },
+          "estado": {
+            "type": "string",
+            "format": ""
+          },
+          "fecha_afiliacion": {
+            "type": "string",
+            "format": ""
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": ""
+          }
+        },
+        "description": "Afiliación vigente de una persona"
+      },
+      "Hogar": {
+        "type": "object",
+        "properties": {
+          "hogar_id": {
+            "type": "integer",
+            "format": ""
+          },
+          "numero_documento": {
+            "type": "string",
+            "format": ""
+          },
+          "puntaje": {
+            "type": "number",
+            "format": ""
+          },
+          "activo": {
+            "type": "boolean",
+            "format": ""
+          }
+        },
+        "description": "Personas que integran un hogar"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "afiliados",
+      "description": "Afiliación vigente de una persona"
+    },
+    {
+      "name": "hogares",
+      "description": "Personas que integran un hogar"
+    }
+  ]
+}

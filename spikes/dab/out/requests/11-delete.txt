@@ -1,0 +1,9 @@
+### DELETE /api/afiliados/numero_documento/1000000001
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:34 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 1507de47-85d2-4a04-8631-510e0e83b159
+
+{"error":{"code":"AuthorizationCheckFailed","message":"Authorization Failure: Access Not Allowed.","status":403}}

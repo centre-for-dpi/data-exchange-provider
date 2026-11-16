@@ -1,0 +1,9 @@
+### GET /api/afiliados?$filter=numero_documento%20eq%20'1000000002'
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:33 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 98f5d2a2-82cf-438c-a9d4-bf9f751c0e03
+
+{"value":[{"tipo_documento":"CC","numero_documento":"1000000002","eps":"EPS Tres","regimen":"contributivo","estado":"activo","fecha_afiliacion":"2025-10-19","actualizado_en":"2026-11-01T08:02:00-05:00"}]}

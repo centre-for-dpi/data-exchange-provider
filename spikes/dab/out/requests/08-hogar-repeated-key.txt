@@ -1,0 +1,9 @@
+### GET /api/hogares/hogar_id/1
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:33 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 1aa5e3bc-85e4-470a-afae-fe399fba9077
+
+{"value":[{"hogar_id":1,"numero_documento":"1000000001","puntaje":0.13,"activo":true}]}

@@ -1,0 +1,210 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Afiliaciones y hogares (spike)",
+    "version": "0.1.0",
+    "description": "API de solo lectura sobre vistas de la entidad. Generada con Data API builder y ajustada por el kit."
+  },
+  "tags": [
+    {
+      "name": "afiliados",
+      "description": "Afiliación vigente de una persona"
+    },
+    {
+      "name": "hogares",
+      "description": "Personas que integran un hogar"
+    }
+  ],
+  "paths": {
+    "/afiliados/{numero_documento}": {
+      "get": {
+        "operationId": "getAfiliado",
+        "tags": [
+          "afiliados"
+        ],
+        "summary": "Consultar la afiliación de una persona",
+        "description": "Devuelve la afiliación vigente de la persona identificada por su número de documento. Responde 404 si no existe.",
+        "x-rid-data-subject": {
+          "in": "path",
+          "name": "numero_documento",
+          "documentType": "CC"
+        },
+        "parameters": [
+          {
+            "name": "numero_documento",
+            "in": "path",
+            "required": true,
+            "description": "Número del documento de identidad de la persona.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registro encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Afiliado"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La clave no tiene un formato válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe un registro con esa clave.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/hogares/{hogar_id}": {
+      "get": {
+        "operationId": "getHogar",
+        "tags": [
+          "hogares"
+        ],
+        "summary": "Consultar los integrantes de un hogar",
+        "description": "Devuelve las personas que integran el hogar indicado. Responde 404 si el hogar no existe.",
+        "x-rid-data-subject": "none",
+        "parameters": [
+          {
+            "name": "hogar_id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador del hogar.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Registros encontrados.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Hogar"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La clave no tiene un formato válido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No existe un registro con esa clave.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "description": "Error devuelto por el servicio.",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Código del error."
+              },
+              "message": {
+                "type": "string",
+                "description": "Descripción del error."
+              },
+              "status": {
+                "type": "integer",
+                "description": "Código de estado HTTP."
+              }
+            }
+          }
+        }
+      },
+      "Afiliado": {
+        "type": "object",
+        "properties": {
+          "tipo_documento": {
+            "type": "string"
+          },
+          "numero_documento": {
+            "type": "string",
+            "description": "Número del documento de identidad"
+          },
+          "eps": {
+            "type": "string"
+          },
+          "regimen": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string"
+          },
+          "fecha_afiliacion": {
+            "type": "string",
+            "format": "date"
+          },
+          "actualizado_en": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "Afiliación vigente de una persona"
+      },
+      "Hogar": {
+        "type": "object",
+        "properties": {
+          "hogar_id": {
+            "type": "integer"
+          },
+          "numero_documento": {
+            "type": "string"
+          },
+          "puntaje": {
+            "type": "number"
+          },
+          "activo": {
+            "type": "boolean"
+          }
+        },
+        "description": "Personas que integran un hogar"
+      }
+    }
+  }
+}

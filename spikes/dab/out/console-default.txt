@@ -1,0 +1,78 @@
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      a19cb5a9-06fd-4ff7-9f19-cfbfd07087da Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Authorization Failure: Access Not Allowed.
+         at Azure.DataApiBuilder.Core.Services.RestService.AuthorizationCheckForRequirementAsync(Object resource, IAuthorizationRequirement requirement) in /_/src/Core/Services/RestService.cs:line 536
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 85
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      fe074afb-9528-4c9a-8b91-2ca52d608209 Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Authorization Failure: Access Not Allowed.
+         at Azure.DataApiBuilder.Core.Services.RestService.AuthorizationCheckForRequirementAsync(Object resource, IAuthorizationRequirement requirement) in /_/src/Core/Services/RestService.cs:line 536
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 85
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      1507de47-85d2-4a04-8631-510e0e83b159 Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Authorization Failure: Access Not Allowed.
+         at Azure.DataApiBuilder.Core.Services.RestService.AuthorizationCheckForRequirementAsync(Object resource, IAuthorizationRequirement requirement) in /_/src/Core/Services/RestService.cs:line 536
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 85
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      0cd2cd30-61f4-4a8b-bdc5-de77ed95c0e4 Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Could not find a property named 'nombres' on type 'default_namespace.Afiliado.salud.v_afiliados'.
+       ---> Microsoft.OData.ODataException: Could not find a property named 'nombres' on type 'default_namespace.Afiliado.salud.v_afiliados'.
+         at Microsoft.OData.UriParser.EndPathBinder.GeneratePropertyAccessQueryForOpenType(EndPathToken endPathToken, SingleValueNode parentNode)
+         at Microsoft.OData.UriParser.EndPathBinder.BindEndPath(EndPathToken endPathToken)
+         at Microsoft.OData.UriParser.MetadataBinder.BindEndPath(EndPathToken endPathToken)
+         at Microsoft.OData.UriParser.MetadataBinder.Bind(QueryToken token)
+         at Microsoft.OData.UriParser.BinaryOperatorBinder.GetOperandFromToken(BinaryOperatorKind operatorKind, QueryToken queryToken)
+         at Microsoft.OData.UriParser.BinaryOperatorBinder.BindBinaryOperator(BinaryOperatorToken binaryOperatorToken)
+         at Microsoft.OData.UriParser.MetadataBinder.BindBinaryOperator(BinaryOperatorToken binaryOperatorToken)
+         at Microsoft.OData.UriParser.MetadataBinder.Bind(QueryToken token)
+         at Microsoft.OData.UriParser.FilterBinder.BindFilter(QueryToken filter)
+         at Microsoft.OData.UriParser.ODataQueryOptionParser.ParseFilterImplementation(String filter, ODataUriParserConfiguration configuration, ODataPathInfo odataPathInfo)
+         at Microsoft.OData.UriParser.ODataQueryOptionParser.ParseFilter()
+         at Microsoft.OData.UriParser.ODataUriParser.ParseFilter()
+         at Azure.DataApiBuilder.Core.Parsers.ODataParser.GetFilterClause(String filterQueryString, String resourcePath, ODataUriResolver customResolver, IReadOnlyDictionary`2 parameterAliasNodes) in /_/src/Core/Parsers/FilterParser.cs:line 76
+         --- End of inner exception stack trace ---
+         at Azure.DataApiBuilder.Core.Parsers.ODataParser.GetFilterClause(String filterQueryString, String resourcePath, ODataUriResolver customResolver, IReadOnlyDictionary`2 parameterAliasNodes) in /_/src/Core/Parsers/FilterParser.cs:line 83
+         at Azure.DataApiBuilder.Core.Parsers.RequestParser.ParseQueryString(RestRequestContext context, ISqlMetadataProvider sqlMetadataProvider) in /_/src/Core/Parsers/RequestParser.cs:line 128
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 196
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      0ff8ae32-f8a3-42f1-8ae4-c1ff8203c68b Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: The request is invalid since the primary keys: eps requested were not found in the entity definition.
+         at Azure.DataApiBuilder.Core.Services.RequestValidator.ValidatePrimaryKey(RestRequestContext context) in /_/src/Core/Services/RequestValidator.cs:line 102
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 189
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      341bdd7b-99ca-4821-b91e-8fe44194f64f Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Route mcp was not found.
+         at Azure.DataApiBuilder.Core.Services.RestService.GetRouteAfterPathBase(String route) in /_/src/Core/Services/RestService.cs:line 417
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 227
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      0daf067a-477e-46af-ae16-4a6b0431bf67 Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Invalid Path for route: swagger.
+         at Azure.DataApiBuilder.Core.Services.RestService.GetRouteAfterPathBase(String route) in /_/src/Core/Services/RestService.cs:line 425
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 227
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      aefe0d6b-f170-4be0-a78f-2554c4563dcc Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Invalid value provided for field: hogar_id
+       ---> System.FormatException: The input string 'abc1000000001' was not in a correct format.
+         at System.Number.ThrowFormatException[TChar](ReadOnlySpan`1 value)
+         at System.Int32.Parse(String s)
+         at Azure.DataApiBuilder.Core.Resolvers.BaseSqlQueryStructure.ParseParamAsSystemType(String param, Type systemType) in /_/src/Core/Resolvers/Sql Query Structures/BaseSqlQueryStructure.cs:line 463
+         at Azure.DataApiBuilder.Core.Resolvers.BaseSqlQueryStructure.GetParamAsSystemType(String fieldValue, String fieldName, Type systemType) in /_/src/Core/Resolvers/Sql Query Structures/BaseSqlQueryStructure.cs:line 685
+         --- End of inner exception stack trace ---
+         at Azure.DataApiBuilder.Core.Resolvers.BaseSqlQueryStructure.GetParamAsSystemType(String fieldValue, String fieldName, Type systemType) in /_/src/Core/Resolvers/Sql Query Structures/BaseSqlQueryStructure.cs:line 719
+         at Azure.DataApiBuilder.Core.Resolvers.SqlQueryStructure.PopulateParamsAndPredicates(String field, String backingColumn, Object value, PredicateOperation op) in /_/src/Core/Resolvers/Sql Query Structures/SqlQueryStructure.cs:line 688
+         at Azure.DataApiBuilder.Core.Resolvers.SqlQueryStructure..ctor(RestRequestContext context, ISqlMetadataProvider sqlMetadataProvider, IAuthorizationResolver authorizationResolver, RuntimeConfigProvider runtimeConfigProvider, GQLFilterParser gQLFilterParser, HttpContext httpContext) in /_/src/Core/Resolvers/Sql Query Structures/SqlQueryStructure.cs:line 286
+         at Azure.DataApiBuilder.Core.Resolvers.SqlQueryEngine.ExecuteAsync(FindRequestContext context) in /_/src/Core/Resolvers/SqlQueryEngine.cs:line 185
+         at Azure.DataApiBuilder.Core.Services.RestService.DispatchQuery(RestRequestContext context, DatabaseType databaseType) in /_/src/Core/Services/RestService.cs:line 238
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 213
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      a9898f55-810e-464e-bb64-73a045c6bcb4 Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: Primary key column(s) provided do not match DB schema.
+         at Azure.DataApiBuilder.Core.Services.RequestValidator.ValidatePrimaryKey(RestRequestContext context) in /_/src/Core/Services/RequestValidator.cs:line 77
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 189
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278

@@ -1,0 +1,6 @@
+bin/*
+!bin/gonode-linux-amd64
+out/
+*.go
+go.*
+Dockerfile

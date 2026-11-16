@@ -1,0 +1,9 @@
+### GET /api/afiliados?$orderby=numero_documento%20desc&$first=1
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:35 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 89408f14-c316-489b-8a9c-73b2f4c0030e
+
+{"value":[{"tipo_documento":"CE","numero_documento":"1000001000","eps":"EPS Uno","regimen":"contributivo","estado":"activo","fecha_afiliacion":"2024-08-19","actualizado_en":"2026-11-02T00:40:00-05:00"}],"nextLink":"http://localhost:5000/api/afiliados?$orderby=numero_documento%20desc&$first=1&$after=W3siRW50aXR5TmFtZSI6IkFmaWxpYWRvIiwiRmllbGROYW1lIjoibnVtZXJvX2RvY3VtZW50byIsIkZpZWxkVmFsdWUiOiIxMDAwMDAxMDAwIiwiRGlyZWN0aW9uIjoxfV0="}

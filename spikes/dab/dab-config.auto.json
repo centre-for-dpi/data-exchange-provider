@@ -1,0 +1,72 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/download/v2.1.5/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('RID_DB_CONNECTION')",
+    "options": {
+      "set-session-context": false
+    }
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api",
+      "request-body-strict": false
+    },
+    "graphql": {
+      "enabled": false,
+      "path": "/graphql",
+      "allow-introspection": true
+    },
+    "mcp": {
+      "enabled": false,
+      "path": "/mcp"
+    },
+    "host": {
+      "cors": {
+        "origins": [],
+        "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "Unauthenticated"
+      },
+      "mode": "production"
+    },
+    "telemetry": {
+      "application-insights": {
+        "enabled": false
+      },
+      "open-telemetry": {
+        "enabled": false,
+        "exporter-protocol": "grpc",
+        "service-name": "dab"
+      }
+    }
+  },
+  "autoentities": {
+    "salud_all": {
+      "patterns": {
+        "include": [
+          "salud.%"
+        ]
+      },
+      "template": {
+        "graphql": {
+          "enabled": false
+        },
+        "mcp": false
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "entities": {}
+}

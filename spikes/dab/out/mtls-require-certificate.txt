@@ -1,0 +1,18 @@
+no client certificate                    error: ERR_SSL_SSL/TLS_ALERT_CERTIFICATE_UNKNOWN DCD50000:error:0A000416:SSL routines:ssl3_read_bytes:ssl/tls alert certificate unknown:openssl\ssl\record\rec_layer_s3.c:918:SSL alert number 46
+
+gateway (CN=rid-gateway, spike CA)       error: ERR_SSL_TLSV1_ALERT_UNKNOWN_CA DCD50000:error:0A000418:SSL routines:ssl3_read_bytes:tlsv1 alert unknown ca:openssl\ssl\record\rec_layer_s3.c:918:SSL alert number 48
+
+intruder (CN=someone-else, spike CA)     error: ERR_SSL_TLSV1_ALERT_UNKNOWN_CA DCD50000:error:0A000418:SSL routines:ssl3_read_bytes:tlsv1 alert unknown ca:openssl\ssl\record\rec_layer_s3.c:918:SSL alert number 48
+
+foreign (CN=rid-gateway, other CA)       error: ERR_SSL_TLSV1_ALERT_UNKNOWN_CA DCD50000:error:0A000418:SSL routines:ssl3_read_bytes:tlsv1 alert unknown ca:openssl\ssl\record\rec_layer_s3.c:918:SSL alert number 48
+
+
+# Setup (env vars only, no code):
+#   Kestrel__Endpoints__Https__Url=https://localhost:5443
+#   Kestrel__Endpoints__Https__Certificate__Path=<pki/server.pfx>
+#   Kestrel__Endpoints__Https__Certificate__Password=<from scratch file>
+#   Kestrel__Endpoints__Https__ClientCertificateMode=RequireCertificate
+# Result: Kestrel honored it (only :5443 listening, plain :5000 gone). No cert -> TLS alert 46
+# (certificate unknown). Any cert from a CA not in the OS trust store -> TLS alert 48 (unknown ca),
+# including the "gateway" cert. There is no Kestrel setting to name a trusted CA or an allowed
+# subject; trust comes from the OS store only.

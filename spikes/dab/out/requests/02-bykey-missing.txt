@@ -1,0 +1,9 @@
+### GET /api/afiliados/numero_documento/9999999999
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:32 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 722c0032-78fa-46bf-8940-f09195d74188
+
+{"value":[]}

@@ -1,0 +1,9 @@
+### GET /api/afiliados?$filter=nombres%20eq%20'x'
+HTTP/1.1 400 Bad Request
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:34 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 0cd2cd30-61f4-4a8b-bdc5-de77ed95c0e4
+
+{"error":{"code":"BadRequest","message":"Could not find a property named \u0027nombres\u0027 on type \u0027default_namespace.Afiliado.salud.v_afiliados\u0027.","status":400}}

@@ -1,0 +1,9 @@
+### GET /api/hogares?$first=3
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:34 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 3f2f1365-5884-455e-9603-3aab80f17fac
+
+{"value":[{"hogar_id":1,"numero_documento":"1000000002","puntaje":0.26,"activo":true},{"hogar_id":1,"numero_documento":"1000000001","puntaje":0.13,"activo":true},{"hogar_id":2,"numero_documento":"1000000004","puntaje":0.52,"activo":true}],"nextLink":"http://localhost:5000/api/hogares?$first=3&$after=W3siRW50aXR5TmFtZSI6IkhvZ2FyIiwiRmllbGROYW1lIjoiaG9nYXJfaWQiLCJGaWVsZFZhbHVlIjoyLCJEaXJlY3Rpb24iOjB9XQ=="}

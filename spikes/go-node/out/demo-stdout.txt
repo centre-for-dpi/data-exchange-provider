@@ -1,0 +1,14 @@
+== as the gateway ==
+by key                             -> 200 {"actualizado_en":"2026-11-01T08:01:00-05:00","eps":"EPS Dos","estado":"activo","fecha_afiliacion":"2025-11-25","numero_documento":"1000000001","regimen":"subsidiado","tipo_documento":"CC"}
+by key, not found                  -> 404 {"code":"not_found","status":404,"title":"No existe un registro con esa clave","type":"about:blank"}
+by key, bad format                 -> 400 {"code":"invalid_key","status":400,"title":"La clave no tiene el formato esperado","type":"about:blank"}
+query string                       -> 400 {"code":"query_not_allowed","status":400,"title":"Esta operación no acepta parámetros en la URL","type":"about:blank"}
+listing (undeclared)               -> 404 {"code":"not_found","status":404,"title":"Recurso no encontrado","type":"about:blank"}
+many rows (hogar)                  -> 200 [{"activo":true,"hogar_id":1,"numero_documento":"1000000001","puntaje":0.13},{"activo":true,"hogar_id":1,"numero_documento":"1000000002","puntaje":0.26}]
+own API                            -> 200 {"api":"propia","path":"/v1/certificados/abc","credential_received":true,"consumer":"entidad-consumidora"}
+== impostors ==
+consumer app cert (same CA)        -> REJECTED: Get "https://rid-node-0193a1b2-0000-7000-8000-000000000001:8443/salud-afiliacion/afiliados/1000000001": remote error: tls: bad certificate
+gateway name, foreign CA           -> REJECTED: Get "https://rid-node-0193a1b2-0000-7000-8000-000000000001:8443/salud-afiliacion/afiliados/1000000001": remote error: tls: unknown certificate authority
+no client certificate              -> REJECTED: Get "https://rid-node-0193a1b2-0000-7000-8000-000000000001:8443/salud-afiliacion/afiliados/1000000001": remote error: tls: certificate required
+== from the host, outside the tunnel ==
+tcp 127.0.0.1:8443                 -> dial tcp 127.0.0.1:8443: connectex: No connection could be made because the target machine actively refused it.

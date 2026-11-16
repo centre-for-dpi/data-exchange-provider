@@ -1,0 +1,38 @@
+# Declaración de un servicio de APIs instantáneas (lo que la entidad edita).
+# El nodo la valida contra el catálogo que ve el usuario de solo lectura.
+service: salud-afiliacion
+title: Consulta de afiliación en salud (spike)
+description: Datos sintéticos. Afiliación vigente y hogares, por clave en la ruta.
+version: "1.0.0"
+resources:
+  - name: afiliados
+    entity: Afiliado
+    source: salud.v_afiliados
+    description: Afiliación de una persona al sistema de salud.
+    key:
+      column: numero_documento
+      pattern: "^[0-9]{6,12}$"
+      description: Número de documento de la persona.
+    dataSubject:
+      documentType: CC
+    columns:
+      - { name: tipo_documento, description: Tipo de documento }
+      - { name: numero_documento, description: Número de documento }
+      - { name: eps, description: Entidad promotora de salud }
+      - { name: regimen, description: Régimen de afiliación }
+      - { name: estado, description: Estado de la afiliación }
+      - { name: fecha_afiliacion, description: Fecha de afiliación }
+      - { name: actualizado_en, description: Última actualización del registro }
+  - name: hogares
+    entity: Hogar
+    source: salud.v_hogares
+    description: Integrantes de un hogar y su puntaje.
+    many: true
+    key:
+      column: hogar_id
+      description: Identificador del hogar.
+    columns:
+      - { name: hogar_id, description: Identificador del hogar }
+      - { name: numero_documento, description: Número de documento del integrante }
+      - { name: puntaje, description: Puntaje del integrante }
+      - { name: activo, description: Si el integrante está activo }

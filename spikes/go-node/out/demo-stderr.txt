@@ -1,0 +1,10 @@
+access: {"client":"rid-gateway.salud","method":"GET","ms":5,"query_present":false,"request_id":"req-by-key","route":"/salud-afiliacion/afiliados/{numero_documento}","status":200,"ts":"2026-11-16T17:45:45.3412551Z"}
+access: {"client":"rid-gateway.salud","method":"GET","ms":1,"query_present":false,"request_id":"req-by-key,-not-found","route":"/salud-afiliacion/afiliados/{numero_documento}","status":404,"ts":"2026-11-16T17:45:45.3488121Z"}
+access: {"client":"rid-gateway.salud","method":"GET","ms":0,"query_present":false,"request_id":"req-by-key,-bad-format","route":"/salud-afiliacion/afiliados/{numero_documento}","status":400,"ts":"2026-11-16T17:45:45.3509426Z"}
+access: {"client":"rid-gateway.salud","method":"GET","ms":0,"query_present":true,"request_id":"req-query-string","route":"/salud-afiliacion/afiliados/{numero_documento}","status":400,"ts":"2026-11-16T17:45:45.3515114Z"}
+access: {"client":"rid-gateway.salud","method":"GET","ms":0,"query_present":false,"request_id":"req-listing-(undeclared)","route":"/salud-afiliacion/(undeclared)","status":404,"ts":"2026-11-16T17:45:45.3527478Z"}
+access: {"client":"rid-gateway.salud","method":"GET","ms":3,"query_present":false,"request_id":"req-many-rows-(hogar)","route":"/salud-afiliacion/hogares/{hogar_id}","status":200,"ts":"2026-11-16T17:45:45.3532784Z"}
+access: {"client":"rid-gateway.salud","method":"GET","ms":1,"query_present":false,"request_id":"req-own-API","route":"/api-propia/*","status":200,"ts":"2026-11-16T17:45:45.358279Z"}
+tls: http: TLS handshake error from 10.77.0.1:52953: client certificate "app-consumidora-123" is not the gateway
+tls: http: TLS handshake error from 10.77.0.1:62155: tls: failed to verify certificate: x509: certificate signed by unknown authority
+tls: http: TLS handshake error from 10.77.0.1:42709: tls: client didn't provide a certificate

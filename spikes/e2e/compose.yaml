@@ -1,0 +1,83 @@
+# THROWAWAY SPIKE. Databases for the engine matrix and the node, next to the portal's stack.
+# Passwords come from an env file outside the repo: docker compose --env-file <file> ...
+name: rid-kit-spike
+
+services:
+  kit-pg:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?}
+      POSTGRES_DB: entidad
+      RID_READER_PASSWORD: ${READER_PASSWORD:?}
+    volumes:
+      - ../db/postgres-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - ../db/postgres.sql:/sql/postgres.sql:ro
+    ports: ['127.0.0.1:55432:5432']
+    networks: [kitdb]
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres', '-d', 'entidad']
+      interval: 3s
+      retries: 30
+
+  kit-mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ADMIN_PASSWORD:?}
+      RID_READER_PASSWORD: ${READER_PASSWORD:?}
+    volumes:
+      - ../db/mysql-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+      - ../db/mysql.sql:/sql/mysql.sql:ro
+    ports: ['127.0.0.1:53306:3306']
+    networks: [kitdb]
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 3s
+      retries: 60
+
+  kit-oracle:
+    image: gvenzl/oracle-free:23-slim-faststart
+    profiles: [oracle]
+    environment:
+      ORACLE_PASSWORD: ${DB_ADMIN_PASSWORD:?}
+      RID_READER_PASSWORD: ${READER_PASSWORD:?}
+    volumes:
+      - ../db/oracle-init.sh:/container-entrypoint-initdb.d/init.sh:ro
+      - ../db/oracle.sql:/sql/oracle.sql:ro
+    ports: ['127.0.0.1:51521:1521']
+    networks: [kitdb]
+    healthcheck:
+      test: ['CMD', 'healthcheck.sh']
+      interval: 5s
+      retries: 60
+
+  # The node, as an entity would run it: no capabilities, read-only filesystem, non-root, no
+  # published ports. It reaches the database on its side and the network only outbound.
+  kit-node:
+    build: ../go-node
+    image: rid/kit-node-spike:dev
+    profiles: [node]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    environment:
+      RID_PORTAL_URL: http://host.docker.internal:4000
+      RID_CONTROL_HOST: apisix
+      RID_SERVICE_PATH: /salud-afiliacion
+      RID_DB_ENGINE: postgres
+      RID_DB_DSN: postgres://rid_reader:${READER_PASSWORD:?}@kit-pg:5432/entidad?sslmode=disable
+      RID_ENROLLMENT_TOKEN: ${RID_ENROLLMENT_TOKEN:-}
+      RID_HEARTBEAT_SECONDS: '15'
+      RID_RENEW_ONCE: '1'
+    volumes: [kit-node-state:/var/lib/rid-node]
+    networks: [kitdb, rid_providers]
+    depends_on:
+      kit-pg:
+        condition: service_healthy
+
+networks:
+  kitdb: {}
+  rid_providers:
+    external: true
+
+volumes:
+  kit-node-state: {}

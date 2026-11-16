@@ -1,0 +1,9 @@
+### GET /swagger
+HTTP/1.1 400 Bad Request
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:35 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 0daf067a-477e-46af-ae16-4a6b0431bf67
+
+{"error":{"code":"BadRequest","message":"Invalid Path for route: swagger.","status":400}}

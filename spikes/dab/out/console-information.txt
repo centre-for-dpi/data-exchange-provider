@@ -1,0 +1,68 @@
+info: Microsoft.DataApiBuilder 2.1.5
+info: User provided config file: dab-config.json
+info: Loaded config file: dab-config.json
+info: Setting minimum LogLevel: Information.
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+      User profile is available. Using 'C:\Users\<user>\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+info: Azure.DataApiBuilder.Service.Startup[0]
+      Response compression enabled with level 'Optimal' for REST, GraphQL, and MCP endpoints.
+warn: Azure.DataApiBuilder.Service.Startup[0]
+      Logs won't be sent to Open Telemetry because a valid Open Telemetry endpoint URI is not available in the runtime config.
+info: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      Loading config file from C:\Users\<user>\source\repos\cdpi\data-exchange-provider\spikes\dab\dab-config.json.
+info: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      Loading config file from C:\Users\<user>\source\repos\cdpi\data-exchange-provider\spikes\dab\dab-config.json.
+info: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      Monitoring config: dab-config.json for hot-reloading.
+info: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      [Afiliado] REST path: /api//afiliados
+info: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      [Hogar] REST path: /api//hogares
+info: Azure.DataApiBuilder.Service.Startup[0]
+      Successfully completed runtime initialization.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\<user>\source\repos\cdpi\data-exchange-provider\spikes\dab
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/ - - -
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Health checks'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Health checks'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/ - 200 - application/json;+charset=utf-8 68.2719ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/afiliados/numero_documento/1000000001 - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Find", controller = "Rest"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Find(System.String) on controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType1`1[[System.Collections.Generic.List`1[[System.Text.Json.JsonElement, System.Text.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service) in 168.157ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/afiliados/numero_documento/1000000001 - 200 - application/json;+charset=utf-8 209.5215ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/afiliados?$filter=numero_documento%20eq%20'1000000002' - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Find", controller = "Rest"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Find(System.String) on controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service).
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType1`1[[System.Collections.Generic.List`1[[System.Text.Json.JsonElement, System.Text.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service) in 101.6941ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/afiliados?$filter=numero_documento%20eq%20'1000000002' - 200 - application/json;+charset=utf-8 105.0147ms

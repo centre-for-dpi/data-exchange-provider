@@ -1,0 +1,118 @@
+{
+  "$schema": "https://github.com/Azure/data-api-builder/releases/download/v2.1.5/dab.draft.schema.json",
+  "data-source": {
+    "database-type": "mssql",
+    "connection-string": "@env('RID_DB_CONNECTION')",
+    "options": {
+      "set-session-context": false
+    }
+  },
+  "runtime": {
+    "rest": {
+      "enabled": true,
+      "path": "/api",
+      "request-body-strict": false
+    },
+    "graphql": {
+      "enabled": false,
+      "path": "/graphql",
+      "allow-introspection": true
+    },
+    "mcp": {
+      "enabled": false,
+      "path": "/mcp"
+    },
+    "host": {
+      "cors": {
+        "origins": [],
+        "allow-credentials": false
+      },
+      "authentication": {
+        "provider": "Unauthenticated"
+      },
+      "mode": "production"
+    },
+    "telemetry": {
+      "application-insights": {
+        "enabled": false
+      },
+      "open-telemetry": {
+        "enabled": false,
+        "exporter-protocol": "grpc",
+        "service-name": "dab"
+      }
+    }
+  },
+  "autoentities": {},
+  "entities": {
+    "Afiliado": {
+      "description": "Afiliación vigente de una persona",
+      "source": {
+        "object": "salud.v_afiliados",
+        "type": "view"
+      },
+      "fields": [
+        {
+          "name": "numero_documento",
+          "description": "Número del documento de identidad",
+          "primary-key": true
+        }
+      ],
+      "graphql": {
+        "enabled": false,
+        "type": {
+          "singular": "Afiliado",
+          "plural": "Afiliados"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/afiliados"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    },
+    "Hogar": {
+      "description": "Personas que integran un hogar",
+      "source": {
+        "object": "salud.v_hogares",
+        "type": "view"
+      },
+      "fields": [
+        {
+          "name": "hogar_id",
+          "primary-key": true
+        }
+      ],
+      "graphql": {
+        "enabled": false,
+        "type": {
+          "singular": "Hogar",
+          "plural": "Hogars"
+        }
+      },
+      "rest": {
+        "enabled": true,
+        "path": "/hogares"
+      },
+      "permissions": [
+        {
+          "role": "anonymous",
+          "actions": [
+            {
+              "action": "read"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

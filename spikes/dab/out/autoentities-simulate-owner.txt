@@ -1,0 +1,10 @@
+info: Microsoft.DataApiBuilder 2.1.5
+info: User provided config file: dab-config.auto.json
+Autoentities Simulation Results
+
+Filter: salud_all
+Matches: 2
+
+salud_notas_internas -> salud.notas_internas
+salud_personas_base  -> salud.personas_base
+

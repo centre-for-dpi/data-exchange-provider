@@ -1,0 +1,399 @@
+info: Microsoft.DataApiBuilder 2.1.5
+info: User provided config file: dab-config.json
+info: Loaded config file: dab-config.json
+info: Setting minimum LogLevel: Debug.
+dbug: Microsoft.Extensions.Hosting.Internal.Host[1]
+      Hosting starting
+info: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[63]
+      User profile is available. Using 'C:\Users\<user>\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+dbug: Microsoft.AspNetCore.DataProtection.Repositories.FileSystemXmlRepository[37]
+      Reading data from file 'C:\Users\<user>\AppData\Local\ASP.NET\DataProtection-Keys\key-0d98451b-f1a0-4237-a744-fe4f94208eb8.xml'.
+dbug: Microsoft.AspNetCore.DataProtection.Repositories.FileSystemXmlRepository[37]
+      Reading data from file 'C:\Users\<user>\AppData\Local\ASP.NET\DataProtection-Keys\key-4ca3e863-e9a7-40de-ad06-7985e1c234ed.xml'.
+dbug: Microsoft.AspNetCore.DataProtection.Repositories.FileSystemXmlRepository[37]
+      Reading data from file 'C:\Users\<user>\AppData\Local\ASP.NET\DataProtection-Keys\key-eaee962c-3f8a-4a68-8f7a-957147a5a7c8.xml'.
+dbug: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[18]
+      Found key {0d98451b-f1a0-4237-a744-fe4f94208eb8}.
+dbug: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[18]
+      Found key {4ca3e863-e9a7-40de-ad06-7985e1c234ed}.
+dbug: Microsoft.AspNetCore.DataProtection.KeyManagement.XmlKeyManager[18]
+      Found key {eaee962c-3f8a-4a68-8f7a-957147a5a7c8}.
+dbug: Microsoft.AspNetCore.DataProtection.KeyManagement.DefaultKeyResolver[13]
+      Considering key {eaee962c-3f8a-4a68-8f7a-957147a5a7c8} with expiration date 2027-02-14 17:39:31Z as default key.
+dbug: Microsoft.AspNetCore.DataProtection.TypeForwardingActivator[0]
+      Forwarded activator type request from Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor, Microsoft.AspNetCore.DataProtection, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60 to Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor, Microsoft.AspNetCore.DataProtection, Culture=neutral, PublicKeyToken=adb9793829ddae60
+dbug: Microsoft.AspNetCore.DataProtection.XmlEncryption.DpapiXmlDecryptor[51]
+      Decrypting secret element using Windows DPAPI.
+dbug: Microsoft.AspNetCore.DataProtection.TypeForwardingActivator[0]
+      Forwarded activator type request from Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationModel.AuthenticatedEncryptorDescriptorDeserializer, Microsoft.AspNetCore.DataProtection, Version=10.0.0.0, Culture=neutral, PublicKeyToken=adb9793829ddae60 to Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.ConfigurationModel.AuthenticatedEncryptorDescriptorDeserializer, Microsoft.AspNetCore.DataProtection, Culture=neutral, PublicKeyToken=adb9793829ddae60
+dbug: Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.CngCbcAuthenticatedEncryptorFactory[4]
+      Opening CNG algorithm 'AES' from provider '(null)' with chaining mode CBC.
+dbug: Microsoft.AspNetCore.DataProtection.AuthenticatedEncryption.CngCbcAuthenticatedEncryptorFactory[3]
+      Opening CNG algorithm 'SHA256' from provider '(null)' with HMAC.
+dbug: Microsoft.AspNetCore.DataProtection.KeyManagement.KeyRingProvider[2]
+      Using key {eaee962c-3f8a-4a68-8f7a-957147a5a7c8} as the default key.
+dbug: Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService[65]
+      Key ring with default key {eaee962c-3f8a-4a68-8f7a-957147a5a7c8} was loaded during application startup.
+info: Azure.DataApiBuilder.Service.Startup[0]
+      Response compression enabled with level 'Optimal' for REST, GraphQL, and MCP endpoints.
+warn: Azure.DataApiBuilder.Service.Startup[0]
+      Logs won't be sent to Open Telemetry because a valid Open Telemetry endpoint URI is not available in the runtime config.
+info: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      Loading config file from C:\Users\<user>\source\repos\cdpi\data-exchange-provider\spikes\dab\dab-config.json.
+dbug: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      DAB telemetry Application Name computed for 'MSSQL' data source: dab_oss_2.1.5+XXSX||100100MMM000M1MMMUMM|010?011000000?+
+info: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      Loading config file from C:\Users\<user>\source\repos\cdpi\data-exchange-provider\spikes\dab\dab-config.json.
+dbug: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      DAB telemetry Application Name computed for 'MSSQL' data source: dab_oss_2.1.5+XXSX||100100MMM000M1MMMUMM|010?011000000?+
+info: Azure.DataApiBuilder.Config.FileSystemRuntimeConfigLoader[0]
+      Monitoring config: dab-config.json for hot-reloading.
+info: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      [Afiliado] REST path: /api//afiliados
+info: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      [Hogar] REST path: /api//hogares
+dbug: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      Logging primary key information for entity: Afiliado.
+dbug: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      Primary key column name: numero_documento
+      Primary key mapped name: numero_documento
+      Type: String
+      IsNullable: False
+      IsAutoGenerated: False
+dbug: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      Logging primary key information for entity: Hogar.
+dbug: Azure.DataApiBuilder.Core.Services.ISqlMetadataProvider[0]
+      Primary key column name: hogar_id
+      Primary key mapped name: hogar_id
+      Type: Int32
+      IsNullable: False
+      IsAutoGenerated: False
+info: Azure.DataApiBuilder.Service.Startup[0]
+      Successfully completed runtime initialization.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ModelBinderFactory[12]
+      Registered model binder providers, in the following order: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider, Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider
+dbug: Microsoft.AspNetCore.HostFiltering.HostFilteringMiddleware[7]
+      Middleware configuration started with options: {AllowedHosts = *, AllowEmptyHosts = True, IncludeFailureMessage = True}
+dbug: Microsoft.AspNetCore.HostFiltering.HostFilteringMiddleware[0]
+      Wildcard detected, all requests with hosts will be allowed.
+dbug: Microsoft.AspNetCore.Server.Kestrel[0]
+      No listening endpoints were configured. Binding to http://localhost:5000 by default.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+dbug: Microsoft.AspNetCore.Hosting.Diagnostics[13]
+      Loaded hosting startup assembly Azure.DataApiBuilder.Service
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\Users\<user>\source\repos\cdpi\data-exchange-provider\spikes\dab
+dbug: Microsoft.Extensions.Hosting.Internal.Host[2]
+      Hosting started
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[39]
+      Connection id "0HNQ414PD0FE6" accepted.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[1]
+      Connection id "0HNQ414PD0FE6" started.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/ - - -
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.
+dbug: Microsoft.AspNetCore.ResponseCompression.ResponseCompressionProvider[1]
+      No response compression available, the Accept-Encoding header is missing or invalid.
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1001]
+      2 candidate(s) found for the request path '/'
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1005]
+      Endpoint 'Health checks' with route pattern '/' is valid for the request path '/'
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1005]
+      Endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)' with route pattern '{*route}' is valid for the request path '/'
+dbug: Microsoft.AspNetCore.Routing.EndpointRoutingMiddleware[1]
+      Request matched endpoint 'Health checks'
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.ClientRoleHeaderAuthenticationMiddleware[0]
+      6165b3e4-6e49-4ad7-856e-6b9f0a0ce9e7 AuthN state: Anonymous. Role: Anonymous. Scheme: UnauthenticatedAuthentication
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Health checks'
+dbug: Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService[100]
+      Running health checks
+dbug: Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService[102]
+      Running health check BasicHealthCheck
+dbug: Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService[103]
+      Health check BasicHealthCheck with status Healthy completed after 1.9251ms with message 'Healthy'
+dbug: Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService[105]
+      Health check data for BasicHealthCheck:
+          version: 2.1.5
+          app-name: dab_oss_2.1.5
+          HealthCheckName: BasicHealthCheck
+      
+dbug: Microsoft.Extensions.Diagnostics.HealthChecks.DefaultHealthCheckService[101]
+      Health check processing with combined status Healthy completed after 19.5928ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Health checks'
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[9]
+      Connection id "0HNQ414PD0FE6" completed keep alive response.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/ - 200 - application/json;+charset=utf-8 122.4888ms
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[6]
+      Connection id "0HNQ414PD0FE6" received FIN.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[7]
+      Connection id "0HNQ414PD0FE6" sending FIN because: "The Socket transport's send loop completed gracefully."
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[10]
+      Connection id "0HNQ414PD0FE6" disconnecting.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[2]
+      Connection id "0HNQ414PD0FE6" stopped.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[39]
+      Connection id "0HNQ414PD0FE7" accepted.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[1]
+      Connection id "0HNQ414PD0FE7" started.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/afiliados/numero_documento/1000000001 - - -
+dbug: Microsoft.AspNetCore.ResponseCompression.ResponseCompressionProvider[1]
+      No response compression available, the Accept-Encoding header is missing or invalid.
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1001]
+      1 candidate(s) found for the request path '/api/afiliados/numero_documento/1000000001'
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1005]
+      Endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)' with route pattern '{*route}' is valid for the request path '/api/afiliados/numero_documento/1000000001'
+dbug: Microsoft.AspNetCore.Routing.EndpointRoutingMiddleware[1]
+      Request matched endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.ClientRoleHeaderAuthenticationMiddleware[0]
+      4a6e3a80-a52e-4cba-b76a-29b69b0c2624 AuthN state: Anonymous. Role: Anonymous. Scheme: UnauthenticatedAuthentication
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Find", controller = "Rest"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Find(System.String) on controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service).
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of authorization filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of resource filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of action filters (in the following order): Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000), Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of exception filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of result filters (in the following order): Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000), Microsoft.AspNetCore.Mvc.ProducesAttribute (Order: 0)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Executing controller factory for controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[2]
+      Executed controller factory for controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service)
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[22]
+      Attempting to bind parameter 'route' of type 'System.String' ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinder[44]
+      Attempting to bind parameter 'route' of type 'System.String' using the name 'route' in request data ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinder[45]
+      Done attempting to bind parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[23]
+      Done attempting to bind parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[26]
+      Attempting to validate the bound parameter 'route' of type 'System.String' ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[27]
+      Done attempting to validate the bound parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Authorization.DefaultAuthorizationService[1]
+      Authorization was successful.
+dbug: Microsoft.AspNetCore.Authorization.DefaultAuthorizationService[1]
+      Authorization was successful.
+dbug: Azure.DataApiBuilder.Core.Resolvers.IQueryExecutor[0]
+      4a6e3a80-a52e-4cba-b76a-29b69b0c2624 Executing query: SELECT TOP 1 [salud_v_afiliados].[tipo_documento] AS [tipo_documento], [salud_v_afiliados].[numero_documento] AS [numero_documento], [salud_v_afiliados].[eps] AS [eps], [salud_v_afiliados].[regimen] AS [regimen], [salud_v_afiliados].[estado] AS [estado], [salud_v_afiliados].[fecha_afiliacion] AS [fecha_afiliacion], [salud_v_afiliados].[actualizado_en] AS [actualizado_en]  FROM [salud].[v_afiliados] AS [salud_v_afiliados] WHERE [salud_v_afiliados].[numero_documento] = @param0 ORDER BY [salud_v_afiliados].[numero_documento] ASC FOR JSON PATH, INCLUDE_NULL_VALUES,WITHOUT_ARRAY_WRAPPER
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[11]
+      List of registered output formatters, in the following order: Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter, Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter, Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter, Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[4]
+      No information found on request to perform content negotiation.
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[9]
+      Attempting to select the first output formatter in the output formatters list which supports a content type from the explicitly specified content types 'application/json'.
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[2]
+      Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType1`1[[System.Collections.Generic.List`1[[System.Text.Json.JsonElement, System.Text.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service) in 133.5974ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[9]
+      Connection id "0HNQ414PD0FE7" completed keep alive response.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/afiliados/numero_documento/1000000001 - 200 - application/json;+charset=utf-8 200.3158ms
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[6]
+      Connection id "0HNQ414PD0FE7" received FIN.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[7]
+      Connection id "0HNQ414PD0FE7" sending FIN because: "The Socket transport's send loop completed gracefully."
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[10]
+      Connection id "0HNQ414PD0FE7" disconnecting.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[2]
+      Connection id "0HNQ414PD0FE7" stopped.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[39]
+      Connection id "0HNQ414PD0FE8" accepted.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[1]
+      Connection id "0HNQ414PD0FE8" started.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/afiliados?$filter=numero_documento%20eq%20'1000000002' - - -
+dbug: Microsoft.AspNetCore.ResponseCompression.ResponseCompressionProvider[1]
+      No response compression available, the Accept-Encoding header is missing or invalid.
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1001]
+      1 candidate(s) found for the request path '/api/afiliados'
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1005]
+      Endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)' with route pattern '{*route}' is valid for the request path '/api/afiliados'
+dbug: Microsoft.AspNetCore.Routing.EndpointRoutingMiddleware[1]
+      Request matched endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.ClientRoleHeaderAuthenticationMiddleware[0]
+      729ec640-65a0-49a7-92b7-3af0efd6f64e AuthN state: Anonymous. Role: Anonymous. Scheme: UnauthenticatedAuthentication
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Find", controller = "Rest"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Find(System.String) on controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service).
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of authorization filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of resource filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of action filters (in the following order): Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000), Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of exception filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of result filters (in the following order): Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000), Microsoft.AspNetCore.Mvc.ProducesAttribute (Order: 0)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Executing controller factory for controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[2]
+      Executed controller factory for controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service)
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[22]
+      Attempting to bind parameter 'route' of type 'System.String' ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinder[44]
+      Attempting to bind parameter 'route' of type 'System.String' using the name 'route' in request data ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinder[45]
+      Done attempting to bind parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[23]
+      Done attempting to bind parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[26]
+      Attempting to validate the bound parameter 'route' of type 'System.String' ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[27]
+      Done attempting to validate the bound parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Authorization.DefaultAuthorizationService[1]
+      Authorization was successful.
+dbug: Microsoft.AspNetCore.Authorization.DefaultAuthorizationService[1]
+      Authorization was successful.
+dbug: Azure.DataApiBuilder.Core.Resolvers.IQueryExecutor[0]
+      729ec640-65a0-49a7-92b7-3af0efd6f64e Executing query: SELECT TOP 101 [salud_v_afiliados].[tipo_documento] AS [tipo_documento], [salud_v_afiliados].[numero_documento] AS [numero_documento], [salud_v_afiliados].[eps] AS [eps], [salud_v_afiliados].[regimen] AS [regimen], [salud_v_afiliados].[estado] AS [estado], [salud_v_afiliados].[fecha_afiliacion] AS [fecha_afiliacion], [salud_v_afiliados].[actualizado_en] AS [actualizado_en]  FROM [salud].[v_afiliados] AS [salud_v_afiliados] WHERE ([numero_documento] = @param0) ORDER BY [salud_v_afiliados].[numero_documento] ASC FOR JSON PATH, INCLUDE_NULL_VALUES
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[11]
+      List of registered output formatters, in the following order: Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter, Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter, Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter, Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[4]
+      No information found on request to perform content negotiation.
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[9]
+      Attempting to select the first output formatter in the output formatters list which supports a content type from the explicitly specified content types 'application/json'.
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.DefaultOutputFormatterSelector[2]
+      Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ObjectResultExecutor[1]
+      Executing OkObjectResult, writing value of type '<>f__AnonymousType1`1[[System.Collections.Generic.List`1[[System.Text.Json.JsonElement, System.Text.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51]], System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service) in 109.996ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[9]
+      Connection id "0HNQ414PD0FE8" completed keep alive response.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/afiliados?$filter=numero_documento%20eq%20'1000000002' - 200 - application/json;+charset=utf-8 113.5474ms
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[6]
+      Connection id "0HNQ414PD0FE8" received FIN.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[7]
+      Connection id "0HNQ414PD0FE8" sending FIN because: "The Socket transport's send loop completed gracefully."
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[10]
+      Connection id "0HNQ414PD0FE8" disconnecting.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[2]
+      Connection id "0HNQ414PD0FE8" stopped.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[39]
+      Connection id "0HNQ414PD0FE9" accepted.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[1]
+      Connection id "0HNQ414PD0FE9" started.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://localhost:5000/api/afiliados?$filter=fecha_afiliacion%20eq%20'x1000000003' - - -
+dbug: Microsoft.AspNetCore.ResponseCompression.ResponseCompressionProvider[1]
+      No response compression available, the Accept-Encoding header is missing or invalid.
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1001]
+      1 candidate(s) found for the request path '/api/afiliados'
+dbug: Microsoft.AspNetCore.Routing.Matching.DfaMatcher[1005]
+      Endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)' with route pattern '{*route}' is valid for the request path '/api/afiliados'
+dbug: Microsoft.AspNetCore.Routing.EndpointRoutingMiddleware[1]
+      Request matched endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.UnauthenticatedAuthentication.UnauthenticatedAuthenticationHandler[8]
+      AuthenticationScheme: UnauthenticatedAuthentication was successfully authenticated.
+dbug: Azure.DataApiBuilder.Core.AuthenticationHelpers.ClientRoleHeaderAuthenticationMiddleware[0]
+      254ec26f-66ba-4f01-bdf0-66b96283ce4e AuthN state: Anonymous. Role: Anonymous. Scheme: UnauthenticatedAuthentication
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[102]
+      Route matched with {action = "Find", controller = "Rest"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.IActionResult] Find(System.String) on controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service).
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of authorization filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of resource filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of action filters (in the following order): Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000), Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of exception filters (in the following order): None
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Execution plan of result filters (in the following order): Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000), Microsoft.AspNetCore.Mvc.ProducesAttribute (Order: 0)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[1]
+      Executing controller factory for controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service)
+dbug: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[2]
+      Executed controller factory for controller Azure.DataApiBuilder.Service.Controllers.RestController (Azure.DataApiBuilder.Service)
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[22]
+      Attempting to bind parameter 'route' of type 'System.String' ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinder[44]
+      Attempting to bind parameter 'route' of type 'System.String' using the name 'route' in request data ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinder[45]
+      Done attempting to bind parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[23]
+      Done attempting to bind parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[26]
+      Attempting to validate the bound parameter 'route' of type 'System.String' ...
+dbug: Microsoft.AspNetCore.Mvc.ModelBinding.ParameterBinder[27]
+      Done attempting to validate the bound parameter 'route' of type 'System.String'.
+dbug: Microsoft.AspNetCore.Authorization.DefaultAuthorizationService[1]
+      Authorization was successful.
+fail: Azure.DataApiBuilder.Service.Controllers.RestController[0]
+      254ec26f-66ba-4f01-bdf0-66b96283ce4e Error handling REST request.
+      Azure.DataApiBuilder.Service.Exceptions.DataApiBuilderException: A binary operator with incompatible types was detected. Found operand types 'Edm.DateTimeOffset' and 'Edm.String' for operator kind 'Equal'.
+       ---> Microsoft.OData.ODataException: A binary operator with incompatible types was detected. Found operand types 'Edm.DateTimeOffset' and 'Edm.String' for operator kind 'Equal'.
+         at Microsoft.OData.UriParser.BinaryOperatorBinder.PromoteOperandTypes(BinaryOperatorKind binaryOperatorKind, SingleValueNode& left, SingleValueNode& right, TypeFacetsPromotionRules facetsPromotionRules)
+         at Microsoft.OData.UriParser.ODataUriResolver.PromoteBinaryOperandTypes(BinaryOperatorKind binaryOperatorKind, SingleValueNode& leftNode, SingleValueNode& rightNode, IEdmTypeReference& typeReference)
+         at Microsoft.OData.UriParser.BinaryOperatorBinder.BindBinaryOperator(BinaryOperatorToken binaryOperatorToken)
+         at Microsoft.OData.UriParser.MetadataBinder.BindBinaryOperator(BinaryOperatorToken binaryOperatorToken)
+         at Microsoft.OData.UriParser.MetadataBinder.Bind(QueryToken token)
+         at Microsoft.OData.UriParser.FilterBinder.BindFilter(QueryToken filter)
+         at Microsoft.OData.UriParser.ODataQueryOptionParser.ParseFilterImplementation(String filter, ODataUriParserConfiguration configuration, ODataPathInfo odataPathInfo)
+         at Microsoft.OData.UriParser.ODataQueryOptionParser.ParseFilter()
+         at Microsoft.OData.UriParser.ODataUriParser.ParseFilter()
+         at Azure.DataApiBuilder.Core.Parsers.ODataParser.GetFilterClause(String filterQueryString, String resourcePath, ODataUriResolver customResolver, IReadOnlyDictionary`2 parameterAliasNodes) in /_/src/Core/Parsers/FilterParser.cs:line 76
+         --- End of inner exception stack trace ---
+         at Azure.DataApiBuilder.Core.Parsers.ODataParser.GetFilterClause(String filterQueryString, String resourcePath, ODataUriResolver customResolver, IReadOnlyDictionary`2 parameterAliasNodes) in /_/src/Core/Parsers/FilterParser.cs:line 83
+         at Azure.DataApiBuilder.Core.Parsers.RequestParser.ParseQueryString(RestRequestContext context, ISqlMetadataProvider sqlMetadataProvider) in /_/src/Core/Parsers/RequestParser.cs:line 128
+         at Azure.DataApiBuilder.Core.Services.RestService.ExecuteAsync(String entityName, EntityActionOperation operationType, String primaryKeyRoute) in /_/src/Core/Services/RestService.cs:line 196
+         at Azure.DataApiBuilder.Service.Controllers.RestController.HandleOperation(String route, EntityActionOperation operationType) in /_/src/Service/Controllers/RestController.cs:line 278
+info: Microsoft.AspNetCore.Mvc.Infrastructure.SystemTextJsonResultExecutor[1]
+      Executing JsonResult, writing value of type '<>f__AnonymousType0`1[[<>f__AnonymousType1`3[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], Azure.DataApiBuilder.Service, Version=2.1.5.0, Culture=neutral, PublicKeyToken=null]]'.
+info: Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker[105]
+      Executed action Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service) in 27.0834ms
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'Azure.DataApiBuilder.Service.Controllers.RestController.Find (Azure.DataApiBuilder.Service)'
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[9]
+      Connection id "0HNQ414PD0FE9" completed keep alive response.
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://localhost:5000/api/afiliados?$filter=fecha_afiliacion%20eq%20'x1000000003' - 400 - application/json;+charset=utf-8 27.7551ms
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[6]
+      Connection id "0HNQ414PD0FE9" received FIN.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets[7]
+      Connection id "0HNQ414PD0FE9" sending FIN because: "The Socket transport's send loop completed gracefully."
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[10]
+      Connection id "0HNQ414PD0FE9" disconnecting.
+dbug: Microsoft.AspNetCore.Server.Kestrel.Connections[2]
+      Connection id "0HNQ414PD0FE9" stopped.

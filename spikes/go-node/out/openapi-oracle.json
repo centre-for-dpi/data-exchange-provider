@@ -1,0 +1,254 @@
+{
+  "components": {
+    "schemas": {
+      "Afiliado": {
+        "additionalProperties": false,
+        "properties": {
+          "actualizado_en": {
+            "description": "Última actualización del registro",
+            "format": "date-time",
+            "type": "string"
+          },
+          "eps": {
+            "description": "Entidad promotora de salud",
+            "maxLength": 60,
+            "type": "string"
+          },
+          "estado": {
+            "description": "Estado de la afiliación",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "fecha_afiliacion": {
+            "description": "Fecha de afiliación",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?$",
+            "type": "string"
+          },
+          "numero_documento": {
+            "description": "Número de documento",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "regimen": {
+            "description": "Régimen de afiliación",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "tipo_documento": {
+            "description": "Tipo de documento",
+            "maxLength": 3,
+            "type": "string"
+          }
+        },
+        "required": [
+          "actualizado_en",
+          "eps",
+          "estado",
+          "fecha_afiliacion",
+          "numero_documento",
+          "regimen",
+          "tipo_documento"
+        ],
+        "type": "object"
+      },
+      "Hogar": {
+        "additionalProperties": false,
+        "properties": {
+          "activo": {
+            "description": "Si el integrante está activo",
+            "type": "integer"
+          },
+          "hogar_id": {
+            "description": "Identificador del hogar",
+            "type": "integer"
+          },
+          "numero_documento": {
+            "description": "Número de documento del integrante",
+            "maxLength": 20,
+            "type": "string"
+          },
+          "puntaje": {
+            "description": "Puntaje del integrante",
+            "type": "number"
+          }
+        },
+        "required": [
+          "activo",
+          "hogar_id",
+          "numero_documento",
+          "puntaje"
+        ],
+        "type": "object"
+      },
+      "Problem": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Datos sintéticos. Afiliación vigente y hogares, por clave en la ruta.",
+    "title": "Consulta de afiliación en salud (spike)",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/afiliados/{numero_documento}": {
+      "get": {
+        "description": "Afiliación de una persona al sistema de salud.",
+        "operationId": "getAfiliado",
+        "parameters": [
+          {
+            "description": "Número de documento de la persona.",
+            "in": "path",
+            "name": "numero_documento",
+            "required": true,
+            "schema": {
+              "maxLength": 20,
+              "pattern": "^[0-9]{6,12}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Afiliado"
+                }
+              }
+            },
+            "description": "El registro"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Clave con formato inválido o parámetros no permitidos"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No existe un registro con esa clave"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "La fuente de datos no está disponible"
+          }
+        },
+        "summary": "Consultar afiliado por numero_documento",
+        "tags": [
+          "afiliados"
+        ],
+        "x-rid-data-subject": {
+          "documentType": "CC",
+          "in": "path",
+          "name": "numero_documento"
+        }
+      }
+    },
+    "/hogares/{hogar_id}": {
+      "get": {
+        "description": "Integrantes de un hogar y su puntaje.",
+        "operationId": "getHogar",
+        "parameters": [
+          {
+            "description": "Identificador del hogar.",
+            "in": "path",
+            "name": "hogar_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{1,18}$",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Hogar"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "El registro"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Clave con formato inválido o parámetros no permitidos"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "No existe un registro con esa clave"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "La fuente de datos no está disponible"
+          }
+        },
+        "summary": "Consultar hogar por hogar_id",
+        "tags": [
+          "hogares"
+        ],
+        "x-rid-data-subject": "none"
+      }
+    }
+  }
+}

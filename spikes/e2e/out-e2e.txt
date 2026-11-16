@@ -1,0 +1,38 @@
+Spike S-2: nodo Go real contra el portal real
+
+1. Registrar el nodo y emitir el token de enrolamiento  (elena.admin)
+   ✓ Nodo 01a1e5a7-af16-7e08-9337-25c8396b2650 · token de un solo uso, vence 2026-11-19T18:38:54.260Z
+
+2. Arrancar el nodo (contenedor sin capacidades, solo lectura, sin root)  (entidad)
+   ✓ Estado: online · túnel 10.77.0.20 · kit 0.0.1-spike
+   Servicios declarados: [{"name":"salud-afiliacion","path":"/salud-afiliacion","openapiSha256":"cd53b22a1fc177613d7bcbb009dcb3d25d29aed218babc2b8daa10ee30ad4f2c"}]
+     node: enrolled as rid-node-01a1e5a7-af16-7e08-9337-25c8396b2650, tunnel 10.77.0.20/32, gateway client rid-gateway.salud
+     node: tunnel up: 10.77.0.20 -> hub wg-hub:51820 (172.21.0.5:51820)
+     node: serving /salud-afiliacion on https://10.77.0.20:8443 (only rid-gateway.salud)
+     node: certificate renewed: serial 40083149507407999857598430561710787181 -> 60395676877864705283270456216689495317, notAfter 2027-02-14T18:39:02.000Z
+   ✓ El hub real alcanza al nodo por el túnel; sin certificado de cliente el nodo corta: TLS handshake error from 10.77.0.1:36392: tls: client didn't provide a certificate
+
+3. Publicar la versión con upstream node  (pedro.publicador)
+   ✓ OpenAPI generado por el nodo aceptado por el lint del portal: 2 operaciones
+   Hash del OpenAPI en el heartbeat: cd53b22a1fc177613d7bcbb009dcb3d25d29aed218babc2b8daa10ee30ad4f2c
+   Hash del archivo subido:        cd53b22a1fc177613d7bcbb009dcb3d25d29aed218babc2b8daa10ee30ad4f2c
+
+4. Validaciones automáticas y aprobación  (ana.operadora)
+   ✓ Validaciones: {"status":"passed","startedAt":"2026-11-16T18:39:17.374Z","finishedAt":"2026-11-16T18:39:20.473Z","healthcheck":{"status":"passed","httpStatus":200,"latencyMs":115},"contract":{"status":"skipped","reason":"no sandbox upstream","operations":[]}}
+   ✓ Publicada; la ruta existe en el gateway
+
+5. Aplicación consumidora, suscripción y aprobación  (carlos.dev / lucia.datos)
+   ✓ Suscripción activa
+
+6. Llamar por el gateway → hub → túnel → nodo Go → PostgreSQL  (terminal)
+   ✓ 200 · {"actualizado_en":"2026-11-01T13:01:00Z","eps":"EPS Dos","estado":"activo","fecha_afiliacion":"2025-11-25","numero_documento":"1000000001","regimen":"subsidiado","tipo_documento":"CC"}
+   ✓ Clave inexistente → 404 {"code":"not_found","status":404,"title":"No existe un registro con esa clave","type":"about:blank"}
+
+   ✓ Lo que registró el nodo (solo metadatos):
+     access: {"client":"rid-gateway.salud","method":"GET","ms":0,"query_present":false,"request_id":"a629f829-d698-4a25-93e7-0f1b370e1bdc","rid_headers":null,"route":"/salud-afiliacion/","status":200,"ts":"2026-11-16T18:39:20.467873395Z"}
+     access: {"client":"rid-gateway.salud","method":"GET","ms":7,"query_present":false,"request_id":"kit-mwjlxf7e","rid_headers":["x-rid-consumer-app","x-rid-consumer-entity","x-rid-end-user-hash","x-rid-operation","x-rid-purpose","x-rid-rate-limit","x-rid-subject-ref","x-rid-subscription"],"route":"/salud-afiliacion/afiliados/{numero_documento}","status":200,"ts":"2026-11-16T18:39:42.48780181Z"}
+     access: {"client":"rid-gateway.salud","method":"GET","ms":0,"query_present":false,"request_id":"8da88b43-1d22-48ba-8266-36a0d67672d3","rid_headers":["x-rid-consumer-app","x-rid-consumer-entity","x-rid-end-user-hash","x-rid-operation","x-rid-purpose","x-rid-rate-limit","x-rid-subject-ref","x-rid-subscription"],"route":"/salud-afiliacion/afiliados/{numero_documento}","status":404,"ts":"2026-11-16T18:39:42.626704791Z"}
+   ✓ El nodo vio al gateway por su nombre y no registró el número de documento
+   Último GET /config visto por el nodo: node: config 200 {"contractVersion":"1","nodeId":"01a1e5a7-af16-7e08-9337-25c8396b2650","heartbeatIntervalSeconds":60,"minimumKitVersion":null,"services":[{"apiVersionId":"01a1e5a8-080a-7c50-9c1f-e6e462daa124","apiName":"Afiliación desde el kit (spike mwjlxf7e)","version":"1.0","basePath":"/salud/afiliacion-mwjlxf7e/v1","servicePath":"/salud-afiliacion"}],"notices":[]}
+
+Punta a punta en verde (51 s)

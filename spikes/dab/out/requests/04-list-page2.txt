@@ -1,0 +1,9 @@
+### GET /api/afiliados?$first=2
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 16 Nov 2026 17:47:33 GMT
+Server: Kestrel
+Transfer-Encoding: chunked
+x-ms-correlation-id: 17d3ebe9-4c04-44af-a1a6-b7a974246fdb
+
+{"value":[{"tipo_documento":"CC","numero_documento":"1000000001","eps":"EPS Dos","regimen":"subsidiado","estado":"activo","fecha_afiliacion":"2025-11-25","actualizado_en":"2026-11-01T08:01:00-05:00"},{"tipo_documento":"CC","numero_documento":"1000000002","eps":"EPS Tres","regimen":"contributivo","estado":"activo","fecha_afiliacion":"2025-10-19","actualizado_en":"2026-11-01T08:02:00-05:00"}],"nextLink":"http://localhost:5000/api/afiliados?$first=2&$after=W3siRW50aXR5TmFtZSI6IkFmaWxpYWRvIiwiRmllbGROYW1lIjoibnVtZXJvX2RvY3VtZW50byIsIkZpZWxkVmFsdWUiOiIxMDAwMDAwMDAyIiwiRGlyZWN0aW9uIjowfV0="}

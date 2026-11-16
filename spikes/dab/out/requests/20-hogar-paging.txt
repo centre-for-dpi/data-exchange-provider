@@ -1,0 +1,4 @@
+// (inline script used to page through /api/hogares following nextLink; see output below)
+pages=10 rows_returned=1000 distinct_people=1000 (view has 1000 rows)
+afiliados: pages=10 rows_returned=1000
+hogares $first=3: pages=251 rows_returned=750 distinct_people=750 (view has 1000 rows)

@@ -1,0 +1,10 @@
+error	operation-operationId	line 14	Operation must have "operationId".
+error	rid-data-subject-required	line 14	Operation get must declare whose data it handles: x-rid-data-subject with a path parameter, a body pointer, or none
+error	operation-operationId	line 120	Operation must have "operationId".
+error	rid-data-subject-required	line 120	Operation get must declare whose data it handles: x-rid-data-subject with a path parameter, a body pointer, or none
+error	operation-operationId	line 219	Operation must have "operationId".
+error	rid-data-subject-required	line 219	Operation get must declare whose data it handles: x-rid-data-subject with a path parameter, a body pointer, or none
+error	operation-operationId	line 325	Operation must have "operationId".
+error	rid-data-subject-required	line 325	Operation get must declare whose data it handles: x-rid-data-subject with a path parameter, a body pointer, or none
+
+valid=false errors=8 operations=0 sha256=702c03b9dc00f43b2389317cf2251e4d7a5c18a2bc03e24432185eb19499cb51
