@@ -1,0 +1,107 @@
+// Command licensecheck fails when a Go module linked into the given packages has a license
+// outside the kit's allowed list (CLAUDE.md, rule 1).
+//
+//	go run ./tools/licensecheck [-tags canal] ./cmd/rid-node
+package main
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+const mainModule = "github.com/centre-for-dpi/data-exchange-provider"
+
+func main() {
+	tags := flag.String("tags", "", "build tags")
+	exceptionsFile := flag.String("exceptions", "tools/licensecheck/exceptions.json", "reviewed exceptions: module → reason")
+	flag.Parse()
+	exceptions, err := loadExceptions(*exceptionsFile)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "licensecheck:", err)
+		os.Exit(2)
+	}
+	args := []string{"list", "-deps", "-f", "{{with .Module}}{{.Path}}\t{{.Version}}\t{{.Dir}}{{end}}"}
+	if *tags != "" {
+		args = append(args, "-tags", *tags)
+	}
+	out, err := exec.Command("go", append(args, flag.Args()...)...).Output()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "licensecheck: go list:", err)
+		os.Exit(2)
+	}
+	seen := map[string]bool{}
+	var lines []string
+	failed := false
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		parts := strings.Split(line, "\t")
+		if len(parts) != 3 || parts[0] == mainModule || seen[parts[0]] {
+			continue
+		}
+		seen[parts[0]] = true
+		spdx, ok := judge(parts[0], licenseTexts(parts[2]), exceptions)
+		mark := "ok"
+		if !ok {
+			mark, failed = "NOT ALLOWED", true
+		}
+		lines = append(lines, fmt.Sprintf("%-12s %-55s %s %s", mark, parts[0], parts[1], spdx))
+	}
+	sort.Strings(lines)
+	fmt.Println(strings.Join(lines, "\n"))
+	if failed {
+		os.Exit(1)
+	}
+}
+
+// licenseTexts reads every LICENSE*, LICENCE* and COPYING* file at the module's root.
+func licenseTexts(dir string) []string {
+	var texts []string
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		name := strings.ToUpper(e.Name())
+		if e.IsDir() || !(strings.HasPrefix(name, "LICENSE") || strings.HasPrefix(name, "LICENCE") || strings.HasPrefix(name, "COPYING")) {
+			continue
+		}
+		if b, err := os.ReadFile(filepath.Join(dir, e.Name())); err == nil {
+			texts = append(texts, string(b))
+		}
+	}
+	return texts
+}
+
+// judge decides a module: a reviewed exception wins; otherwise it passes if any of its license
+// files is allowed (dual-licensed modules), and fails without any license file.
+func judge(module string, texts []string, exceptions map[string]string) (string, bool) {
+	if reason, ok := exceptions[module]; ok {
+		return reason, true
+	}
+	var seen []string
+	for _, t := range texts {
+		spdx, ok := classify(t)
+		if ok {
+			return spdx, true
+		}
+		if spdx == "" {
+			spdx = "unknown"
+		}
+		seen = append(seen, spdx)
+	}
+	if len(seen) == 0 {
+		return "no license file", false
+	}
+	return strings.Join(seen, ", "), false
+}
+
+func loadExceptions(path string) (map[string]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]string
+	return m, json.Unmarshal(b, &m)
+}
