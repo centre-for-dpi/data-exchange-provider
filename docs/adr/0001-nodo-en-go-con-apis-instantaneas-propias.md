@@ -2,6 +2,7 @@
 
 - Estado: Aceptado
 - Fecha: 2026-11-16
+- Precisado por: ADR-0002 (decisión 5: solo Ubuntu con Docker)
 
 ## Contexto
 
