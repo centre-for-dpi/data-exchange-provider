@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+state/
+.DS_Store
+.claude/settings.local.json
+
+# Spikes: local tools, binaries, generated certificates and runtime output
+spikes/**/.tools/
+spikes/**/bin/
+spikes/**/pki/
+spikes/**/*.pfx
+spikes/**/*.log
