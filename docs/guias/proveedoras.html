@@ -1,0 +1,696 @@
+<meta charset="utf-8">
+<title>Guía de proveedoras RID</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a sticky contents rail beside one reading column; the two planes of the network carry
+   their own hue (governance = indigo, data = teal) through every diagram, chip and card. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #15202b;
+  --muted: #586575;
+  --line: #d8dee6;
+  --gov: #3a4cc0;
+  --gov-tint: #eceffd;
+  --data: #0a7569;
+  --data-tint: #e2f3f0;
+  --ok: #1d7139;
+  --ok-tint: #e5f4ea;
+  --warn: #9a5200;
+  --warn-tint: #fdf1e1;
+  --bad: #b0222b;
+  --bad-tint: #fcebed;
+  --code-bg: #edf0f4;
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --step: 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+    --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+    --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+    --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+  --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+  --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+  --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; scroll-padding-top: 72px; }
+html.big { font-size: 19px; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  font-size: 1rem; line-height: 1.6; margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+table { font-size: inherit; }
+a { color: var(--gov); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--gov); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.topbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.brand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand small { font-weight: 500; color: var(--muted); font-family: var(--font-body); }
+.topbar .spacer { flex: 1; }
+.tool {
+  font: inherit; font-size: 0.85rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+.tool[aria-pressed="true"] { background: var(--gov); border-color: var(--gov); color: var(--surface); }
+
+.hero {
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 28px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.hero-inner { max-width: 1180px; margin: 0 auto; display: grid; gap: 14px; }
+.eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 700; max-width: 22ch; }
+.lede { font-size: 1.12rem; max-width: 64ch; color: var(--muted); margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.shell {
+  max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 80px;
+}
+.toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow-y: auto; font-size: 0.9rem; }
+.toc p { margin: 18px 0 6px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.toc p:first-child { margin-top: 0; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); }
+.toc a.active { color: var(--ink); border-left-color: var(--gov); font-weight: 600; }
+.toc-mobile { display: none; }
+
+main { min-width: 0; display: grid; gap: 64px; }
+section { display: grid; gap: 18px; min-width: 0; }
+section > p, section > ul, .prose { max-width: 70ch; margin: 0; }
+.part {
+  font-family: var(--font-display); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); border-top: 2px solid var(--ink); padding-top: 10px; font-weight: 600;
+}
+h2 { font-size: 1.65rem; font-weight: 700; }
+h2 .num { color: var(--muted); font-weight: 500; margin-right: 0.35em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+ul.ticks { padding-left: 1.2em; display: grid; gap: 8px; }
+
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.principle { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.principle b { font-family: var(--font-display); font-size: 1.02rem; }
+.principle span { color: var(--muted); font-size: 0.93rem; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.figscroll { overflow-x: auto; }
+figure svg { display: block; width: 100%; height: auto; min-width: 640px; color: var(--ink); }
+figcaption { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+
+/* SVG classes, themed through the page tokens */
+.d-box { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+.d-gov { fill: var(--gov-tint); stroke: var(--gov); stroke-width: 1.2; }
+.d-data { fill: var(--data-tint); stroke: var(--data); stroke-width: 1.2; }
+.d-panel-gov { fill: var(--gov-tint); fill-opacity: 0.45; stroke: var(--gov); stroke-dasharray: 5 4; }
+.d-panel-data { fill: var(--data-tint); fill-opacity: 0.45; stroke: var(--data); stroke-dasharray: 5 4; }
+.d-edge { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.d-ent { fill: var(--bg); stroke: var(--muted); stroke-dasharray: 3 3; }
+.d-line { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+.d-thin { stroke: var(--muted); stroke-width: 1; fill: none; }
+.d-dash { stroke: var(--ink); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.d-strong { stroke: var(--data); stroke-width: 2.6; fill: none; }
+.d-life { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 4; }
+.d-t { fill: var(--ink); font-family: var(--font-body); font-size: 13px; }
+.d-tb { fill: var(--ink); font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.d-ts { fill: var(--muted); font-family: var(--font-body); font-size: 11.5px; }
+.d-lab { fill: var(--ink); font-family: var(--font-mono); font-size: 11.5px; }
+.d-cap { fill: var(--muted); font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; }
+.d-capgov { fill: var(--gov); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-capdata { fill: var(--data); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-ah { fill: var(--ink); }
+.d-ahd { fill: var(--data); }
+.d-ahm { fill: var(--muted); }
+
+/* Tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table.t { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; background: var(--bg); }
+table.t td:first-child { font-weight: 600; white-space: nowrap; }
+table.t td.wrap { white-space: normal; }
+
+/* Role cards */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.role header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; justify-content: space-between; }
+.role code { font-weight: 500; }
+.role .who { font-size: 0.82rem; color: var(--muted); }
+.role p { margin: 0; font-size: 0.93rem; }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.tag.mfa { background: var(--warn-tint); color: var(--warn); }
+.tag.gov { background: var(--gov-tint); color: var(--gov); }
+.tag.data { background: var(--data-tint); color: var(--data); }
+.tag.ok { background: var(--ok-tint); color: var(--ok); }
+.tag.warn { background: var(--warn-tint); color: var(--warn); }
+.tag.bad { background: var(--bad-tint); color: var(--bad); }
+.tag.plain { background: var(--code-bg); color: var(--muted); }
+
+/* Component cards */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.85rem; color: var(--muted); align-items: center; }
+.comps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.comp {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid;
+  gap: 10px; align-content: start; min-width: 0;
+}
+.comp.g { border-top: 3px solid var(--gov); }
+.comp.d { border-top: 3px solid var(--data); }
+.comp.e { border-top: 3px solid var(--ink); }
+.comp h4 { font-size: 1.08rem; }
+.comp .tech { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+.comp p { margin: 0; font-size: 0.93rem; }
+.comp dl { margin: 0; display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: 6px 10px; font-size: 0.88rem; border-top: 1px solid var(--line); padding-top: 10px; }
+.comp dt { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.comp dd { margin: 0; display: grid; gap: 4px; justify-items: start; }
+
+.comp ul.ticks { margin: 0; font-size: 0.93rem; gap: 4px; }
+/* State pipelines */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.st { font-family: var(--font-mono); font-size: 0.84rem; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.st.opt { border-style: dashed; color: var(--muted); }
+.st.goal { border-color: var(--ok); color: var(--ok); background: var(--ok-tint); font-weight: 500; }
+.st.end { border-color: var(--muted); color: var(--muted); }
+.arrow { color: var(--muted); font-size: 0.9rem; }
+.flowcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; max-width: 72ch; }
+ol.steps > li::before {
+  content: counter(s); font-family: var(--font-display); font-weight: 700; width: 1.75rem; height: 1.75rem;
+  border-radius: 50%; display: grid; place-items: center; background: var(--code-bg); font-size: 0.88rem;
+}
+
+/* Guarantees */
+.guar { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.guar div { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.guar b { font-family: var(--font-display); }
+.guar span { font-size: 0.92rem; color: var(--muted); }
+
+/* Spec sheet */
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.spec div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.spec .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.spec .v { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.spec .s { font-size: 0.85rem; color: var(--muted); }
+.ports { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.port { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.port .pn { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 500; }
+.port span { font-size: 0.9rem; color: var(--muted); }
+
+/* Checklist */
+.check { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; display: grid; }
+.check label { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 10px; padding: 8px 16px; cursor: pointer; align-items: start; }
+.check input { width: 1.05rem; height: 1.05rem; margin-top: 0.25em; accent-color: var(--ok); }
+.check input:checked + span { color: var(--muted); text-decoration: line-through; }
+
+/* Code */
+.code { position: relative; background: var(--code-bg); border-radius: 8px; border: 1px solid var(--line); min-width: 0; }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code .copy { position: absolute; top: 8px; right: 8px; }
+.copy { font: inherit; font-size: 0.75rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 9px; border-radius: 5px; cursor: pointer; }
+.cmds { display: grid; gap: 8px; }
+.cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.cmd code { background: none; padding: 0; font-size: 0.9rem; font-weight: 500; }
+.cmd span { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
+
+/* Install stepper */
+.qs { display: grid; gap: 10px; counter-reset: q; }
+.q { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.q .qn { font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: grid; align-content: start; gap: 2px; }
+.q .qn b { font-size: 1.6rem; color: var(--ink); line-height: 1; }
+.q h4 { font-size: 1.02rem; margin-bottom: 4px; }
+.q p { margin: 0; font-size: 0.93rem; }
+.q .auto { color: var(--muted); }
+.opts { display: grid; gap: 6px; margin-top: 8px; }
+.opts div { font-size: 0.9rem; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 6px; }
+.opts kbd { font-weight: 600; background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; text-align: center; height: 1.5rem; line-height: 1.45rem; }
+
+.callout { border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; max-width: 80ch; }
+.callout.warn { background: var(--warn-tint); border: 1px solid var(--warn); }
+.callout.info { background: var(--gov-tint); border: 1px solid var(--gov); }
+.callout b { font-family: var(--font-display); }
+.callout p { margin: 0; }
+
+details.faq { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+details.faq + details.faq { margin-top: -8px; }
+details.faq summary { cursor: pointer; padding: 12px 16px; font-weight: 600; list-style-position: outside; }
+details.faq p { margin: 0; padding: 0 16px 14px; max-width: 72ch; color: var(--muted); }
+details.faq[open] summary { color: var(--gov); }
+
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .toc { display: none; }
+  .toc-mobile { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .toc-mobile summary { cursor: pointer; font-weight: 600; }
+  .toc-mobile ol { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+  .brand small { display: none; }
+}
+@media (max-width: 520px) {
+  .q { grid-template-columns: minmax(0, 1fr); }
+  .q .qn { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: 8px; }
+  .comp dl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="5" cy="13" r="3.2" fill="var(--gov)"></circle>
+        <circle cx="21" cy="5.5" r="3.2" fill="var(--data)"></circle>
+        <circle cx="21" cy="20.5" r="3.2" fill="var(--data)"></circle>
+        <path d="M8 13 H13 M13 13 L18 7 M13 13 L18 19" stroke="var(--ink)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <span>Red de Intercambio de Datos <small>· guía para entidades proveedoras</small></span>
+    </div>
+    <span class="spacer"></span>
+    <button class="tool" id="bigtext" type="button" aria-pressed="false" title="Letra más grande para proyectar">Modo proyección</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Jornada de incorporación · miércoles 18 de noviembre de 2026</span>
+    <h1>Lo que una entidad proveedora designa, dispone y hace para publicar sus datos</h1>
+    <p class="lede">La plataforma central (portal y gateway) la opera el operador nacional. Lo único que instala la proveedora es el <b>nodo</b>, dentro de su red. Lo que hace una entidad consumidora está en la guía de entidades del portal.</p>
+    <div class="meta">
+      <span><b>Para</b> los equipos de TI, de datos y de infraestructura de cada entidad proveedora</span>
+      <span><b>Versión</b> 2.0 · noviembre 2026</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contenido">
+    <p>Antes de la jornada</p>
+    <ol>
+      <li><a href="#que-significa">1. Qué significa</a></li>
+      <li><a href="#personas">2. Personas a designar</a></li>
+      <li><a href="#nodo">3. El nodo</a></li>
+      <li><a href="#disponer">4. Lo que se dispone</a></li>
+      <li><a href="#preparacion">5. Lista de preparación</a></li>
+    </ol>
+    <p>Durante la jornada</p>
+    <ol>
+      <li><a href="#verificar">6. Verificar la red</a></li>
+      <li><a href="#alta">7. Alta de la entidad</a></li>
+      <li><a href="#instalar">8. Instalar el nodo</a></li>
+      <li><a href="#publicar">9. Publicar una API</a></li>
+    </ol>
+    <p>Referencia</p>
+    <ol>
+      <li><a href="#cabeceras">10. Lo que recibe el servicio</a></li>
+      <li><a href="#recomendaciones">11. Recomendaciones</a></li>
+      <li><a href="#compromisos">12. Compromisos</a></li>
+      <li><a href="#operacion">13. Operación del nodo</a></li>
+      <li><a href="#contactos">14. Contactos</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <details class="toc-mobile">
+      <summary>Contenido</summary>
+      <ol>
+        <li><a href="#que-significa">Qué significa</a></li>
+        <li><a href="#personas">Personas a designar</a></li>
+        <li><a href="#nodo">El nodo</a></li>
+        <li><a href="#disponer">Lo que se dispone</a></li>
+        <li><a href="#preparacion">Lista de preparación</a></li>
+        <li><a href="#verificar">Verificar la red</a></li>
+        <li><a href="#alta">Alta de la entidad</a></li>
+        <li><a href="#instalar">Instalar el nodo</a></li>
+        <li><a href="#publicar">Publicar una API</a></li>
+        <li><a href="#cabeceras">Lo que recibe el servicio</a></li>
+        <li><a href="#recomendaciones">Recomendaciones</a></li>
+        <li><a href="#compromisos">Compromisos</a></li>
+        <li><a href="#operacion">Operación del nodo</a></li>
+        <li><a href="#contactos">Contactos</a></li>
+      </ol>
+    </details>
+
+    <section id="que-significa">
+      <div class="part">Antes de la jornada</div>
+      <h2><span class="num">1</span>Qué significa ser proveedora</h2>
+      <div class="principles">
+        <div class="principle"><b>Publica una API</b><span>Sobre sus datos. Su <b>responsable de datos</b> decide quién accede, para qué finalidad, a qué operaciones y por cuánto tiempo.</span></div>
+        <div class="principle"><b>Sabe quién consulta</b><span>En cada llamada el gateway le dice la entidad, la aplicación, la autorización y la finalidad.</span></div>
+        <div class="principle"><b>Los datos se quedan</b><span>Nunca se copian a la plataforma: cada consulta llega a la entidad y la respuesta pasa por el gateway sin guardarse.</span></div>
+        <div class="principle"><b>Ante el ciudadano</b><span>El ciudadano ve qué entidad consultó sus datos y para qué.</span></div>
+      </div>
+    </section>
+
+    <section id="personas">
+      <h2><span class="num">2</span>Personas que la entidad debe designar</h2>
+      <div class="roles">
+        <div class="role"><header><code>entity_admin</code></header><span class="who">Jefe de TI o de la oficina de datos</span><p>Pide el alta de la entidad, invita a su gente, asigna roles y registra el nodo.</p></div>
+        <div class="role"><header><code>data_steward</code><span class="tag mfa">2.º factor obligatorio</span></header><span class="who">Responsable de datos (designación formal)</span><p>Aprueba, rechaza, suspende y revoca accesos a las APIs de la entidad.</p></div>
+        <div class="role"><header><code>api_publisher</code></header><span class="who">Responsable técnico</span><p>Registra las APIs y las envía a revisión.</p></div>
+        <div class="role"><header><b>Infraestructura</b><span class="tag plain">sin cuenta en el portal</span></header><span class="who">Administrador de servidores y de red</span><p>Instala y opera el nodo.</p></div>
+      </div>
+      <ul class="ticks">
+        <li>Cada persona con cuenta necesita un <b>correo institucional propio</b>: la cuenta se verifica por correo y las invitaciones llegan a esa dirección.</li>
+        <li>El segundo factor se configura con una app autenticadora (FreeOTP, Aegis, Google Authenticator u otra TOTP) en el teléfono de la persona.</li>
+        <li><b>Documento:</b> el acto de designación del responsable de datos y del responsable técnico, en PDF. Se adjunta en la solicitud de alta.</li>
+        <li>Si la entidad también va a <b>consumir</b>, necesita además un <code>app_developer</code> (guía de entidades del portal).</li>
+      </ul>
+    </section>
+
+    <section id="nodo">
+      <h2><span class="num">3</span>Cómo se conecta el servicio: el nodo</h2>
+      <p>Toda entidad proveedora se conecta por medio del <b>nodo</b>: un servicio pequeño que se instala <b>dentro de la red de la entidad</b> y abre el túnel hacia afuera. La entidad no abre puertos de entrada.</p>
+      <figure>
+        <div class="figscroll">
+          <svg viewBox="0 0 960 340" role="img" aria-label="El consumidor llama al gateway de la red. El gateway llega al hub WireGuard. El nodo, dentro de la red de la entidad, abre hacia afuera un túnel por 51820/udp hasta el hub, y las consultas llegan al nodo por ese túnel con mTLS. El nodo entrega la consulta a la API de la entidad en el modo canal, o la responde sobre vistas de la base de datos con un usuario de solo lectura en el modo completo, que llega en una versión posterior.">
+            <defs>
+              <marker id="n-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ah"></path></marker>
+              <marker id="n-ahd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ahd"></path></marker>
+              <marker id="n-ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ahm"></path></marker>
+            </defs>
+            <!-- consumer -->
+            <rect x="16" y="80" width="140" height="46" rx="6" class="d-box"></rect>
+            <text x="86" y="100" text-anchor="middle" class="d-tb">Consumidor</text>
+            <text x="86" y="117" text-anchor="middle" class="d-ts">otra entidad</text>
+            <line x1="156" y1="103" x2="212" y2="103" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <!-- platform -->
+            <rect x="190" y="30" width="230" height="270" rx="10" class="d-panel-data"></rect>
+            <text x="204" y="50" class="d-capdata">PLATAFORMA DE LA RED</text>
+            <rect x="215" y="80" width="180" height="46" rx="6" class="d-data"></rect>
+            <text x="305" y="100" text-anchor="middle" class="d-tb">Gateway</text>
+            <text x="305" y="117" text-anchor="middle" class="d-ts">autoriza cada consulta</text>
+            <line x1="305" y1="126" x2="305" y2="196" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <rect x="215" y="200" width="180" height="46" rx="6" class="d-data"></rect>
+            <text x="305" y="220" text-anchor="middle" class="d-tb">Hub WireGuard</text>
+            <text x="305" y="237" text-anchor="middle" class="d-ts">extremo de los túneles</text>
+            <!-- firewall -->
+            <line x1="465" y1="30" x2="465" y2="300" class="d-thin" stroke-dasharray="6 4"></line>
+            <text x="465" y="322" text-anchor="middle" class="d-ts">firewall de la entidad: solo salida</text>
+            <!-- entity -->
+            <rect x="505" y="30" width="440" height="270" rx="10" class="d-ent"></rect>
+            <text x="519" y="50" class="d-cap">RED DE LA ENTIDAD</text>
+            <rect x="530" y="200" width="150" height="46" rx="6" class="d-edge"></rect>
+            <text x="605" y="220" text-anchor="middle" class="d-tb">Nodo</text>
+            <text x="605" y="237" text-anchor="middle" class="d-ts">solo atiende al gateway</text>
+            <!-- tunnel -->
+            <line x1="528" y1="212" x2="399" y2="212" class="d-line" marker-end="url(#n-ah)"></line>
+            <text x="463" y="176" text-anchor="middle" class="d-ts">el nodo abre el túnel</text>
+            <text x="463" y="192" text-anchor="middle" class="d-lab">51820/udp saliente</text>
+            <line x1="397" y1="236" x2="526" y2="236" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <text x="463" y="262" text-anchor="middle" class="d-ts">consultas por el túnel</text>
+            <text x="463" y="277" text-anchor="middle" class="d-ts">mTLS de punta a punta</text>
+            <!-- backends -->
+            <rect x="760" y="80" width="165" height="50" rx="6" class="d-box"></rect>
+            <text x="842" y="101" text-anchor="middle" class="d-tb">API de la entidad</text>
+            <text x="842" y="119" text-anchor="middle" class="d-ts">URL interna</text>
+            <line x1="680" y1="208" x2="758" y2="112" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <text x="700" y="140" class="d-lab">canal</text>
+            <rect x="760" y="226" width="165" height="50" rx="6" class="d-box" stroke-dasharray="5 4"></rect>
+            <text x="842" y="247" text-anchor="middle" class="d-tb">Base de datos</text>
+            <text x="842" y="265" text-anchor="middle" class="d-ts">vistas · solo lectura</text>
+            <line x1="680" y1="236" x2="758" y2="248" class="d-dash" marker-end="url(#n-ah)"></line>
+            <text x="690" y="290" class="d-lab">completo</text>
+            <text x="760" y="290" class="d-ts">· próximamente</text>
+          </svg>
+        </div>
+        <figcaption>La flecha verde es la dirección de las consultas. La conexión la abre el nodo, hacia afuera: por eso la entidad no necesita puertos de entrada. Detrás del nodo hay una API de la entidad (modo canal) o las APIs instantáneas sobre su base de datos (modo completo).</figcaption>
+      </figure>
+
+      <div class="guar">
+        <div><b>Sale, no entra</b><span>El túnel cifrado (WireGuard) lo abre el nodo hacia el hub de la red. Ningún puerto de entrada.</span></div>
+        <div><b>Solo atiende al gateway</b><span>Acepta únicamente el certificado del gateway emitido para la entidad. Cualquier otro cliente se rechaza.</span></div>
+        <div><b>La credencial no sale</b><span>Si la API interna pide una credencial, el nodo la agrega. Nunca sale de la entidad.</span></div>
+        <div><b>No guarda contenido</b><span>Sus logs solo tienen metadatos: qué operación, cuándo, con qué resultado.</span></div>
+        <div><b>Se renueva solo</b><span>Su certificado se renueva antes de vencer, y el portal ve si está en línea.</span></div>
+      </div>
+
+      <div class="comps">
+        <article class="comp d">
+          <div><h4>Modo canal</h4><span class="tech">disponible</span></div>
+          <p>La entidad ya tiene una API REST, propia o hecha con cualquier herramienta.</p>
+          <ul class="ticks">
+            <li>El nodo da el canal seguro y entrega cada consulta a la API, en su URL interna.</li>
+            <li>La entidad responde por su API y por su contrato OpenAPI.</li>
+          </ul>
+          <span class="tag ok" style="justify-self:start">Disponible</span>
+        </article>
+        <article class="comp d">
+          <div><h4>Modo completo</h4><span class="tech">APIs instantáneas</span></div>
+          <p>La entidad no tiene API.</p>
+          <ul class="ticks">
+            <li>El nodo responde consultas por clave sobre las vistas que la entidad elige, con un usuario de solo lectura.</li>
+            <li>Genera la API y su OpenAPI.</li>
+          </ul>
+          <span class="tag warn" style="justify-self:start">En una versión posterior del kit</span>
+        </article>
+        <article class="comp g">
+          <div><h4>Otras conexiones</h4><span class="tech">sin nodo</span></div>
+          <ul class="ticks">
+            <li><b>X-Road:</b> si la entidad ya publica en X-Road, el gateway llega por el Security Server del operador.</li>
+            <li><b>API expuesta directamente:</b> excepción que se acuerda con el operador. Exige HTTPS con certificado público, entrada desde la IP del gateway y, de preferencia, mTLS con <code>CN=rid-gateway.&lt;slug&gt;</code>.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="disponer">
+      <h2><span class="num">4</span>Lo que la entidad debe disponer</h2>
+      <h3>Servidor para el nodo</h3>
+      <div class="spec">
+        <div><span class="k">Sistema</span><span class="v">Ubuntu</span><span class="s">Server 22.04 o 24.04 LTS, amd64 o arm64, dedicado al nodo. Con solo Windows Server, una VM con Ubuntu</span></div>
+        <div><span class="k">Tamaño</span><span class="v">1 · 1 · 5</span><span class="s">vCPU, GB de RAM y GB de disco</span></div>
+        <div><span class="k">Docker</span><span class="v">Engine</span><span class="s">Si falta, lo instala el instalador desde <code>download.docker.com</code>. El de <i>snap</i> no sirve</span></div>
+        <div><span class="k">Acceso y hora</span><span class="v">sudo · NTP</span><span class="s">Con el reloj desfasado los certificados fallan</span></div>
+      </div>
+      <p>El servidor debe llegar a la API interna de la entidad (modo canal) o a su base de datos (modo completo).</p>
+
+      <h3>Red: solo salida</h3>
+      <div class="ports">
+        <div class="port"><span class="pn">51820/udp</span><b>Hacia el hub de la red</b><span>El túnel. Indispensable; no pasa por un proxy HTTP.</span></div>
+        <div class="port"><span class="pn">443/tcp</span><b>Hacia el portal y el gateway</b><span>Enrolamiento, heartbeat y renovación. Puede pasar por el proxy corporativo, si acepta <code>CONNECT</code> sin usuario ni contraseña.</span></div>
+        <div class="port"><span class="pn">interna</span><b>Hacia la API de la entidad</b><span>Lo que el nodo publica, dentro de la red de la entidad.</span></div>
+      </div>
+      <p>No se abre ningún puerto de entrada. El operador indica los nombres del portal y del gateway.</p>
+
+      <h3>El servicio que se publica</h3>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Qué</th><th>Detalle</th></tr></thead>
+          <tbody>
+            <tr><td>Contrato OpenAPI 3</td><td class="wrap">El portal lo revisa al registrar la versión: <code>operationId</code> en cada operación, sin repetir; al menos una respuesta de éxito; solo <code>$ref</code> locales; en APIs con datos personales o sensibles, cada operación declara su titular (<code>x-rid-data-subject</code>) o <code>none</code>.</td></tr>
+            <tr><td>Identificadores</td><td class="wrap"><b>Nunca en el query string.</b> Los números de documento van en la ruta (<code>/personas/{documento}</code>) o en el cuerpo de un POST, no en <code>?documento=…</code>.</td></tr>
+            <tr><td>Modo canal</td><td class="wrap">La URL interna de la API y, si la pide, su credencial: una cabecera, usuario y contraseña, o un certificado de cliente.</td></tr>
+            <tr><td>Modo completo</td><td class="wrap">Un <b>usuario de solo lectura</b> en la base de datos, con acceso solo a las vistas que se van a exponer.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout info">
+        <b>Conviene un sandbox</b>
+        <p>El mismo servicio con <b>datos sintéticos</b>, publicado por el mismo nodo como un servicio más. Con él el portal prueba el contrato al enviar a revisión, y los consumidores integran sin tocar datos reales.</p>
+      </div>
+    </section>
+
+    <section id="preparacion">
+      <h2><span class="num">5</span>Lista de preparación</h2>
+      <p>El portal lleva esta lista por entidad (Mi entidad → Preparación del bootcamp) y el operador ve el avance de todas. Aquí puedes marcarla para tu propio control.</p>
+      <div class="check" id="pre">
+        <label><input type="checkbox" id="pre-1"><span><b>Servidor para el nodo</b> disponible, con los requisitos de la sección 4.</span></label>
+        <label><input type="checkbox" id="pre-2"><span><b>Usuario de solo lectura</b> en la base de datos. Solo con el modo completo; con el modo canal se marca cuando la API interna y su OpenAPI están listos.</span></label>
+        <label><input type="checkbox" id="pre-3"><span><b>Salida 443 y UDP 51820</b> hacia el gateway y su hub.</span></label>
+        <label><input type="checkbox" id="pre-4"><span><b>Responsables designados.</b> El portal lo marca solo cuando hay un <code>api_publisher</code> y un <code>data_steward</code> activos.</span></label>
+        <label><input type="checkbox" id="pre-5"><span><b>Caso de uso</b> definido: qué dato, para qué finalidad, con qué base legal y entre qué entidades.</span></label>
+      </div>
+    </section>
+
+    <section id="verificar">
+      <div class="part">Durante la jornada</div>
+      <h2><span class="num">6</span>Verificar la red desde el servidor del nodo</h2>
+      <p>El operador entrega los dos nombres de la plataforma, el del <b>portal</b> y el del <b>gateway</b>, el paquete del nodo con su huella SHA-256 y el script <code>entity-check.sh</code>, que solo necesita <code>bash</code>, <code>curl</code> y <code>openssl</code>.</p>
+      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>chmod +x entity-check.sh
+./entity-check.sh check &lt;portal&gt; &lt;gateway&gt;</code></pre></div>
+      <p>Comprueba el DNS, la salida HTTPS al portal y al gateway, y que el certificado del gateway verifica contra la raíz de la red.</p>
+      <div class="callout warn">
+        <b>El túnel no se puede probar todavía</b>
+        <p>El script no prueba UDP 51820 sin un nodo. Lo comprueba el nodo mismo después de instalarlo, con <code>sudo /opt/rid-node/install.sh doctor</code>.</p>
+      </div>
+    </section>
+
+    <section id="alta">
+      <h2><span class="num">7</span>Alta de la entidad y de su gente</h2>
+      <ol class="steps">
+        <li><span>El futuro <code>entity_admin</code> entra a <code>https://&lt;portal&gt;</code>, crea su cuenta y confirma el correo.</span></li>
+        <li><span>Pide el alta de la entidad: datos, responsables designados y documento de designación. El operador la revisa y la aprueba. Si la entidad ya está incorporada por un acto formal, el operador la da de alta directamente.</span></li>
+        <li><span>El <code>entity_admin</code> invita a cada persona a su correo y le asigna roles. Cada invitado crea su cuenta con <b>ese mismo correo</b> y acepta la invitación.</span></li>
+        <li><span>El <code>data_steward</code> configura su segundo factor la primera vez que el portal lo pide.</span></li>
+      </ol>
+    </section>
+
+    <section id="instalar">
+      <h2><span class="num">8</span>Instalar el nodo</h2>
+      <ol class="steps">
+        <li><span>El <code>entity_admin</code> va a <b>Mi entidad → Nodos del kit</b>, registra el nodo y copia el <b>token de enrolamiento</b>. Se muestra una sola vez, sirve para un solo nodo y vence en <b>72 horas</b>. Se lo pasa al equipo de infraestructura por un canal seguro.</span></li>
+        <li><span>El equipo de infraestructura <b>verifica el paquete</b> contra la huella publicada por el operador y lo instala. El instalador pregunta el modo (<code>canal</code>), el proxy, la URL del portal y el token.
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>sha256sum rid-node-kit-&lt;versión&gt;.tar.gz
+tar -xzf rid-node-kit-&lt;versión&gt;.tar.gz
+cd rid-node-kit-&lt;versión&gt;
+sudo ./install.sh</code></pre></div></span></li>
+        <li><span>Agrega la API de la entidad, y su sandbox si lo tiene, como servicio del nodo. Pide el nombre, la <b>ruta en el nodo</b> (por ejemplo <code>/certificados</code>), la URL interna, la credencial y el OpenAPI.
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>sudo /opt/rid-node/install.sh servicio</code></pre></div></span></li>
+        <li><span>En el portal, el nodo aparece <b>En línea</b>.</span></li>
+      </ol>
+      <div class="callout info">
+        <b>Guía de instalación del nodo</b>
+        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALACION.md"><code>docs/INSTALACION.md</code></a>, que también viene dentro del paquete.</p>
+      </div>
+    </section>
+
+    <section id="publicar">
+      <h2><span class="num">9</span>Publicar una API</h2>
+      <div class="flow" aria-label="Estados de una API">
+        <span class="st">borrador</span><span class="arrow">→</span>
+        <span class="st">en revisión</span><span class="arrow">→</span>
+        <span class="st">aprobada por el operador</span><span class="arrow">→</span>
+        <span class="st opt">aprobada por el regulador · si es sensible</span><span class="arrow">→</span>
+        <span class="st goal">publicada</span>
+      </div>
+      <ol class="steps">
+        <li><span>El <code>api_publisher</code> crea la API y su versión: sube el <b>mismo OpenAPI</b> que se dio al nodo; en <b>¿Dónde vive el servicio?</b> elige <b>Nodo del kit de APIs instantáneas</b> (el modo canal usa la misma opción), el nodo y la <b>Ruta del servicio en el nodo</b>; en <b>Servicio de pruebas (sandbox)</b>, el mismo nodo y la ruta del sandbox; completa la clasificación (pública, interna, personal o sensible), los datos expuestos, la base legal y las finalidades permitidas.</span></li>
+        <li><span><b>Envía a revisión.</b> El portal prueba la conectividad a través del gateway y del nodo, y el contrato contra el sandbox. Si algo falla, el publicador corrige su servicio y pulsa <b>Repetir validaciones</b>.</span></li>
+        <li><span>El operador revisa y aprueba; si es <b>sensible</b>, también el regulador. La API queda publicada y su ruta existe en el gateway en segundos, cerrada hasta que haya accesos aprobados.</span></li>
+        <li><span>El <code>data_steward</code> recibe las solicitudes de acceso de los consumidores y decide cada una: finalidad, operaciones y vigencia.</span></li>
+        <li><span>La ficha imprimible (Catálogo → la API → Ficha del servicio) sirve para el expediente.</span></li>
+      </ol>
+      <div class="callout warn">
+        <b>¿Falla con 502 justo después de instalar el nodo?</b>
+        <p>La red tarda unos segundos en conocer un nodo nuevo. Espera un minuto y pulsa <b>Repetir validaciones</b>.</p>
+      </div>
+    </section>
+
+    <section id="cabeceras">
+      <div class="part">Referencia</div>
+      <h2><span class="num">10</span>Lo que recibe el servicio en cada consulta</h2>
+      <p>El gateway pone estas cabeceras y borra las que intente mandar el consumidor. El nodo las entrega intactas a la API de la entidad. La credencial del consumidor (<code>Authorization</code>) nunca llega a la API: se queda en el gateway.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Cabecera</th><th>Contenido</th></tr></thead>
+          <tbody>
+            <tr><td><code>X-RID-Consumer-Entity</code><br><code>X-RID-Consumer-App</code></td><td class="wrap">Entidad y aplicación consumidoras</td></tr>
+            <tr><td><code>X-RID-Subscription</code></td><td class="wrap">La autorización con que se hizo la consulta</td></tr>
+            <tr><td><code>X-RID-Purpose</code></td><td class="wrap">Finalidad declarada</td></tr>
+            <tr><td><code>X-RID-Operation</code></td><td class="wrap">Operación del contrato (<code>operationId</code>)</td></tr>
+            <tr><td><code>X-RID-End-User-Hash</code></td><td class="wrap">Hash del funcionario que consulta, si la API lo exige</td></tr>
+            <tr><td><code>X-RID-Subject-Ref</code></td><td class="wrap">Seudónimo del titular de los datos, si la operación lo declara</td></tr>
+            <tr><td><code>X-Request-Id</code></td><td class="wrap">Identificador de correlación, el mismo en la bitácora de la red</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Más adelante el gateway firmará cada llamada en una cabecera <code>X-RID-Assertion</code>, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway.</p>
+    </section>
+
+    <section id="recomendaciones">
+      <h2><span class="num">11</span>Recomendaciones para el servicio de la entidad</h2>
+      <p>La red no puede verificar lo que pasa dentro de la entidad. Estas prácticas son <b>recomendaciones</b>, y el modo completo del nodo las cumple por construcción.</p>
+      <div class="guar">
+        <div><b>Minimización</b><span>Responder solo los campos que la ficha declara.</span></div>
+        <div><b>Sin contenido en los logs</b><span>Ni cuerpos de petición ni de respuesta. Rutas y query strings enmascarados: pueden llevar números de identificación.</span></div>
+        <div><b>Solo lectura</b><span>La API lee los datos con un usuario de solo lectura.</span></div>
+        <div><b>Solo por el nodo</b><span>La API no queda expuesta fuera de la red interna: el nodo es su única puerta hacia la red.</span></div>
+        <div><b>Guardar la trazabilidad</b><span>Registrar <code>X-Request-Id</code>, <code>X-RID-Consumer-Entity</code> y <code>X-RID-Purpose</code> con cada consulta permite responder ante una auditoría.</span></div>
+      </div>
+    </section>
+
+    <section id="compromisos">
+      <h2><span class="num">12</span>Compromisos de la entidad</h2>
+      <div class="guar">
+        <div><b>Decidir los accesos</b><span>El <code>data_steward</code> aprueba solo finalidades legítimas y con base legal, y revoca un acceso cuando deja de corresponder.</span></div>
+        <div><b>Nodo en línea</b><span>Sin señales por 5 minutos, el portal lo marca <b>Fuera de línea</b> y avisa a los administradores. Si el portal exige una versión mínima del kit, se actualiza.</span></div>
+        <div><b>Nodo respaldado</b><span>El respaldo lleva las claves del nodo: se copia fuera del servidor y se guarda como un secreto.</span></div>
+        <div><b>Avisar los cambios</b><span>Un cambio incompatible en una API publicada exige una versión mayor nueva. La anterior se deprecia con fecha de retiro.</span></div>
+      </div>
+    </section>
+
+    <section id="operacion">
+      <h2><span class="num">13</span>Operación del nodo</h2>
+      <div class="cmds">
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh status</code><button class="copy" type="button">Copiar</button><span>Estado: portal, túnel, certificado, salud de cada servicio y avisos.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh doctor</code><button class="copy" type="button">Copiar</button><span>Revisa la configuración, los secretos, el DNS, el portal, el reloj, las APIs internas y el túnel.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh logs</code><button class="copy" type="button">Copiar</button><span>Los últimos logs del nodo (solo metadatos). Con <code>-f</code> los sigue en vivo.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh backup</code><button class="copy" type="button">Copiar</button><span>Respaldo en <code>/opt/rid-node/backups/</code>, con las claves del nodo.</span></div>
+      </div>
+      <p>Para reportar un problema al operador, adjunta la salida de <code>status</code> y <code>doctor</code>: no contienen secretos ni datos de personas.</p>
+    </section>
+
+    <section id="contactos">
+      <h2><span class="num">14</span>Contactos y soporte</h2>
+      <div class="roles">
+        <div class="role"><header><b>Operador (AND)</b></header><p>Altas de entidades, revisión de APIs, el paquete del nodo y los problemas de conexión con el gateway.</p></div>
+        <div class="role"><header><b>Regulador (MinTIC)</b></header><p>Aprobaciones de datos sensibles y marco normativo.</p></div>
+        <div class="role"><header><b>Dentro de la entidad</b></header><p>El <code>entity_admin</code> gestiona su gente y su nodo; el <code>data_steward</code> decide los accesos; infraestructura opera el nodo.</p></div>
+      </div>
+      <p class="footer">Versión en Markdown: <code>docs/guias/proveedoras.md</code> del repositorio del kit.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var big = document.getElementById('bigtext');
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function setBig(on) { root.classList.toggle('big', on); big.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  setBig(load('ridp-big') === '1');
+  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('ridp-big', on ? '1' : '0'); });
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var box = btn.closest('.code, .cmd');
+      var text = box.querySelector('pre, code').innerText.trim();
+      var done = function () { btn.textContent = 'Copiado'; setTimeout(function () { btn.textContent = 'Copiar'; }, 1500); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(box.querySelector('pre, code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Seleccionado'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    });
+  });
+
+  document.querySelectorAll('#pre input').forEach(function (box) {
+    box.checked = load('ridp-' + box.id) === '1';
+    box.addEventListener('change', function () { store('ridp-' + box.id, box.checked ? '1' : '0'); });
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  if ('IntersectionObserver' in window) {
+    var seen = {};
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+      var first = links.find(function (a) { return seen[a.getAttribute('href').slice(1)]; });
+      if (first) links.forEach(function (a) { a.classList.toggle('active', a === first); });
+    }, { rootMargin: '-80px 0px -55% 0px' });
+    links.forEach(function (a) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) io.observe(s); });
+  }
+})();
+</script>

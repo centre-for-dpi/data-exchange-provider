@@ -4,4 +4,9 @@ Nodo que se instala en cada entidad proveedora de la Red de Intercambio de Datos
 
 Estado: en diseño. Ver `CLAUDE.md` y `docs/CONTEXTO.md`.
 
+Para las entidades:
+
+- [docs/guias/proveedoras.md](docs/guias/proveedoras.md) — qué designa, dispone y hace una entidad proveedora (versión para proyectar: `proveedoras.html`)
+- [docs/INSTALACION.md](docs/INSTALACION.md) — instalación y operación del nodo (modo canal)
+
 El portal y el gateway están en otro repositorio. La frontera es el contrato de nodos v1 que publica el portal.
