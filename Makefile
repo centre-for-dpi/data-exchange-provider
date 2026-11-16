@@ -29,7 +29,22 @@ licenses:
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
-check: fmt-check
+.PHONY: image image-canal check-canal-deps
+
+image:
+	docker build -f deploy/Dockerfile --build-arg VARIANT=completo --build-arg VERSION=$(VERSION) -t rid-node:$(VERSION) .
+
+image-canal:
+	docker build -f deploy/Dockerfile --build-arg VARIANT=canal --build-arg VERSION=$(VERSION) -t rid-node:$(VERSION)-canal .
+
+# The canal variant must not link the instant APIs module or any database driver (ADR-0001,
+# install modes in ARCHITECTURE.md §1).
+CANAL_FORBIDDEN := github.com/jackc/|github.com/go-sql-driver/|github.com/microsoft/go-mssqldb|github.com/sijms/go-ora|/internal/instant
+check-canal-deps:
+	@found="$$(go list -deps -tags canal ./cmd/rid-node | grep -E '$(CANAL_FORBIDDEN)')"; \
+	if [ -n "$$found" ]; then echo "canal links forbidden packages:"; echo "$$found"; exit 1; fi
+
+check: fmt-check check-canal-deps
 	go vet ./...
 	go vet -tags canal ./...
 	go mod verify
