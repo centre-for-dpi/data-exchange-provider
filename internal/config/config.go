@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -74,6 +77,11 @@ func Load(path string) (*Node, error) {
 	if err := dec.Decode(&n); err != nil {
 		return nil, fmt.Errorf("configuración %s inválida: %w", path, err)
 	}
+	more, err := loadServiceFiles(filepath.Join(filepath.Dir(path), "services"))
+	if err != nil {
+		return nil, err
+	}
+	n.Services = append(n.Services, more...)
 	for i := range n.Services {
 		if n.Services[i].Type == "proxy" {
 			n.Services[i].Proxy.applyDefaults()
@@ -83,6 +91,31 @@ func Load(path string) (*Node, error) {
 		return nil, fmt.Errorf("configuración %s inválida:\n%w", path, err)
 	}
 	return &n, nil
+}
+
+// loadServiceFiles reads services/*.yaml, one service per file, in name order. Files with
+// ".openapi." in their name are OpenAPI documents next to the services, not services.
+func loadServiceFiles(dir string) ([]Service, error) {
+	files, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	sort.Strings(files)
+	var out []Service
+	for _, f := range files {
+		if strings.Contains(filepath.Base(f), ".openapi.") {
+			continue
+		}
+		raw, err := os.ReadFile(f)
+		if err != nil {
+			return nil, fmt.Errorf("no se pudo leer el servicio %s: %w", f, err)
+		}
+		var s Service
+		dec := yaml.NewDecoder(bytes.NewReader(raw))
+		dec.KnownFields(true)
+		if err := dec.Decode(&s); err != nil {
+			return nil, fmt.Errorf("servicio %s inválido: %w", f, err)
+		}
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 func (p *ProxySpec) applyDefaults() {

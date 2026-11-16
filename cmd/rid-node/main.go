@@ -24,6 +24,7 @@ comandos:
   run              arranca el nodo (punto de entrada del contenedor)
   status [--json]  estado del nodo
   doctor           revisa conectividad y configuración
+  validate         valida la configuración y los secretos de los servicios
   version          versión del kit
 
 variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
@@ -71,6 +72,8 @@ func run(args []string, out io.Writer) int {
 			return 1
 		}
 		return 0
+	case "validate":
+		return validate(configPath, out)
 	case "status":
 		return status(stateDir, len(args) > 1 && args[1] == "--json", out, time.Now)
 	case "doctor":

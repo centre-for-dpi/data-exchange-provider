@@ -176,3 +176,40 @@ func TestRejectRootServicePath(t *testing.T) {
 func TestRejectUserinfoInUpstream(t *testing.T) {
 	mustFail(t, strings.Replace(validProxy, "https://api.interna.entidad", "https://rid:s3cr3t@api.interna.entidad", 1), "credential.basic")
 }
+
+// K2: one file per service under services/, so the installer never edits YAML by hand.
+func TestServicesDirectory(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte("portal: https://portal.red.example\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "b.yaml"), []byte("name: bbb\npath: /b\ntype: proxy\nupstream: https://api.interna/b\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "a.yaml"), []byte("name: aaa\npath: /a\ntype: proxy\nupstream: https://api.interna/a\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "a.openapi.yaml"), []byte("openapi: 3.1.0\n"), 0o644) // not a service
+	n, err := Load(filepath.Join(dir, "node.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(n.Services) != 2 || n.Services[0].Name != "aaa" || n.Services[1].Name != "bbb" || n.Services[0].Proxy.MaxRequestBytes != DefaultMaxRequestBytes {
+		t.Fatalf("services: %+v", n.Services)
+	}
+}
+
+func TestServicesDirectoryErrorNamesFile(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte("portal: https://portal.red.example\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "roto.yaml"), []byte("name: x\ncolour: blue\n"), 0o644)
+	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "roto.yaml") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestServicesDirectoryDuplicatesNodeYaml(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte(validProxy), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "c.yaml"), []byte("name: certificados\npath: /otra\ntype: proxy\nupstream: https://api.interna/x\n"), 0o644)
+	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "repetido") {
+		t.Fatalf("got %v", err)
+	}
+}

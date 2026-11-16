@@ -278,3 +278,17 @@ func TestHeartbeatOverrideClamped(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateCommand(t *testing.T) {
+	dir := t.TempDir()
+	good := writeFile(t, dir, "node.yaml", "portal: https://portal.red.example\nservices:\n  - { name: certificados, path: /certificados, type: proxy, upstream: https://api.interna/c }\n", 0o644)
+	var out bytes.Buffer
+	if code := validate(good, &out); code != 0 || !strings.Contains(out.String(), "1 servicios") {
+		t.Fatalf("code=%d %s", code, out.String())
+	}
+	bad := writeFile(t, dir, "bad.yaml", "portal: https://portal.red.example\nservices:\n  - { name: c, path: /c, type: proxy, upstream: https://api.interna/c, credential: { header: X-Api-Key, file: /no/existe } }\n", 0o644)
+	out.Reset()
+	if code := validate(bad, &out); code != 1 || !strings.Contains(out.String(), "/no/existe") {
+		t.Fatalf("code=%d %s", code, out.String())
+	}
+}
