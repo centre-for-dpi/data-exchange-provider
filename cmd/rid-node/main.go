@@ -25,6 +25,7 @@ comandos:
   status [--json]  estado del nodo
   doctor           revisa conectividad y configuración
   validate         valida la configuración y los secretos de los servicios
+  identity         nombre del nodo si ya está enrolado (salida 3 si no tiene identidad)
   version          versión del kit
 
 variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
@@ -72,6 +73,14 @@ func run(args []string, out io.Writer) int {
 			return 1
 		}
 		return 0
+	case "identity":
+		return identity(stateDir, out)
+	case "import-state":
+		if len(args) < 2 {
+			fmt.Fprint(out, usage)
+			return 2
+		}
+		return importState(args[1], stateDir, out)
 	case "validate":
 		return validate(configPath, out)
 	case "status":

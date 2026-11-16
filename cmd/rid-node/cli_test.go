@@ -308,3 +308,42 @@ func TestDoctorSecret0400IsFine(t *testing.T) {
 		t.Fatalf("%s", out)
 	}
 }
+
+// K2 review: the installer asks the node whether it is enrolled instead of guessing from the
+// volume (it exists after a failed first enrollment too).
+func TestIdentityCommand(t *testing.T) {
+	dir := t.TempDir()
+	var out bytes.Buffer
+	if code := identity(dir, &out); code != 3 {
+		t.Fatalf("no state: code %d, want 3", code)
+	}
+	_ = (state.Store{Dir: dir}).Save(&state.State{NodeID: "n1", NodeName: "rid-node-n1"})
+	out.Reset()
+	if code := identity(dir, &out); code != 0 || strings.TrimSpace(out.String()) != "rid-node-n1" {
+		t.Fatalf("code=%d out=%q", code, out.String())
+	}
+	_ = os.WriteFile(filepath.Join(dir, "state.json"), []byte("{"), 0o600)
+	out.Reset()
+	if code := identity(dir, &out); code != 1 {
+		t.Fatalf("corrupt state: code %d, want 1", code)
+	}
+}
+
+// K2 review: restore. The image has no shell and a read-only root, so the node itself copies a
+// backed-up state into its volume, refusing anything that is not a readable state.
+func TestImportState(t *testing.T) {
+	src, dst := t.TempDir(), t.TempDir()
+	var out bytes.Buffer
+	if code := importState(src, dst, &out); code != 1 || !strings.Contains(out.String(), "estado") {
+		t.Fatalf("empty source: code=%d %s", code, out.String())
+	}
+	_ = (state.Store{Dir: src}).Save(&state.State{NodeID: "n1", NodeName: "rid-node-n1", KeyPEM: "k"})
+	out.Reset()
+	if code := importState(src, dst, &out); code != 0 {
+		t.Fatalf("code=%d %s", code, out.String())
+	}
+	got, err := (state.Store{Dir: dst}).Load()
+	if err != nil || got.NodeName != "rid-node-n1" || got.KeyPEM != "k" {
+		t.Fatalf("imported %+v %v", got, err)
+	}
+}

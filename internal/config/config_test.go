@@ -213,3 +213,20 @@ func TestServicesDirectoryDuplicatesNodeYaml(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+// K2 review: .yml counts, hidden files do not, and errors name the service's own file.
+func TestServicesDirectoryYmlHiddenAndFileInErrors(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte("portal: https://portal.red.example\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "a.yml"), []byte("name: aaa\npath: /a\ntype: proxy\nupstream: https://api.interna/a\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", ".oculto.yaml"), []byte("name: x\ncolour: blue\n"), 0o644)
+	n, err := Load(filepath.Join(dir, "node.yaml"))
+	if err != nil || len(n.Services) != 1 || n.Services[0].Name != "aaa" {
+		t.Fatalf("services=%v err=%v", n, err)
+	}
+	_ = os.WriteFile(filepath.Join(dir, "services", "b.yaml"), []byte("name: bbb\npath: /a\ntype: proxy\nupstream: https://api.interna/b\n"), 0o644)
+	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "b.yaml") {
+		t.Fatalf("a duplicate path must name the service file: %v", err)
+	}
+}

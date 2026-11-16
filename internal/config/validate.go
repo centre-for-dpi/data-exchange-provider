@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -34,6 +35,9 @@ func (n *Node) Validate() error {
 	paths := map[string]string{}
 	for i, s := range n.Services {
 		label := fmt.Sprintf("servicio %d (%q)", i+1, s.Name)
+		if s.File != "" {
+			label = fmt.Sprintf("servicio %q (%s)", s.Name, filepath.Base(s.File))
+		}
 		if !namePattern.MatchString(s.Name) || len(s.Name) > 80 {
 			add("%s: el nombre %q debe usar solo minúsculas, números y guiones (máximo 80)", label, s.Name)
 		}

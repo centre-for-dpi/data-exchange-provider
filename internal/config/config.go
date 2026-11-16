@@ -29,6 +29,7 @@ type Service struct {
 	Path  string    `yaml:"path"` // servicePath registered in the portal
 	Type  string    `yaml:"type"` // "proxy" | "instant"
 	Proxy ProxySpec `yaml:",inline"`
+	File  string    `yaml:"-"` // services/<name>.yaml it came from, if any (for error messages)
 }
 
 // ProxySpec is a proxy service: the entity's own API behind the node.
@@ -96,11 +97,14 @@ func Load(path string) (*Node, error) {
 // loadServiceFiles reads services/*.yaml, one service per file, in name order. Files with
 // ".openapi." in their name are OpenAPI documents next to the services, not services.
 func loadServiceFiles(dir string) ([]Service, error) {
-	files, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	yamlFiles, _ := filepath.Glob(filepath.Join(dir, "*.yaml"))
+	ymlFiles, _ := filepath.Glob(filepath.Join(dir, "*.yml"))
+	files := append(yamlFiles, ymlFiles...)
 	sort.Strings(files)
 	var out []Service
 	for _, f := range files {
-		if strings.Contains(filepath.Base(f), ".openapi.") {
+		base := filepath.Base(f)
+		if strings.HasPrefix(base, ".") || strings.Contains(base, ".openapi.") {
 			continue
 		}
 		raw, err := os.ReadFile(f)
@@ -113,6 +117,7 @@ func loadServiceFiles(dir string) ([]Service, error) {
 		if err := dec.Decode(&s); err != nil {
 			return nil, fmt.Errorf("servicio %s inválido: %w", f, err)
 		}
+		s.File = f
 		out = append(out, s)
 	}
 	return out, nil
