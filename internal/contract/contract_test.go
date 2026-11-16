@@ -34,7 +34,9 @@ func schemaAt(t *testing.T, pointer string) *jsonschema.Schema {
 	return sch
 }
 
-func escape(path string) string { return strings.ReplaceAll(strings.ReplaceAll(path, "~", "~0"), "/", "~1") }
+func escape(path string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(path, "~", "~0"), "/", "~1")
+}
 
 func requestSchema(t *testing.T, path, method string) *jsonschema.Schema {
 	return schemaAt(t, "/paths/"+escape(path)+"/"+method+"/requestBody/content/application~1json/schema")
