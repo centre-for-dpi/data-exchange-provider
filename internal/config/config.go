@@ -27,11 +27,12 @@ type Node struct {
 
 // Service is one servicePath prefix the node serves.
 type Service struct {
-	Name  string    `yaml:"name"` // name in the heartbeat
-	Path  string    `yaml:"path"` // servicePath registered in the portal
-	Type  string    `yaml:"type"` // "proxy" | "instant"
-	Proxy ProxySpec `yaml:",inline"`
-	File  string    `yaml:"-"` // services/<name>.yaml it came from, if any (for error messages)
+	Name    string      `yaml:"name"` // name in the heartbeat
+	Path    string      `yaml:"path"` // servicePath registered in the portal
+	Type    string      `yaml:"type"` // "proxy" | "instant"
+	Proxy   ProxySpec   `yaml:",inline"`
+	Instant InstantSpec `yaml:",inline"`
+	File    string      `yaml:"-"` // services/<name>.yaml it came from, if any (for error messages)
 }
 
 // ProxySpec is a proxy service: the entity's own API behind the node.
@@ -86,8 +87,11 @@ func Load(path string) (*Node, error) {
 	}
 	n.Services = append(n.Services, more...)
 	for i := range n.Services {
-		if n.Services[i].Type == "proxy" {
-			n.Services[i].Proxy.applyDefaults()
+		switch s := &n.Services[i]; s.Type {
+		case "proxy":
+			s.Proxy.applyDefaults()
+		case "instant":
+			s.Instant.applyDefaults(s.Name)
 		}
 	}
 	if err := n.Validate(); err != nil {

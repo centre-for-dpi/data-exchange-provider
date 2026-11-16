@@ -60,14 +60,22 @@ func (n *Node) Validate() error {
 		}
 		switch s.Type {
 		case "proxy":
+			if f := s.Instant.setFields(); len(f) > 0 {
+				add("%s: un servicio proxy no lleva %s (son campos de las APIs instantáneas)", label, strings.Join(f, ", "))
+			}
 			for _, err := range s.Proxy.validate() {
 				add("%s: %v", label, err)
 			}
 		case "instant":
 			if !buildinfo.InstantSupported() {
 				add("%s: el modo canal no incluye APIs instantáneas; usa la imagen completa (install.sh modo)", label)
-			} else {
-				add("%s: las APIs instantáneas todavía no están disponibles en esta versión del kit", label)
+				break
+			}
+			if f := s.Proxy.setFields(); len(f) > 0 {
+				add("%s: un servicio instant no lleva %s (son campos de los servicios proxy)", label, strings.Join(f, ", "))
+			}
+			for _, err := range s.Instant.validate() {
+				add("%s: %v", label, err)
 			}
 		default:
 			add("%s: el tipo %q no existe (proxy o instant)", label, s.Type)
