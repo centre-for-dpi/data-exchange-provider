@@ -4,7 +4,7 @@ Hitos en orden. Cada uno deja algo usable y probado. El diseño está en `ARCHIT
 
 El primer entregable es el **modo `canal`**: la parte de seguridad para las entidades que ya tienen sus APIs. Las APIs instantáneas vienen después, sobre el mismo canal.
 
-## K0 — Base del repositorio
+## K0 — Base del repositorio ✅ (2026-11-16)
 
 - Módulo Go, estructura de `cmd/` e `internal/`, `Makefile` (`build`, `test`, `check`, `image`, `e2e`).
 - Dockerfile multi-etapa con dos variantes:
@@ -15,7 +15,9 @@ El primer entregable es el **modo `canal`**: la parte de seguridad para las enti
 - Verificación de licencias de los módulos contra la lista permitida, `go mod verify` y `govulncheck`.
 - `rid-node version` (dice también la variante).
 
-## K1 — Canal seguro (modo `canal`)
+## K1 — Canal seguro (modo `canal`) ✅ (2026-11-16)
+
+Cerrado con `make e2e` contra el portal real (`test/e2e/`). Queda para K2: `install.sh`, la guía y el respaldo.
 
 - `config`: `node.yaml` con servicios `proxy`, validación y secretos en archivos.
 - `state`: estado persistente atómico 0600, con renovación pendiente.

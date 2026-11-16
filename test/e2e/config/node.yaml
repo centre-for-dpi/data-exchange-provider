@@ -1,0 +1,11 @@
+# Node configuration for the end-to-end test against the portal's development stack.
+# The service is the portal's test provider (mock-salud), as an entity's own API.
+portal: http://host.docker.internal:4000
+controlDialAddress: apisix:9443 # development only: the controlUrl says localhost
+services:
+  - name: afiliacion
+    path: /salud
+    type: proxy
+    upstream: http://mock-salud:8000
+    allowPlainHttp: true
+    openapi: /etc/rid-node/salud.openapi.yaml # copied from the portal by canal-e2e.mjs
