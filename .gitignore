@@ -16,3 +16,6 @@ spikes/**/bin/
 spikes/**/pki/
 spikes/**/*.pfx
 spikes/**/*.log
+
+# Build output
+/bin/
