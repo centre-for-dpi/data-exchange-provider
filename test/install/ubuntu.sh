@@ -26,6 +26,12 @@ docker exec "$NAME" bash -c '
   set -e
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io docker-compose-v2 ca-certificates curl >/dev/null
+  # cgroup v2 delegation, as docker:dind does, so the node'"'"'s memory and pids limits apply.
+  if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+    mkdir -p /sys/fs/cgroup/init
+    xargs -rn1 </sys/fs/cgroup/cgroup.procs >/sys/fs/cgroup/init/cgroup.procs 2>/dev/null || true
+    sed -e "s/ / +/g" -e "s/^/+/" </sys/fs/cgroup/cgroup.controllers >/sys/fs/cgroup/cgroup.subtree_control
+  fi
   (dockerd >/var/log/dockerd.log 2>&1 &)
   for i in $(seq 60); do docker info >/dev/null 2>&1 && exit 0; sleep 1; done
   echo "dockerd did not start"; tail -20 /var/log/dockerd.log; exit 1'

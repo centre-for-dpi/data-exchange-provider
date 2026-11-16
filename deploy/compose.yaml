@@ -7,6 +7,8 @@ services:
   rid-node:
     image: ${RID_NODE_IMAGE:-rid-node}:${RID_NODE_VERSION:?}${RID_NODE_TAG_SUFFIX:-}
     restart: unless-stopped
+    mem_limit: 256m # the node uses about 10 MiB; a ceiling protects shared servers
+    pids_limit: 128
     read_only: true
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']

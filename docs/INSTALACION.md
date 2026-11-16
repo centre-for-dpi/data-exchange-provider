@@ -23,7 +23,8 @@ Hay dos modos:
 
 **Servidor**
 
-- Ubuntu Server **22.04 o 24.04 LTS**, físico o virtual, dedicado al nodo. Si la entidad solo tiene Windows Server, una máquina virtual con Ubuntu.
+- Ubuntu Server **22.04 o 24.04 LTS**, físico o virtual, dedicado al nodo, en **amd64 o arm64**. Si la entidad solo tiene Windows Server, una máquina virtual con Ubuntu.
+- **Docker Engine.** Si no está, el instalador lo instala desde el repositorio oficial de Docker; para eso el servidor necesita salida a `download.docker.com`. Si Docker está instalado como *snap*, hay que quitarlo antes: el snap no puede montar `/opt/rid-node`.
 - 1 vCPU, 1 GB de RAM y 5 GB de disco.
 - Acceso como `root` o con `sudo`.
 - La hora sincronizada (NTP). Con el reloj desfasado los certificados fallan.
@@ -59,19 +60,25 @@ El instalador:
 2. **Instala Docker Engine** desde el repositorio oficial de Docker, si falta. Antes pide confirmación.
 3. **Pregunta el modo.** Responde `canal`.
 4. **Crea `/opt/rid-node`** con permisos estrictos. Los secretos quedan en `/opt/rid-node/secrets`, y solo el nodo puede leerlos.
-5. **Pide la URL del portal y el token,** que no se muestra al pegarlo.
-6. **Carga la imagen, arranca el nodo y espera** a que quede **en línea**.
+5. **Pregunta si la salida a internet pasa por un proxy corporativo.**
+6. **Pide la URL del portal y el token,** que no se muestra al pegarlo. Si el token se pega partido en dos líneas, lo une.
+7. **Carga la imagen de la arquitectura del servidor, arranca el nodo y espera** a que quede **en línea**.
+8. **Queda en `/opt/rid-node/install.sh`.** Desde ahí se opera el nodo, aunque se borre la carpeta del paquete.
 
 Al terminar, en el portal (**Mi entidad → Nodos del kit**) el nodo aparece **En línea**.
 
-Si la entidad usa un **proxy corporativo** para salir a internet, agrega `HTTPS_PROXY=http://proxy:puerto` a `/opt/rid-node/.env` y ejecuta `sudo ./install.sh start`. El túnel (UDP 51820) no usa el proxy.
+**Proxy corporativo:**
+- debe aceptar `CONNECT` hacia el portal y el gateway **sin usuario ni contraseña**, porque las credenciales quedarían en la configuración del contenedor;
+- la autenticación NTLM no está soportada;
+- el túnel (UDP 51820) no usa el proxy;
+- si Docker se va a instalar a través del proxy, ejecuta el instalador con `sudo -E` y la variable `https_proxy` definida.
 
-Volver a ejecutar `sudo ./install.sh` es seguro: no cambia la identidad del nodo ni sus secretos.
+**Si algo falla en el primer intento** (token vencido o mal copiado, URL equivocada), vuelve a ejecutar `sudo ./install.sh`. Si el nodo no llegó a enrolarse, el instalador pregunta otra vez la URL y el token. Si ya está enrolado, no cambia su identidad ni sus secretos.
 
 ## 4. Agregar la API propia
 
 ```bash
-sudo ./install.sh servicio
+sudo /opt/rid-node/install.sh servicio
 ```
 
 | Pregunta | Ejemplo |
@@ -90,6 +97,12 @@ Detalles de cada respuesta:
 
 El instalador valida todo antes de aplicarlo. Si algo está mal, como una ruta repetida o un secreto ilegible, no cambia nada y dice qué corregir. Si todo está bien, reinicia el nodo y muestra los datos para el portal.
 
+Para cambiar un servicio, quítalo y vuelve a agregarlo:
+
+```bash
+sudo /opt/rid-node/install.sh servicio quitar certificados
+```
+
 ## 5. Publicar la versión en el portal
 
 El publicador, en el portal:
@@ -106,10 +119,10 @@ El portal prueba la conectividad a través del gateway y del nodo. Si la validac
 
 | Comando | Para qué |
 | :-- | :-- |
-| `sudo ./install.sh status` | Estado: portal, túnel, certificado, salud de cada servicio y avisos |
-| `sudo ./install.sh doctor` | Revisa la configuración, los secretos, el DNS, la conexión con el portal, el reloj, las APIs internas y el túnel |
-| `sudo ./install.sh logs` | Los últimos logs del nodo (solo metadatos). Con `-f` los sigue en vivo |
-| `sudo ./install.sh stop` / `start` | Detiene o arranca el nodo, sin perder nada |
+| `sudo /opt/rid-node/install.sh status` | Estado: portal, túnel, certificado, salud de cada servicio y avisos |
+| `sudo /opt/rid-node/install.sh doctor` | Revisa la configuración, los secretos, el DNS, la conexión con el portal, el reloj, las APIs internas y el túnel |
+| `sudo /opt/rid-node/install.sh logs` | Los últimos logs del nodo (solo metadatos). Con `-f` los sigue en vivo |
+| `sudo /opt/rid-node/install.sh stop` / `start` | Detiene o arranca el nodo, sin perder nada |
 
 Si el nodo deja de enviar señales por 5 minutos, el portal lo marca **Fuera de línea** y avisa a los administradores.
 
@@ -118,10 +131,18 @@ Si el nodo deja de enviar señales por 5 minutos, el portal lo marca **Fuera de 
 **Respaldo**
 
 ```bash
-sudo ./install.sh backup
+sudo /opt/rid-node/install.sh backup
 ```
 
-El respaldo queda en `/opt/rid-node/backups/` e incluye las **claves del nodo**: guárdalo como un secreto. Sin él, si el servidor se pierde, hay que volver a enrolar el nodo y asociar de nuevo las versiones en el portal.
+El respaldo queda en `/opt/rid-node/backups/` e incluye las **claves del nodo**. **Cópialo fuera del servidor** y guárdalo como un secreto: si el servidor se pierde, el respaldo se pierde con él. Sin respaldo, hay que volver a enrolar el nodo y elegirlo de nuevo en las versiones del portal.
+
+**Restaurar** (en el mismo servidor o en uno nuevo, con el nodo ya instalado por el paquete de la misma versión):
+
+```bash
+sudo /opt/rid-node/install.sh restaurar /ruta/rid-node-<fecha>.tar.gz
+```
+
+El nodo vuelve con la misma identidad, y el portal no ve ningún cambio.
 
 **Actualización**
 
@@ -131,15 +152,17 @@ Con el paquete de la versión nueva, desde su carpeta:
 sudo ./install.sh update
 ```
 
-Primero hace un respaldo, luego cambia a la versión nueva y espera a que el nodo quede en línea.
+Primero comprueba que la versión nueva esté en el paquete. Luego hace un respaldo, cambia a la versión nueva y espera a que el nodo quede en línea. Si la versión no está, no cambia nada.
 
 **Volver atrás**
 
 Si la versión nueva no queda en línea, el instalador lo dice. Para volver:
 
 ```bash
-sudo ./install.sh update <versión anterior>
+sudo /opt/rid-node/install.sh update <versión anterior>
 ```
+
+Si la imagen anterior ya no está en el servidor, ejecútalo desde la carpeta del paquete de esa versión.
 
 Si el portal exige una versión mínima del kit, `status` lo muestra como aviso.
 
@@ -154,7 +177,7 @@ Hace falta en tres casos:
 Primero pide un token nuevo en **Mi entidad → Nodos del kit** y luego:
 
 ```bash
-sudo ./install.sh reenrolar
+sudo /opt/rid-node/install.sh reenrolar
 ```
 
 El nodo nuevo tiene otra identidad: en el portal hay que elegirlo en las versiones que usaban el anterior.
@@ -165,11 +188,11 @@ El nodo nuevo tiene otra identidad: en el portal hay que elegirlo en las version
 | :-- | :-- | :-- |
 | `doctor`: "el túnel no tiene handshake reciente" | Salida UDP 51820 bloqueada | Permitir la salida UDP 51820 hacia el hub |
 | `doctor`: "reloj desfasado" | Sin NTP | `timedatectl set-ntp true` |
-| Logs: "el portal rechazó el token" | Token vencido, ya usado o mal copiado | Pedir uno nuevo y `sudo ./install.sh reenrolar` |
+| Logs: "el portal rechazó el token" | Token vencido, ya usado o mal copiado | Pedir uno nuevo y volver a ejecutar `sudo ./install.sh` |
 | Logs: "el token … existe pero el usuario del contenedor (uid 65532) no puede leerlo" | Permisos cambiados a mano | `sudo chown 65532:65532 /opt/rid-node/secrets/enrollment_token && sudo chmod 400 /opt/rid-node/secrets/enrollment_token` |
 | `doctor`: "no hay conexión TCP con el portal" | Salida 443 bloqueada, o hace falta el proxy corporativo | Abrir la salida, o configurar `HTTPS_PROXY` (sección 3) |
 | `status`: un servicio con ✘ | La API interna no responde | Revisar la API y su URL interna |
 | Validación del portal falla con 502 justo después de instalar | La red aún no conoce el nodo | Esperar un minuto y **Repetir validaciones** |
 | Llamadas con 504 | La API interna tarda más de 30 s | Revisar la API interna |
 
-Para reportar un problema al operador de la red, adjunta la salida de `sudo ./install.sh status` y `sudo ./install.sh doctor`. No contienen secretos ni datos de personas.
+Para reportar un problema al operador de la red, adjunta la salida de `sudo /opt/rid-node/install.sh status` y `sudo /opt/rid-node/install.sh doctor`. No contienen secretos ni datos de personas.

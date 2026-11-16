@@ -3,7 +3,8 @@
 # VARIANT=completo (proxy + instant services) | canal (secure channel only, no database drivers).
 ARG GO_IMAGE=golang:1.27.4-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280
 
-FROM ${GO_IMAGE} AS build
+# The build stage runs natively and cross-compiles for the target platform (amd64 or arm64).
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS build
 RUN apk add --no-cache ca-certificates
 WORKDIR /src
 COPY go.mod go.sum* ./
@@ -12,8 +13,10 @@ COPY cmd ./cmd
 COPY internal ./internal
 ARG VARIANT=completo
 ARG VERSION=0.1.0-dev
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 RUN case "$VARIANT" in completo) tags="" ;; canal) tags="canal" ;; *) echo "VARIANT must be completo or canal" >&2; exit 1 ;; esac \
- && CGO_ENABLED=0 go build -trimpath -tags "$tags" \
+ && CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -tags "$tags" \
       -ldflags "-s -w -X github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo.Version=${VERSION}" \
       -o /out/rid-node ./cmd/rid-node
 

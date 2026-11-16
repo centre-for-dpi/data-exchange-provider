@@ -62,7 +62,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function waitFor(probe, { timeoutMs, everyMs = 1_000, what }) {
   const until = Date.now() + timeoutMs;
   for (;;) {
-    const value = await probe();
+    // A deployed portal can drop a request now and then: keep waiting instead of failing.
+    const value = await probe().catch((error) => {
+      if (error instanceof DemoError) throw error;
+      return undefined;
+    });
     if (value) return value;
     if (Date.now() > until) throw new DemoError(`Timed out after ${timeoutMs / 1000} s: ${what}`);
     await sleep(everyMs);
@@ -365,6 +369,20 @@ async function preflight() {
 
 // --- Canal node -------------------------------------------------------------------------------
 
+// The network between this machine and a deployed portal drops a connection now and then:
+// retry requests that failed before any answer (TypeError), never ones that got an HTTP status.
+const fetchOnce = globalThis.fetch;
+globalThis.fetch = async (...args) => {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fetchOnce(...args);
+    } catch (error) {
+      if (!(error instanceof TypeError) || attempt === 3) throw error;
+      await sleep(2000 * attempt);
+    }
+  }
+};
+
 const here = dirname(fileURLToPath(import.meta.url));
 const COMPOSE_FILE = resolve(here, VPS ? 'compose.vps.yaml' : 'compose.yaml');
 const CONFIG_DIR = resolve(here, VPS ? 'config-vps' : 'config');
@@ -412,47 +430,67 @@ const events = (msg) =>
 // The entity's side with the delivery bundle, on a clean Ubuntu (K2 closing criterion).
 async function installWithInstaller(token) {
   step('Instalar con install.sh en un Ubuntu 24.04 limpio (paquete fuera de línea)', 'entidad');
-  const install = spawnSync('bash', [SERVER, KIT], {
+  const portal = API.replace(/\/api\/v1$/, '');
+  const first = spawnSync('bash', [SERVER, KIT], {
     encoding: 'utf8',
-    env: { ...process.env, MSYS_NO_PATHCONV: '1', RID_INSTALL_PORTAL: API.replace(/\/api\/v1$/, ''), RID_INSTALL_TOKEN: ` ${token}\n` },
+    env: { ...process.env, MSYS_NO_PATHCONV: '1', RID_INSTALL_PORTAL: `${portal}/api/v1/`, RID_INSTALL_TOKEN: 'tok_equivocado_equivocado_000' },
   });
-  info(`${install.stdout}`.trimEnd().split('\n').slice(-12).join('\n').replace(/^/gm, '  '));
-  expect(install.status === 0, `install.sh failed (${install.status}): ${install.stderr}`);
-  ok('Instalado; el token con espacios y salto de línea se guardó limpio');
+  expect(first.status !== 0, 'an install with a wrong token must not report success');
+  ok('Con un token equivocado la instalación no queda en línea y lo dice');
+  const retry = onServer(`RID_INSTALL_YES=1 RID_INSTALL_TOKEN=' ${token}' bash /root/kit/install.sh </dev/null`);
+  info(`${retry.stdout}`.trimEnd().split('\n').slice(-6).join('\n').replace(/^/gm, '  '));
+  expect(retry.status === 0, `re-run with the right token failed: ${retry.stdout}${retry.stderr}`);
+  ok('Volver a ejecutar con el token correcto enrola el nodo (la URL con /api/v1/ se normalizó)');
 
-  const perms = onServer('stat -c "%n %a %u:%g" /opt/rid-node/secrets /opt/rid-node/secrets/enrollment_token /opt/rid-node/.env /opt/rid-node/config/node.yaml').stdout;
+  const perms = onServer('stat -c "%n %a %u:%g" /opt/rid-node/secrets /opt/rid-node/secrets/enrollment_token /opt/rid-node/.env /opt/rid-node/config/node.yaml /opt/rid-node/install.sh').stdout;
   info(perms.trimEnd().replace(/^/gm, '  '));
-  for (const want of ['/opt/rid-node/secrets 750 0:65532', '/opt/rid-node/secrets/enrollment_token 400 65532:65532', '/opt/rid-node/.env 600 0:0', 'node.yaml 644']) {
+  for (const want of ['/opt/rid-node/secrets 750 0:65532', '/opt/rid-node/secrets/enrollment_token 400 65532:65532', '/opt/rid-node/.env 600 0:0', 'node.yaml 644', '/opt/rid-node/install.sh 755']) {
     expect(perms.includes(want), `permissions: expected "${want}"`);
   }
-  ok('Permisos: secrets/ 750 root:65532, token 400 del usuario del nodo, .env 600');
+  ok('Permisos correctos, y el instalador quedó en /opt/rid-node/install.sh');
 
-  const again = onServer('RID_INSTALL_YES=1 bash /root/kit/install.sh </dev/null');
+  const op = (cmd) => onServer(`RID_INSTALL_YES=1 bash /opt/rid-node/install.sh ${cmd} </dev/null`);
+  const again = op('');
   expect(again.status === 0 && /no hace falta token/.test(again.stdout), `re-install failed: ${again.stdout}${again.stderr}`);
   ok('Reinstalar no pide token ni toca la identidad del nodo');
 
   const lan = readFileSync(resolve(here, '../install/.lan-address'), 'utf8').trim();
   spawnSync('docker', ['cp', PORTAL_OPENAPI, 'rid-install-test:/root/salud.openapi.yaml'], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   const svc = (name, path) =>
-    `RID_INSTALL_SERVICE_NAME=${name} RID_INSTALL_SERVICE_PATH=${path} RID_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
-    `RID_INSTALL_SERVICE_PLAIN_HTTP=s RID_INSTALL_SERVICE_CREDENTIAL=ninguna RID_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
-    `bash /root/kit/install.sh servicio </dev/null`;
-  const added = onServer(svc('afiliacion', '/salud'));
+    onServer(`RID_INSTALL_SERVICE_NAME=${name} RID_INSTALL_SERVICE_PATH=${path} RID_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
+      `RID_INSTALL_SERVICE_PLAIN_HTTP=s RID_INSTALL_SERVICE_CREDENTIAL=ninguna RID_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
+      `bash /opt/rid-node/install.sh servicio </dev/null`);
+  const added = svc('afiliacion', '/salud');
   info(`${added.stdout}`.trimEnd().split('\n').slice(-5).join('\n').replace(/^/gm, '  '));
   expect(added.status === 0, `servicio failed: ${added.stdout}${added.stderr}`);
   ok('Servicio "afiliacion" agregado, validado y aplicado');
 
-  const dup = onServer(svc('otra', '/salud'));
-  const left = onServer('ls /opt/rid-node/config/services').stdout;
-  expect(dup.status !== 0 && !left.includes('otra.yaml') && /repetida/.test(dup.stdout + dup.stderr), `a duplicate service must be refused and undone: ${dup.stdout}${dup.stderr}`);
+  const dup = svc('otra', '/salud');
+  expect(dup.status !== 0 && !onServer('ls /opt/rid-node/config/services').stdout.includes('otra.yaml') && /repetida/.test(dup.stdout + dup.stderr),
+    `a duplicate service must be refused and undone: ${dup.stdout}${dup.stderr}`);
   ok('Un servicio con la ruta repetida se rechaza y no deja archivos');
 
-  const backup = onServer('bash /root/kit/install.sh backup && f=$(ls -t /opt/rid-node/backups/*.tar.gz | head -1) && stat -c "%a" "$f" && tar -tzf "$f" | grep -c state.json');
-  expect(backup.status === 0 && /\b600\b/.test(backup.stdout) && /\n1\s*$/.test(backup.stdout), `backup: ${backup.stdout}${backup.stderr}`);
-  ok('Respaldo 0600 con el estado del nodo');
+  expect(svc('temporal', '/temporal').status === 0 && op('servicio quitar temporal').status === 0 &&
+    !onServer('ls /opt/rid-node/config/services').stdout.includes('temporal'), 'servicio quitar did not remove the service');
+  ok('servicio quitar elimina un servicio');
+
+  const bad = op('update 9.9.9');
+  const version = onServer("grep '^RID_NODE_VERSION=' /opt/rid-node/.env").stdout.trim();
+  expect(bad.status !== 0 && version === 'RID_NODE_VERSION=0.1.0' && op('status').status === 0, `update to a missing version: ${bad.stdout}${bad.stderr} / ${version}`);
+  ok('update a una versión que no existe falla sin tocar .env y el nodo sigue en línea');
+
+  const name = (op('status').stdout.match(/Nodo:\s+(\S+)/) ?? [])[1];
+  const backup = onServer('bash /opt/rid-node/install.sh backup >/dev/null && ls -t /opt/rid-node/backups/*.tar.gz | head -1');
+  const file = backup.stdout.trim();
+  expect(backup.status === 0 && file.endsWith('.tar.gz') && onServer(`stat -c %a ${file}`).stdout.trim() === '600', `backup: ${backup.stdout}${backup.stderr}`);
+  onServer('cd /opt/rid-node && docker compose down -v >/dev/null 2>&1');
+  const restored = op(`restaurar ${file}`);
+  const after = (op('status').stdout.match(/Nodo:\s+(\S+)/) ?? [])[1];
+  expect(restored.status === 0 && after === name, `restore: ${restored.stdout}${restored.stderr} (${name} → ${after})`);
+  ok(`Estado perdido y restaurado desde el respaldo: sigue siendo ${after}`);
 
   for (const mode of ['completo', 'canal']) {
-    const m = onServer(`RID_INSTALL_YES=1 bash /root/kit/install.sh modo ${mode} </dev/null`);
+    const m = op(`modo ${mode}`);
     expect(m.status === 0, `modo ${mode} failed: ${m.stdout}${m.stderr}`);
   }
   ok('Cambio de modo completo → canal sin perder el estado');
@@ -463,7 +501,7 @@ async function main() {
   await preflight();
 
   step('Registrar el nodo y emitir el token de enrolamiento', 'elena.admin');
-  const elena = await as('elena.admin');
+  let elena = await as('elena.admin');
   const salud = elena.entity('salud');
   const issued = await elena.call('POST', `/entities/${salud}/nodes`, { name: `prueba-kit-canal-${RUN}` });
   const nodeId = issued.node.id;
@@ -471,6 +509,7 @@ async function main() {
 
   if (INSTALLER) {
     await installWithInstaller(issued.token);
+    elena = await as('elena.admin'); // the installer phase can outlive the access token
   } else {
   step('Instalar el nodo en modo canal (sin capacidades, solo lectura, sin root, sin puertos)', 'entidad');
   mkdirSync(resolve(here, '.run'), { recursive: true });
@@ -491,7 +530,7 @@ async function main() {
   info(`Servicios declarados: ${JSON.stringify(online.services)}`);
   if (INSTALLER) {
     // The container was recreated by `servicio` and `modo`: the enrollment line is in an older log.
-    const st = onServer('bash /root/kit/install.sh status').stdout;
+    const st = onServer('bash /opt/rid-node/install.sh status').stdout;
     expect(st.includes(`rid-node-${nodeId}`) && /Túnel:\s+último handshake hace/.test(st), `status: ${st}`);
     ok(`Enrolado como rid-node-${nodeId}, con handshake reciente del túnel`);
   } else {
@@ -629,7 +668,7 @@ async function main() {
   step('Operación: status y doctor', 'entidad');
   if (INSTALLER) {
     for (const cmd of ['status', 'doctor']) {
-      const r = onServer(`bash /root/kit/install.sh ${cmd}`);
+      const r = onServer(`bash /opt/rid-node/install.sh ${cmd}`);
       info(`${r.stdout}`.trimEnd().replace(/^/gm, '  '));
       expect(r.status === 0, `install.sh ${cmd} exited ${r.status}: ${r.stderr}`);
     }

@@ -9,10 +9,13 @@ OUT="$ROOT/dist/rid-node-kit-$VERSION"
 export MSYS_NO_PATHCONV=1
 cd "$ROOT"
 rm -rf "$OUT" && mkdir -p "$OUT/images"
-for variant in completo canal; do
-  suffix=$([[ $variant == canal ]] && echo -canal || true)
-  docker build -q -f deploy/Dockerfile --build-arg VARIANT=$variant --build-arg VERSION="$VERSION" -t "rid-node:$VERSION$suffix" . >/dev/null
-  docker save "rid-node:$VERSION$suffix" >"$OUT/images/rid-node-$VERSION$suffix.tar"
+# docker on Windows (Git Bash) needs a Windows path for --output.
+native_path() { if command -v cygpath >/dev/null; then cygpath -w "$1"; else printf '%s' "$1"; fi; }
+for arch in amd64 arm64; do
+  for variant in completo canal; do
+    suffix=$([[ $variant == canal ]] && echo -canal || true)
+    docker buildx build -q --platform "linux/$arch" -f deploy/Dockerfile --build-arg VARIANT=$variant       --build-arg VERSION="$VERSION" -t "rid-node:$VERSION$suffix"       --output "type=docker,dest=$(native_path "$OUT/images/rid-node-$VERSION$suffix-$arch.tar")" . >/dev/null
+  done
 done
 install -m 0755 deploy/install.sh "$OUT/install.sh"
 install -m 0644 deploy/compose.yaml deploy/env.example "$OUT/"
