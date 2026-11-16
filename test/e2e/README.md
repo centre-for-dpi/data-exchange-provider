@@ -18,4 +18,14 @@ make e2e
 
 En tiempo de ejecución el script escribe el token en `.run/` y copia el OpenAPI del portal en `config/`. Los dos están en `.gitignore`.
 
-Cada corrida deja en la base del portal un nodo `canal-e2e-*` y una API "Afiliación por el canal (e2e …)", con datos sintéticos.
+Cada corrida deja en el portal un nodo `prueba-kit-canal-*`, una API "Afiliación por el canal (prueba del kit …)", una aplicación y una suscripción, todos con datos sintéticos. La prueba queda como terminó, con el nodo `online`. Con `RID_E2E_CLEANUP=1` revoca la suscripción, da de baja el nodo y borra los contenedores locales.
+
+## Contra el portal desplegado (VPS)
+
+Con `RID_E2E_TARGET=vps` el nodo corre en esta máquina, como lo haría una entidad. Sale por internet hacia el portal, el gateway y el hub públicos (`compose.vps.yaml`, `config-vps/node.yaml`), y la API propia es el proveedor de prueba, corriendo a su lado.
+
+Variables, tomadas del `.env` del despliegue:
+- `RID_API_URL`, `KEYCLOAK_URL` (`…/auth`), `RID_GATEWAY_PUBLIC_URL`, `RID_GATEWAY_HTTP_URL` (`…/gw`) y `RID_WEB_URL`;
+- los secretos `RID_PORTAL_WEB_CLIENT_SECRET`, `RID_DEMO_USER_PASSWORD` y `RID_DEMO_TOTP_SECRET`.
+
+Los secretos no se guardan en el repositorio.

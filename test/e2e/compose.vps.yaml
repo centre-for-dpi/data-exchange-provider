@@ -1,0 +1,30 @@
+# The canal node against the deployed portal: it reaches the portal, the gateway and the hub over
+# the internet only. "api-propia" stands in for the entity's own internal API.
+name: rid-kit-e2e-vps
+
+services:
+  rid-node:
+    image: rid-node:${RID_NODE_VERSION:-0.1.0-dev}-canal
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    environment:
+      RID_HEARTBEAT_SECONDS: '15'
+    volumes:
+      - rid-node-state:/var/lib/rid-node
+      - ./config-vps:/etc/rid-node:ro
+    secrets: [enrollment_token]
+    depends_on: [api-propia]
+
+  api-propia:
+    image: rid/mock-providers:dev
+    environment:
+      PROVIDER: salud
+      PORT: '8000'
+
+secrets:
+  enrollment_token:
+    file: ./.run/enrollment_token
+
+volumes:
+  rid-node-state: {}

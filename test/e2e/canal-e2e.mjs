@@ -16,7 +16,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DEFAULT_DEMO_TOTP_SECRET, totp } from '../../../data-exchange/scripts/totp.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../data-exchange');
-if (existsSync(resolve(root, '.env'))) process.loadEnvFile(resolve(root, '.env'));
+// Against the deployed portal (RID_E2E_TARGET=vps) every URL and secret comes from the environment.
+const VPS = process.env.RID_E2E_TARGET === 'vps';
+if (!VPS && existsSync(resolve(root, '.env'))) process.loadEnvFile(resolve(root, '.env'));
 
 const env = (name, fallback) => process.env[name] ?? fallback;
 const API = `${env('RID_API_URL', 'http://localhost:4000')}/api/v1`;
@@ -364,11 +366,14 @@ async function preflight() {
 // --- Canal node -------------------------------------------------------------------------------
 
 const here = dirname(fileURLToPath(import.meta.url));
-const NODE_CONTAINER = 'rid-kit-e2e-rid-node-1';
+const COMPOSE_FILE = resolve(here, VPS ? 'compose.vps.yaml' : 'compose.yaml');
+const CONFIG_DIR = resolve(here, VPS ? 'config-vps' : 'config');
+const PROJECT = VPS ? 'rid-kit-e2e-vps' : 'rid-kit-e2e';
+const NODE_CONTAINER = `${PROJECT}-rid-node-1`;
 const PORTAL_OPENAPI = resolve(root, 'infra/mock-providers/salud/openapi.yaml');
 
 function compose(args) {
-  const run = spawnSync('docker', ['compose', '-f', resolve(here, 'compose.yaml'), ...args], {
+  const run = spawnSync('docker', ['compose', '-f', COMPOSE_FILE, ...args], {
     cwd: here,
     encoding: 'utf8',
     env: { ...process.env, MSYS_NO_PATHCONV: '1' },
@@ -394,22 +399,22 @@ const events = (msg) =>
     .filter((e) => e && e.msg === msg);
 
 async function main() {
-  console.log(bold('K1: modo canal contra el portal real'));
+  console.log(bold(`K1: modo canal contra el portal ${VPS ? `desplegado (${API})` : 'local'}`));
   await preflight();
 
   step('Registrar el nodo y emitir el token de enrolamiento', 'elena.admin');
   const elena = await as('elena.admin');
   const salud = elena.entity('salud');
-  const issued = await elena.call('POST', `/entities/${salud}/nodes`, { name: `canal-e2e-${RUN}` });
+  const issued = await elena.call('POST', `/entities/${salud}/nodes`, { name: `prueba-kit-canal-${RUN}` });
   const nodeId = issued.node.id;
   ok(`Nodo ${nodeId} · token de un solo uso`);
 
   step('Instalar el nodo en modo canal (sin capacidades, solo lectura, sin root, sin puertos)', 'entidad');
   mkdirSync(resolve(here, '.run'), { recursive: true });
   writeFileSync(resolve(here, '.run/enrollment_token'), `${issued.token}\n`, { mode: 0o644 });
-  copyFileSync(PORTAL_OPENAPI, resolve(here, 'config/salud.openapi.yaml'));
+  copyFileSync(PORTAL_OPENAPI, resolve(CONFIG_DIR, 'salud.openapi.yaml'));
   compose(['rm', '-sf', 'rid-node']);
-  spawnSync('docker', ['volume', 'rm', '-f', 'rid-kit-e2e_rid-node-state']);
+  spawnSync('docker', ['volume', 'rm', '-f', `${PROJECT}_rid-node-state`]);
   compose(['up', '-d', 'rid-node']);
   const online = await waitFor(
     async () => {
@@ -425,7 +430,9 @@ async function main() {
   ok(`Enrolado como ${enrolled.node}; solo acepta a ${enrolled.gateway_client}`);
 
   // The hub learns the node's SNI route from the portal's reconciler; until then the gateway
-  // gets a 502. Probe the hub without a client certificate until the node itself refuses it.
+  // gets a 502. Locally, probe the hub without a client certificate until the node itself
+  // refuses it; against the VPS the hub is not reachable from here, so the review retries below.
+  if (!VPS) {
   const refused = await waitFor(
     async () => {
       spawnSync('docker', ['run', '--rm', '--network', 'rid_providers', '--entrypoint', 'openssl', 'rid/mock-node:dev',
@@ -436,12 +443,13 @@ async function main() {
     { timeoutMs: 120_000, everyMs: 5_000, what: 'the hub never reached the node' },
   );
   ok(`El hub real alcanza al nodo; sin certificado, el nodo corta: ${refused.reason}`);
+  }
 
   step('Publicar la versión con upstream node', 'pedro.publicador');
   const pedro = await as('pedro.publicador');
   const api = await pedro.call('POST', `/entities/${salud}/apis`, {
     slug: SLUG,
-    name: `Afiliación por el canal (e2e ${RUN})`,
+    name: `Afiliación por el canal (prueba del kit ${RUN})`,
     summary: 'API propia de la entidad publicada a través del nodo en modo canal.',
     description: 'Datos sintéticos (proveedor de prueba del portal).',
     sector: 'salud',
@@ -470,9 +478,20 @@ async function main() {
 
   step('Validaciones automáticas y aprobación', 'ana.operadora');
   const ana = await as('ana.operadora');
+  // A validation that ran before the hub learned the node's route fails with 502: run it again.
+  let reruns = 0;
   await waitFor(
-    async () => (await ana.call('GET', `/review/api-versions/${version.id}`)).version.validation?.status === 'passed',
-    { timeoutMs: 180_000, what: 'the automatic validations did not pass' },
+    async () => {
+      const status = (await ana.call('GET', `/review/api-versions/${version.id}`)).version.validation?.status;
+      if (status === 'failed' && reruns < 6) {
+        reruns += 1;
+        info(`  validación fallida (¿el hub aún no conoce al nodo?): reintento ${reruns}`);
+        await sleep(10_000);
+        await pedro.call('POST', `/entities/${salud}/apis/${api.id}/versions/${version.id}/validations`);
+      }
+      return status === 'passed';
+    },
+    { timeoutMs: 300_000, everyMs: 3_000, what: 'the automatic validations did not pass' },
   );
   ok(`Validaciones: ${JSON.stringify((await ana.call('GET', `/review/api-versions/${version.id}`)).version.validation.healthcheck)}`);
   const approved = await ana.call('POST', `/review/api-versions/${version.id}/approve`, {});
@@ -538,11 +557,23 @@ async function main() {
 
   step('Operación: status y doctor dentro del contenedor', 'entidad');
   info(compose(['exec', '-T', 'rid-node', '/rid-node', 'status']).trimEnd().replace(/^/gm, '  '));
-  const doctor = spawnSync('docker', ['compose', '-f', resolve(here, 'compose.yaml'), 'exec', '-T', 'rid-node', '/rid-node', 'doctor'],
+  const doctor = spawnSync('docker', ['compose', '-f', COMPOSE_FILE, 'exec', '-T', 'rid-node', '/rid-node', 'doctor'],
     { cwd: here, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   info(`${doctor.stdout}`.trimEnd().replace(/^/gm, '  '));
   expect(doctor.status === 0, `doctor exited ${doctor.status}`);
   ok('doctor sin errores');
+
+  // Cleanup is opt-in: by default the test is left as it finished (node online, version
+  // published, subscription active). RID_E2E_CLEANUP=1 revokes and decommissions.
+  if (process.env.RID_E2E_CLEANUP === '1') {
+    step('Limpieza', 'lucia.datos / elena.admin');
+    await lucia.call('POST', `/entities/${salud}/access-requests/${subscription.id}/revoke`, { comment: 'Fin de la prueba del kit.' });
+    await elena.call('POST', `/entities/${salud}/nodes/${nodeId}/decommission`, { reason: 'Fin de la prueba del kit.' });
+    compose(['down', '-v']);
+    ok('Suscripción revocada, nodo dado de baja y contenedores locales eliminados');
+  } else {
+    info(`Queda como terminó: nodo ${nodeId} online (contenedor ${NODE_CONTAINER}), versión publicada y suscripción activa.`);
+  }
 
   console.log(`\n${green(bold('Punta a punta en verde'))} ${dim(`(${((Date.now() - started) / 1000).toFixed(0)} s)`)}`);
 }

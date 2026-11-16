@@ -1,0 +1,11 @@
+# Node configuration for the end-to-end test against the deployed portal (VPS), as an entity
+# would run it: public portal, public gateway and hub over the internet; the entity's own API
+# is the portal's test provider running next to the node.
+portal: https://portal.example.org
+services:
+  - name: afiliacion
+    path: /salud
+    type: proxy
+    upstream: http://api-propia:8000
+    allowPlainHttp: true
+    openapi: /etc/rid-node/salud.openapi.yaml # copied from the portal by canal-e2e.mjs
