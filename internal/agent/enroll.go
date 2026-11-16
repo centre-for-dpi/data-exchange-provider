@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -27,8 +28,16 @@ type Enroller struct {
 	ServicePort int
 	Log         *slog.Logger
 
-	TokenPoll          time.Duration // default 10s
-	RetryMin, RetryMax time.Duration // default 2s and 60s
+	TokenPoll          time.Duration                // default 10s
+	RetryMin, RetryMax time.Duration                // default 2s and 60s
+	ReadFile           func(string) ([]byte, error) // default os.ReadFile (tests inject failures)
+}
+
+// errTokenUnreadable explains the usual cause: Compose secrets are bind mounts that keep the
+// host file's owner and mode, and the container runs as uid 65532.
+func errTokenUnreadable(path string) error {
+	return fmt.Errorf("el token de enrolamiento %s existe pero el usuario del contenedor (uid 65532) no puede leerlo: "+
+		"ajusta el dueño (chown 65532) o los permisos (644 dentro de una carpeta 700)", path)
 }
 
 // LoadOrEnroll returns the saved state, or enrolls when there is none. A state that exists but
@@ -92,13 +101,20 @@ func (e *Enroller) defaults() {
 	if e.RetryMax == 0 {
 		e.RetryMax = 60 * time.Second
 	}
+	if e.ReadFile == nil {
+		e.ReadFile = os.ReadFile
+	}
 }
 
 // waitForToken reads the token secret, waiting (not crashing) until it is there.
 func (e *Enroller) waitForToken(ctx context.Context) (string, error) {
 	logged := false
 	for {
-		if b, err := os.ReadFile(e.TokenFile); err == nil {
+		b, err := e.ReadFile(e.TokenFile)
+		if errors.Is(err, fs.ErrPermission) {
+			return "", errTokenUnreadable(e.TokenFile)
+		}
+		if err == nil {
 			if token := strings.TrimSpace(string(b)); token != "" {
 				return token, nil
 			}

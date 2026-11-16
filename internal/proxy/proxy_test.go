@@ -248,3 +248,19 @@ func TestProbe(t *testing.T) {
 		t.Fatal("Probe must fail when nothing listens")
 	}
 }
+
+// Final review: identity-carrying headers a consumer could forge never reach the internal API.
+func TestDropsForgeableIdentityAndRoutingHeaders(t *testing.T) {
+	var got http.Header
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { got = r.Header.Clone() }))
+	defer up.Close()
+	through(t, spec(up.URL), "GET", "/certificados/1", nil, map[string]string{
+		"Forwarded": "for=1.2.3.4", "X-Real-IP": "1.2.3.4", "X-Remote-User": "admin", "X-Forwarded-User": "admin",
+		"X-Original-URL": "/admin", "X-Rewrite-URL": "/admin",
+	})
+	for _, h := range []string{"Forwarded", "X-Real-Ip", "X-Remote-User", "X-Forwarded-User", "X-Original-Url", "X-Rewrite-Url"} {
+		if v := got.Get(h); v != "" {
+			t.Fatalf("%s reached the internal API: %q", h, v)
+		}
+	}
+}

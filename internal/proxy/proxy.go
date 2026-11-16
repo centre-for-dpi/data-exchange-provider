@@ -20,6 +20,11 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 )
 
+// dropHeaders never reach the internal API: credentials of the consumer, and headers that a
+// backend behind its own reverse proxy may trust to identify the user or rewrite the route.
+var dropHeaders = []string{"Authorization", "Cookie", "Forwarded", "X-Real-Ip", "X-Remote-User",
+	"X-Forwarded-User", "X-Original-Url", "X-Rewrite-Url"}
+
 // New builds the handler of one proxy service. It receives requests with servicePath already
 // stripped (server.NewHandler) and forwards them to the upstream's base path.
 func New(servicePath string, spec config.ProxySpec) (http.Handler, error) {
@@ -71,8 +76,10 @@ func New(servicePath string, spec config.ProxySpec) (http.Handler, error) {
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
 			// The consumer's credentials stop at the node: the internal API sees only the node's.
-			pr.Out.Header.Del("Authorization")
-			pr.Out.Header.Del("Cookie")
+			// Headers some backends trust for identity or routing are dropped too.
+			for _, h := range dropHeaders {
+				pr.Out.Header.Del(h)
+			}
 			setCredential(pr.Out)
 		},
 		Transport: &http.Transport{

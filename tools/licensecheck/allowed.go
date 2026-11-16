@@ -30,6 +30,22 @@ var rules = []rule{
 	{spdx: "BlueOak-1.0.0", allowed: true, all: []string{"blue oak model license"}},
 }
 
+// deny are phrases of licenses rule 1 prohibits even when they ride on an allowed text
+// (Commons Clause on Apache-2.0) or sit next to one (an enterprise LICENSE file).
+var deny = []string{"commons clause", "business source license", "server side public license", "elastic license",
+	"source-available", "source available license", "functional source license", "sustainable use license", "fair source"}
+
+// denied returns the prohibited phrase found in a license text, if any.
+func denied(text string) string {
+	t := normalize(text)
+	for _, d := range deny {
+		if strings.Contains(t, d) {
+			return d
+		}
+	}
+	return ""
+}
+
 func normalize(s string) string { return strings.Join(strings.Fields(strings.ToLower(s)), " ") }
 
 // classify returns the SPDX-like name of a license text and whether rule 1 allows it.

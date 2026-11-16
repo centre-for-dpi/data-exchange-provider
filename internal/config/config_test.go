@@ -166,3 +166,13 @@ func TestReadSecretEmptyIsError(t *testing.T) {
 		t.Fatalf("expected an empty-secret error, got %v", err)
 	}
 }
+
+// Final review: "/" was accepted but never routed.
+func TestRejectRootServicePath(t *testing.T) {
+	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: /", 1), "ruta")
+}
+
+// Final review: credentials in the upstream URL were dropped silently and printed by doctor.
+func TestRejectUserinfoInUpstream(t *testing.T) {
+	mustFail(t, strings.Replace(validProxy, "https://api.interna.entidad", "https://rid:s3cr3t@api.interna.entidad", 1), "credential.basic")
+}

@@ -519,7 +519,7 @@ async function main() {
   ok('Suscripción activa');
 
   step('Llamar por el gateway → hub → túnel → nodo (canal) → API propia', 'terminal');
-  const requestId = `canal-${RUN}`;
+  const requestId = randomUUID();
   const allowed = await callGateway(token, {
     'x-rid-purpose': 'eligibility_check',
     'x-rid-end-user': 'funcionario-42',

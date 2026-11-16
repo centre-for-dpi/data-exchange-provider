@@ -3,10 +3,27 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
+
+// The request id comes from the consumer through the gateway: it could carry an identifier.
+// Only a UUID (what the gateway generates) is logged as is.
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func requestID(r *http.Request) string {
+	id := r.Header.Get("X-Request-Id")
+	switch {
+	case id == "":
+		return ""
+	case uuidPattern.MatchString(id):
+		return id
+	default:
+		return "(no uuid)"
+	}
+}
 
 type statusRecorder struct {
 	http.ResponseWriter
@@ -57,7 +74,7 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 		}
 		sort.Strings(ridHeaders)
 		logger.Info("access",
-			"request_id", r.Header.Get("X-Request-Id"),
+			"request_id", requestID(r),
 			"method", r.Method,
 			"route", route,
 			"status", rec.status,

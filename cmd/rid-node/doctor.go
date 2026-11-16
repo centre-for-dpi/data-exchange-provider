@@ -18,12 +18,19 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/proxy"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/state"
+	"golang.org/x/net/http/httpproxy"
 )
+
+func readErr(read func(string) ([]byte, error), path string) error {
+	_, err := read(path)
+	return err
+}
 
 type doctorOptions struct {
 	ConfigPath, StateDir, TokenFile string
 	PortalHTTP                      *http.Client
 	Now                             func() time.Time
+	ReadFile                        func(string) ([]byte, error) // default os.ReadFile
 }
 
 type checker struct {
@@ -41,6 +48,9 @@ func (c *checker) fail(format string, a ...any) {
 // doctor checks what usually breaks a node in an entity's network. Exit 1 on any ✘.
 func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 	c := &checker{out: out}
+	if o.ReadFile == nil {
+		o.ReadFile = os.ReadFile
+	}
 	cfg, err := config.Load(o.ConfigPath)
 	if err != nil {
 		c.fail("configuración: %v", err)
@@ -76,6 +86,8 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 			c.warn("falta el token de enrolamiento en %s (el nodo esperará hasta que exista)", f)
 		case err != nil:
 			c.fail("secreto %s: %v", f, err)
+		case readErr(o.ReadFile, f) != nil:
+			c.fail("el secreto %s no lo puede leer este usuario (el contenedor corre como uid 65532): ajusta el dueño (chown 65532) o los permisos", f)
 		case runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0:
 			c.warn("el secreto %s lo pueden leer otros usuarios (permisos %v): usa chmod 600", f, info.Mode().Perm())
 		default:
@@ -83,25 +95,33 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 		}
 	}
 
-	// The portal: DNS, TCP and the clock (certificates fail with a skewed clock).
+	// The portal (or the corporate proxy in front of it): DNS, TCP and the clock (certificates
+	// fail with a skewed clock).
 	u, _ := url.Parse(cfg.Portal)
-	host, port := u.Hostname(), u.Port()
+	host, port, via := u.Hostname(), u.Port(), "el portal"
 	if port == "" {
 		port = map[string]string{"https": "443", "http": "80"}[u.Scheme]
 	}
+	if p, err := httpproxy.FromEnvironment().ProxyFunc()(u); err == nil && p != nil {
+		host, port, via = p.Hostname(), p.Port(), "el proxy corporativo"
+		if port == "" {
+			port = "80"
+		}
+		c.ok("el portal se alcanza a través del proxy corporativo %s", p.Host)
+	}
 	if _, err := net.DefaultResolver.LookupHost(ctx, host); err != nil {
-		c.fail("DNS: no se resuelve %s: %v", host, err)
+		c.fail("DNS: no se resuelve %s (%s): %v", host, via, err)
 	} else {
-		c.ok("DNS resuelve %s", host)
+		c.ok("DNS resuelve %s (%s)", host, via)
 	}
 	dctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	conn, err := (&net.Dialer{}).DialContext(dctx, "tcp", net.JoinHostPort(host, port))
 	cancel()
 	if err != nil {
-		c.fail("no hay conexión TCP con el portal %s:%s: revisa la salida por 443 o el proxy corporativo", host, port)
+		c.fail("no hay conexión TCP con %s %s:%s: revisa la salida por 443 o el proxy corporativo", via, host, port)
 	} else {
 		conn.Close()
-		c.ok("conexión TCP con el portal %s:%s", host, port)
+		c.ok("conexión TCP con %s %s:%s", via, host, port)
 	}
 	if res, err := o.PortalHTTP.Get(strings.TrimRight(cfg.Portal, "/") + "/api/v1/health"); err != nil {
 		c.warn("no se pudo comparar el reloj con el portal: %v", err)

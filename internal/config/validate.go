@@ -41,8 +41,8 @@ func (n *Node) Validate() error {
 			add("%s: el nombre %q está repetido", label, s.Name)
 		}
 		names[s.Name] = true
-		if !pathPattern.MatchString(s.Path) || len(s.Path) > 200 || strings.HasSuffix(s.Path, "/") && s.Path != "/" {
-			add("%s: la ruta %q debe empezar con / y usar solo letras, números y . _ ~ - / (máximo 200, sin / final)", label, s.Path)
+		if !pathPattern.MatchString(s.Path) || len(s.Path) > 200 || strings.HasSuffix(s.Path, "/") || hasDotSegment(s.Path) {
+			add("%s: la ruta %q debe empezar con / seguida de un nombre, usar solo letras, números y . _ ~ - / (máximo 200, sin / final ni segmentos . o ..)", label, s.Path)
 		} else {
 			for other, otherName := range paths {
 				switch {
@@ -72,6 +72,15 @@ func (n *Node) Validate() error {
 	return errors.Join(errs...)
 }
 
+func hasDotSegment(p string) bool {
+	for _, s := range strings.Split(p, "/")[1:] {
+		if s == "" || s == "." || s == ".." {
+			return true
+		}
+	}
+	return false
+}
+
 // overlaps reports whether one path is a prefix of the other at a segment boundary.
 func overlaps(a, b string) bool {
 	return strings.HasPrefix(b, a+"/") || strings.HasPrefix(a, b+"/")
@@ -99,6 +108,8 @@ func (p ProxySpec) validate() []error {
 	switch {
 	case err != nil || u.Host == "":
 		errs = append(errs, fmt.Errorf("upstream %q debe ser una URL http(s) completa", p.Upstream))
+	case u.User != nil:
+		errs = append(errs, fmt.Errorf("upstream no debe llevar usuario ni contraseña en la URL: usa credential.basic con passwordFile"))
 	case u.RawQuery != "" || u.Fragment != "":
 		errs = append(errs, fmt.Errorf("upstream %q no debe llevar query ni fragmento", p.Upstream))
 	case u.Scheme == "http" && !p.AllowPlainHTTP:

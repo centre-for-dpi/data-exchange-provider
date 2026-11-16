@@ -74,27 +74,36 @@ func licenseTexts(dir string) []string {
 	return texts
 }
 
-// judge decides a module: a reviewed exception wins; otherwise it passes if any of its license
-// files is allowed (dual-licensed modules), and fails without any license file.
+// judge decides a module: a reviewed exception wins; otherwise every license file must be
+// allowed and none may contain a prohibited license or rider. No license file fails.
 func judge(module string, texts []string, exceptions map[string]string) (string, bool) {
 	if reason, ok := exceptions[module]; ok {
 		return reason, true
 	}
-	var seen []string
+	if len(texts) == 0 {
+		return "no license file", false
+	}
+	for _, t := range texts {
+		if d := denied(t); d != "" {
+			return "prohibited: " + d, false
+		}
+	}
+	var allowed, refused []string
 	for _, t := range texts {
 		spdx, ok := classify(t)
-		if ok {
-			return spdx, true
-		}
 		if spdx == "" {
 			spdx = "unknown"
 		}
-		seen = append(seen, spdx)
+		if ok {
+			allowed = append(allowed, spdx)
+		} else {
+			refused = append(refused, spdx)
+		}
 	}
-	if len(seen) == 0 {
-		return "no license file", false
+	if len(refused) > 0 { // every license file must be allowed; a reviewed exception can override
+		return strings.Join(append(allowed, refused...), ", "), false
 	}
-	return strings.Join(seen, ", "), false
+	return allowed[0], true
 }
 
 func loadExceptions(path string) (map[string]string, error) {

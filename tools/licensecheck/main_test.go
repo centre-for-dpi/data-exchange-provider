@@ -34,10 +34,33 @@ func TestClassify(t *testing.T) {
 	}
 }
 
-func TestDualLicenseAllowedIfAnyFileAllowed(t *testing.T) {
-	spdx, ok := judge("example.com/dual", []string{"GNU GENERAL PUBLIC LICENSE Version 2", "Permission is hereby granted, free of charge"}, nil)
-	if !ok || spdx != "MIT" {
-		t.Fatalf("judge = (%q, %v), want (MIT, true)", spdx, ok)
+// Final review #3: any disallowed file fails the module (a reviewed exception can still allow it).
+func TestAnyDisallowedFileFails(t *testing.T) {
+	if _, ok := judge("example.com/dual", []string{"Permission is hereby granted, free of charge", "Business Source License 1.1 ... Licensor: Example"}, nil); ok {
+		t.Fatal("an MIT file next to a BSL file must not pass")
+	}
+	if _, ok := judge("example.com/gpl", []string{"GNU GENERAL PUBLIC LICENSE Version 2", "Permission is hereby granted, free of charge"}, nil); ok {
+		t.Fatal("an MIT file next to a GPL file must not pass")
+	}
+}
+
+// Final review #3: prohibited riders and source-available licenses fail even inside an allowed text.
+func TestProhibitedRidersFail(t *testing.T) {
+	for _, text := range []string{
+		"Apache License Version 2.0 ... \"Commons Clause\" License Condition v1.0 The Software is provided to you by the Licensor under the License",
+		"Server Side Public License VERSION 1, OCTOBER 16, 2018",
+		"Elastic License 2.0 (ELv2)",
+		"Functional Source License, Version 1.1, MIT Future License",
+	} {
+		if _, ok := judge("example.com/rider", []string{text}, nil); ok {
+			t.Fatalf("passed: %q", text)
+		}
+	}
+}
+
+func TestSingleAllowedLicensePasses(t *testing.T) {
+	if spdx, ok := judge("example.com/mit", []string{"Permission is hereby granted, free of charge"}, nil); !ok || spdx != "MIT" {
+		t.Fatalf("judge = (%q, %v)", spdx, ok)
 	}
 }
 

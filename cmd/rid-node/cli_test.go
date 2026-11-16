@@ -215,3 +215,35 @@ services:
 		t.Fatal("runNode did not stop")
 	}
 }
+
+// Final review #2: doctor must read secrets, not just stat them.
+func TestDoctorUnreadableSecret(t *testing.T) {
+	dir := t.TempDir()
+	cfg := writeFile(t, dir, "node.yaml", "portal: "+portalWithDate(t, 0).URL+"\n", 0o600)
+	token := writeFile(t, dir, "token", "tok", 0o600)
+	var out bytes.Buffer
+	code := doctor(context.Background(), doctorOptions{ConfigPath: cfg, StateDir: t.TempDir(), TokenFile: token,
+		PortalHTTP: http.DefaultClient, Now: time.Now,
+		ReadFile: func(string) ([]byte, error) {
+			return nil, &os.PathError{Op: "open", Path: token, Err: os.ErrPermission}
+		}}, &out)
+	if code != 1 || !strings.Contains(out.String(), "65532") {
+		t.Fatalf("code=%d\n%s", code, out.String())
+	}
+}
+
+// Final review #4: behind a corporate proxy, DNS and TCP are the proxy's, not the portal's.
+func TestDoctorBehindCorporateProxy(t *testing.T) {
+	proxyLn, _ := net.Listen("tcp", "127.0.0.1:0")
+	defer proxyLn.Close()
+	t.Setenv("HTTPS_PROXY", "http://"+proxyLn.Addr().String())
+	t.Setenv("NO_PROXY", "")
+	dir := t.TempDir()
+	cfg := writeFile(t, dir, "node.yaml", "portal: https://portal.invalid\n", 0o600)
+	var out bytes.Buffer
+	code := doctor(context.Background(), doctorOptions{ConfigPath: cfg, StateDir: t.TempDir(), TokenFile: filepath.Join(dir, "token"),
+		PortalHTTP: &http.Client{Timeout: time.Second}, Now: time.Now}, &out)
+	if code != 0 || !strings.Contains(out.String(), "proxy") || strings.Contains(out.String(), "✘") {
+		t.Fatalf("code=%d\n%s", code, out.String())
+	}
+}

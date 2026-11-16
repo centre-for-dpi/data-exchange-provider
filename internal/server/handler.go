@@ -47,6 +47,11 @@ func NewHandler(nodeName string, routes []Route, logger *slog.Logger) http.Handl
 			Problem(w, http.StatusMisdirectedRequest, "misdirected_request", "La petición no es para este nodo")
 			return
 		}
+		if unsafePath(r) {
+			SetRoute(r, "(invalid path)")
+			Problem(w, http.StatusBadRequest, "invalid_path", "La ruta de la petición no es válida")
+			return
+		}
 		rt := match(rs, r.URL.Path)
 		if rt == nil {
 			SetRoute(r, "(no service)")
@@ -63,6 +68,24 @@ func NewHandler(nodeName string, routes []Route, logger *slog.Logger) http.Handl
 		}
 		rt.Handler.ServeHTTP(w, strip(r, rt.Path))
 	}))
+}
+
+// unsafePath rejects what could climb out of a backend's base path once that backend
+// normalizes it: empty, "." or ".." segments, backslashes, and encoded dots, slashes or
+// backslashes. A trailing slash is allowed.
+func unsafePath(r *http.Request) bool {
+	escaped := strings.ToLower(r.URL.EscapedPath())
+	if strings.Contains(escaped, "%2e") || strings.Contains(escaped, "%2f") || strings.Contains(escaped, "%5c") ||
+		strings.Contains(r.URL.Path, "\\") {
+		return true
+	}
+	segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+	for i, s := range segments {
+		if s == "." || s == ".." || (s == "" && i != len(segments)-1) {
+			return true
+		}
+	}
+	return false
 }
 
 func match(rs []*route, path string) *route {

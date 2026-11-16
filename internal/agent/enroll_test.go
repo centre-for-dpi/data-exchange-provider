@@ -175,3 +175,18 @@ func TestEnroll503Retried(t *testing.T) {
 		t.Fatalf("err=%v calls=%d", err, p.Count("/enroll"))
 	}
 }
+
+// Final review #2: a token the container user cannot read is not "not there yet".
+func TestUnreadableTokenIsAnError(t *testing.T) {
+	p := fakeportal.New(t)
+	e, _ := enroller(t, p, p.Token)
+	e.ReadFile = func(name string) ([]byte, error) {
+		return nil, &os.PathError{Op: "open", Path: name, Err: os.ErrPermission}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_, err := e.LoadOrEnroll(ctx)
+	if err == nil || errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "65532") {
+		t.Fatalf("got %v, want an error naming the container user", err)
+	}
+}
