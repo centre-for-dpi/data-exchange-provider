@@ -25,11 +25,40 @@ func compareSemver(a, b string) int {
 		return 1
 	case bp == "":
 		return -1
-	case ap < bp:
+	}
+	return comparePreRelease(strings.Split(ap, "."), strings.Split(bp, "."))
+}
+
+// comparePreRelease follows semver 2.0: numeric identifiers compare numerically and sort before
+// alphanumeric ones; a shorter list of equal identifiers sorts first.
+func comparePreRelease(a, b []string) int {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		an, aErr := strconv.Atoi(a[i])
+		bn, bErr := strconv.Atoi(b[i])
+		switch {
+		case aErr == nil && bErr == nil:
+			if an != bn {
+				return sign(an - bn)
+			}
+		case aErr == nil:
+			return -1
+		case bErr == nil:
+			return 1
+		case a[i] != b[i]:
+			return sign(strings.Compare(a[i], b[i]))
+		}
+	}
+	return sign(len(a) - len(b))
+}
+
+func sign(n int) int {
+	switch {
+	case n < 0:
 		return -1
-	default:
+	case n > 0:
 		return 1
 	}
+	return 0
 }
 
 func splitVersion(v string) ([3]int, string) {

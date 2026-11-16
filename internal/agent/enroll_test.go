@@ -190,3 +190,37 @@ func TestUnreadableTokenIsAnError(t *testing.T) {
 		t.Fatalf("got %v, want an error naming the container user", err)
 	}
 }
+
+// Debt: an enrollment answer the node could not use (or that would weaken the gateway check)
+// is refused before it is saved.
+func TestInvalidEnrollmentAnswerNotSaved(t *testing.T) {
+	cases := map[string]func(p *fakeportal.Portal){
+		"empty gateway client name": func(p *fakeportal.Portal) { p.GatewayClientName = "" },
+		"bad tunnel address":        func(p *fakeportal.Portal) { p.WireGuard.Address = "not-an-address" },
+		"bad hub key":               func(p *fakeportal.Portal) { p.WireGuard.HubPublicKey = "x" },
+	}
+	for name, breakIt := range cases {
+		t.Run(name, func(t *testing.T) {
+			p := fakeportal.New(t)
+			breakIt(p)
+			e, _ := enroller(t, p, p.Token)
+			_, err := e.LoadOrEnroll(context.Background())
+			if err == nil || !strings.Contains(err.Error(), "respuesta de enrolamiento") {
+				t.Fatalf("got %v", err)
+			}
+			if _, err := e.Store.Load(); !errors.Is(err, state.ErrNoState) {
+				t.Fatalf("an invalid answer was saved: %v", err)
+			}
+		})
+	}
+}
+
+func TestEnrollmentCertificateMustNameTheNode(t *testing.T) {
+	p := fakeportal.New(t)
+	p.NodeName = "rid-node-otro" // the certificate is signed for a different name than nodeName says
+	p.SignAs = "rid-node-01a1e5a6-9381-738c-a707-d6e29330ea26"
+	e, _ := enroller(t, p, p.Token)
+	if _, err := e.LoadOrEnroll(context.Background()); err == nil || !strings.Contains(err.Error(), "rid-node-otro") {
+		t.Fatalf("got %v", err)
+	}
+}

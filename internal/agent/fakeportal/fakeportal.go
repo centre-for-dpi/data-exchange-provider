@@ -48,6 +48,8 @@ type Portal struct {
 	// OnEnroll, if set, returns the tunnel configuration for the enrolling node (tests start a
 	// hub that knows the node's WireGuard public key).
 	OnEnroll func(req contract.EnrollRequest) contract.WireGuard
+	// SignAs, if set, is the DNS name put in the enrollment certificate instead of NodeName.
+	SignAs string
 }
 
 // New starts the fake portal.
@@ -193,7 +195,11 @@ func (p *Portal) enroll(w http.ResponseWriter, body []byte) {
 		problem(w, http.StatusUnauthorized, "unauthenticated")
 		return
 	}
-	cert, err := p.PKI.CA.SignCSR(req.CSR, p.NodeName)
+	name := p.NodeName
+	if p.SignAs != "" {
+		name = p.SignAs
+	}
+	cert, err := p.PKI.CA.SignCSR(req.CSR, name)
 	if err != nil {
 		problem(w, http.StatusBadRequest, "validation_failed")
 		return

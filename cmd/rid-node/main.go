@@ -39,6 +39,16 @@ func env(name, fallback string) string {
 	return fallback
 }
 
+// heartbeatOverride reads RID_HEARTBEAT_SECONDS (development): never below 10 s, so a typo
+// cannot hammer the portal; 0 or invalid means "follow the portal's interval".
+func heartbeatOverride(s string) time.Duration {
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	return time.Duration(max(n, 10)) * time.Second
+}
+
 func run(args []string, out io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(out, usage)
@@ -55,12 +65,8 @@ func run(args []string, out io.Writer) int {
 		log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		every := 0
-		if s := os.Getenv("RID_HEARTBEAT_SECONDS"); s != "" {
-			every, _ = strconv.Atoi(s)
-		}
 		if err := runNode(ctx, runOptions{ConfigPath: configPath, StateDir: stateDir, TokenFile: tokenFile,
-			HeartbeatEvery: time.Duration(every) * time.Second, Log: log}); err != nil {
+			HeartbeatEvery: heartbeatOverride(os.Getenv("RID_HEARTBEAT_SECONDS")), Log: log}); err != nil {
 			log.Error("fatal", "error", err.Error())
 			return 1
 		}

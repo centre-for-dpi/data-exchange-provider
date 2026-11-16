@@ -92,7 +92,7 @@ func TestDoctorSecretPermsWarn(t *testing.T) {
 }
 
 func TestDoctorStaleHandshake(t *testing.T) {
-	st := &agent.Status{NodeName: "rid-node-x", PortalState: "online", LastHandshake: time.Now().Add(-10 * time.Minute), LastHeartbeat: time.Now()}
+	st := &agent.Status{NodeName: "rid-node-x", PortalState: "online", LastHandshake: time.Now().Add(-10 * time.Minute), LastHeartbeat: time.Now(), UpdatedAt: time.Now()}
 	code, out := doctorFor(t, portalWithDate(t, 0), "", st)
 	if code != 1 || !strings.Contains(out, "UDP 51820") {
 		t.Fatalf("code=%d\n%s", code, out)
@@ -245,5 +245,36 @@ func TestDoctorBehindCorporateProxy(t *testing.T) {
 		PortalHTTP: &http.Client{Timeout: time.Second}, Now: time.Now}, &out)
 	if code != 0 || !strings.Contains(out.String(), "proxy") || strings.Contains(out.String(), "✘") {
 		t.Fatalf("code=%d\n%s", code, out.String())
+	}
+}
+
+// Debt: a status written long ago means the node is not running, not that UDP is blocked.
+func TestDoctorStaleStatusIsNotTunnelBlame(t *testing.T) {
+	st := &agent.Status{NodeName: "rid-node-x", PortalState: "online", LastHandshake: time.Now().Add(-2 * time.Hour),
+		LastHeartbeat: time.Now().Add(-2 * time.Hour), UpdatedAt: time.Now().Add(-2 * time.Hour)}
+	_, out := doctorFor(t, portalWithDate(t, 0), "", st)
+	if strings.Contains(out, "UDP 51820") || !strings.Contains(out, "detenido") {
+		t.Fatalf("%s", out)
+	}
+}
+
+// Debt: without a Date header the clock check must say it could not compare.
+func TestDoctorNoDateHeaderWarns(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header()["Date"] = nil // net/http adds Date unless the key is present and nil
+	}))
+	defer srv.Close()
+	_, out := doctorFor(t, srv, "", nil)
+	if !strings.Contains(out, "⚠") || !strings.Contains(out, "reloj") {
+		t.Fatalf("%s", out)
+	}
+}
+
+// Debt: the development heartbeat override cannot hammer the portal in production.
+func TestHeartbeatOverrideClamped(t *testing.T) {
+	for in, want := range map[string]time.Duration{"": 0, "1": 10 * time.Second, "15": 15 * time.Second, "x": 0} {
+		if got := heartbeatOverride(in); got != want {
+			t.Fatalf("heartbeatOverride(%q) = %v, want %v", in, got, want)
+		}
 	}
 }

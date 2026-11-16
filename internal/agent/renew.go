@@ -34,6 +34,14 @@ func (c *Controller) renew(ctx context.Context) {
 	case status == http.StatusConflict:
 		c.log.Warn("renew_refused", "detail", "el portal no renueva certificados de una entidad suspendida")
 		return
+	case status == http.StatusBadRequest:
+		c.log.Warn("renew_refused", "detail", "el portal rechazó el CSR; la próxima renovación usará una clave nueva")
+		c.dropPending()
+		return
+	case status == http.StatusUnauthorized:
+		c.log.Error("renew_refused", "detail", "el portal no acepta el certificado del nodo para renovar: pasó la gracia de 24 h o el nodo fue dado de baja; usa install.sh reenrolar")
+		c.dropPending()
+		return
 	default:
 		c.log.Warn("renew_failed", "error", err.Error(), "detail", "se reintenta con el mismo CSR")
 		return
@@ -55,6 +63,13 @@ func (c *Controller) renew(ctx context.Context) {
 	c.cert.Store(&pair)
 	c.log.Info("certificate_renewed", "old_serial", serialOf(old), "new_serial", serialOf(&pair),
 		"not_after", res.CertificateNotAfter, "previous_valid_until", res.PreviousValidUntil)
+}
+
+func (c *Controller) dropPending() {
+	c.st.PendingRenewal = nil
+	if err := c.store.Save(c.st); err != nil {
+		c.log.Warn("state_write_failed", "error", err.Error())
+	}
 }
 
 func serialOf(c *tls.Certificate) string {

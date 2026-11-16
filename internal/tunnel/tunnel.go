@@ -31,6 +31,10 @@ type Config struct {
 	MTU          int           // default 1420
 	ListenPort   int           // 0: random (a node only dials out)
 	ResolveEvery time.Duration // default 5m
+	// RetryResolveEvery is how often an unresolved hub is retried (default 5s): a DNS outage at
+	// startup must not stop the node.
+	RetryResolveEvery time.Duration
+	Resolve           func(hostport string) (string, error) // default: UDP resolution (tests inject)
 }
 
 // Tunnel is a running WireGuard device with its user-space network.
@@ -54,6 +58,12 @@ func Up(ctx context.Context, c Config, log *slog.Logger) (*Tunnel, error) {
 	if c.ResolveEvery == 0 {
 		c.ResolveEvery = 5 * time.Minute
 	}
+	if c.RetryResolveEvery == 0 {
+		c.RetryResolveEvery = 5 * time.Second
+	}
+	if c.Resolve == nil {
+		c.Resolve = resolve
+	}
 	tunDev, tnet, err := netstack.CreateNetTUN([]netip.Addr{c.Address.Addr()}, nil, c.MTU)
 	if err != nil {
 		return nil, fmt.Errorf("túnel: %w", err)
@@ -69,13 +79,12 @@ func Up(ctx context.Context, c Config, log *slog.Logger) (*Tunnel, error) {
 		fmt.Fprintf(&uapi, "allowed_ip=%s\n", p)
 	}
 	if c.HubEndpoint != "" {
-		ep, err := resolve(c.HubEndpoint)
-		if err != nil {
-			t.dev.Close()
-			return nil, fmt.Errorf("túnel: no se pudo resolver el hub %s: %w", c.HubEndpoint, err)
+		if ep, err := c.Resolve(c.HubEndpoint); err != nil {
+			log.Warn("hub_resolve_failed", "hub", c.HubEndpoint, "error", err.Error(), "detail", "se reintenta hasta que el DNS responda")
+		} else {
+			t.endpoint = ep
+			fmt.Fprintf(&uapi, "endpoint=%s\n", ep)
 		}
-		t.endpoint = ep
-		fmt.Fprintf(&uapi, "endpoint=%s\n", ep)
 	}
 	if err := t.dev.IpcSet(uapi.String()); err != nil {
 		t.dev.Close()
@@ -85,11 +94,8 @@ func Up(ctx context.Context, c Config, log *slog.Logger) (*Tunnel, error) {
 		t.dev.Close()
 		return nil, fmt.Errorf("túnel: %w", err)
 	}
-	if c.HubEndpoint != "" && c.Keepalive > 0 {
-		// Set on a running device, the keepalive sends a packet right away: the hub learns where
-		// the node is without waiting for traffic (spike S-2).
-		if err := t.dev.IpcSet(fmt.Sprintf("public_key=%s\npersistent_keepalive_interval=%d\n",
-			c.HubPublicKey.hex(), int(c.Keepalive/time.Second))); err != nil {
+	if t.endpoint != "" {
+		if err := t.startKeepalive(); err != nil {
 			t.dev.Close()
 			return nil, fmt.Errorf("túnel: %w", err)
 		}
@@ -110,31 +116,53 @@ func resolve(hostport string) (string, error) {
 	return a.String(), nil
 }
 
-// reresolve follows the hub if its name moves to another address.
+// startKeepalive: set on a running device, the keepalive sends a packet right away, so the hub
+// learns where the node is without waiting for traffic (spike S-2).
+func (t *Tunnel) startKeepalive() error {
+	if t.cfg.Keepalive <= 0 {
+		return nil
+	}
+	return t.dev.IpcSet(fmt.Sprintf("public_key=%s\npersistent_keepalive_interval=%d\n",
+		t.cfg.HubPublicKey.hex(), int(t.cfg.Keepalive/time.Second)))
+}
+
+// reresolve keeps retrying a hub that did not resolve yet, and then follows it if its name
+// moves to another address.
 func (t *Tunnel) reresolve(ctx context.Context) {
 	defer t.wg.Done()
-	tick := time.NewTicker(t.cfg.ResolveEvery)
-	defer tick.Stop()
 	for {
+		t.mu.Lock()
+		resolved := t.endpoint != ""
+		t.mu.Unlock()
+		wait := t.cfg.ResolveEvery
+		if !resolved {
+			wait = t.cfg.RetryResolveEvery
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-tick.C:
+		case <-time.After(wait):
 		}
-		ep, err := resolve(t.cfg.HubEndpoint)
+		ep, err := t.cfg.Resolve(t.cfg.HubEndpoint)
 		if err != nil {
 			t.log.Warn("hub_resolve_failed", "hub", t.cfg.HubEndpoint, "error", err.Error())
 			continue
 		}
 		t.mu.Lock()
-		changed := ep != t.endpoint
+		first, changed := t.endpoint == "", ep != t.endpoint
 		t.endpoint = ep
 		t.mu.Unlock()
-		if changed {
-			if err := t.dev.IpcSet(fmt.Sprintf("public_key=%s\nupdate_only=true\nendpoint=%s\n", t.cfg.HubPublicKey.hex(), ep)); err != nil {
-				t.log.Warn("hub_endpoint_update_failed", "error", err.Error())
-			} else {
-				t.log.Info("hub_endpoint_changed", "hub", t.cfg.HubEndpoint, "endpoint", ep)
+		if !changed {
+			continue
+		}
+		if err := t.dev.IpcSet(fmt.Sprintf("public_key=%s\nupdate_only=true\nendpoint=%s\n", t.cfg.HubPublicKey.hex(), ep)); err != nil {
+			t.log.Warn("hub_endpoint_update_failed", "error", err.Error())
+			continue
+		}
+		t.log.Info("hub_endpoint_changed", "hub", t.cfg.HubEndpoint, "endpoint", ep)
+		if first {
+			if err := t.startKeepalive(); err != nil {
+				t.log.Warn("keepalive_failed", "error", err.Error())
 			}
 		}
 	}

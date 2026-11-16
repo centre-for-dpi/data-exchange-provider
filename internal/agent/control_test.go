@@ -265,3 +265,45 @@ func containsNotice(notices []string, s string) bool {
 	}
 	return false
 }
+
+// Debt: a 400 means the pending CSR itself is refused: drop it so a fresh key is tried.
+func TestRenew400DropsPendingRenewal(t *testing.T) {
+	p := fakeportal.New(t)
+	c, _ := controller(t, p)
+	p.Set(func(p *fakeportal.Portal) { p.Heartbeat.RenewCertificate = true; p.RenewStatus = 400 })
+	c.cycle(context.Background())
+	saved, _ := c.store.Load()
+	if saved.PendingRenewal != nil {
+		t.Fatal("a refused CSR must not be retried forever")
+	}
+	p.Set(func(p *fakeportal.Portal) { p.RenewStatus = 0 })
+	c.cycle(context.Background())
+	if csrs := p.RenewCSRs(); len(csrs) != 2 || csrs[0] == csrs[1] {
+		t.Fatalf("the next renewal must use a fresh CSR: %d", len(csrs))
+	}
+}
+
+// Debt: a 401 on renew means the grace period is over or the node was decommissioned.
+func TestRenew401PointsToReenroll(t *testing.T) {
+	p := fakeportal.New(t)
+	c, logs := controller(t, p)
+	p.Set(func(p *fakeportal.Portal) { p.Heartbeat.RenewCertificate = true; p.RenewStatus = 401 })
+	c.cycle(context.Background())
+	saved, _ := c.store.Load()
+	if saved.PendingRenewal != nil || !strings.Contains(logs.String(), "reenrolar") {
+		t.Fatalf("pending=%v log=%s", saved.PendingRenewal, logs)
+	}
+}
+
+// Debt: pre-release identifiers compare as semver says (numeric ones numerically).
+func TestCompareSemverPreRelease(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want int
+	}{{"1.0.0-rc.10", "1.0.0-rc.9", 1}, {"1.0.0-alpha", "1.0.0-beta", -1}, {"1.0.0-1", "1.0.0-alpha", -1}, {"1.0.0-alpha", "1.0.0-alpha.1", -1}}
+	for _, c := range cases {
+		if got := compareSemver(c.a, c.b); got != c.want {
+			t.Fatalf("compareSemver(%s, %s) = %d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}

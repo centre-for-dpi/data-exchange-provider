@@ -127,7 +127,9 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 		c.warn("no se pudo comparar el reloj con el portal: %v", err)
 	} else {
 		res.Body.Close()
-		if date, err := http.ParseTime(res.Header.Get("Date")); err == nil {
+		if date, err := http.ParseTime(res.Header.Get("Date")); err != nil {
+			c.warn("no se pudo comparar el reloj: el portal no envió la hora (cabecera Date)")
+		} else {
 			skew := o.Now().Sub(date)
 			if skew < 0 {
 				skew = -skew
@@ -155,6 +157,8 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 		c.warn("el nodo todavía no escribió su estado (¿está corriendo?)")
 	} else {
 		switch {
+		case !st.UpdatedAt.IsZero() && o.Now().Sub(st.UpdatedAt) > 3*time.Minute:
+			c.warn("el nodo no actualiza su estado desde hace %s: ¿está detenido? (install.sh status, install.sh logs)", o.Now().Sub(st.UpdatedAt).Round(time.Second))
 		case st.PortalState == "rejected":
 			c.fail("el portal rechaza el certificado del nodo: fue dado de baja o el certificado venció; usa install.sh reenrolar")
 		case st.LastHandshake.IsZero() || o.Now().Sub(st.LastHandshake) > 3*time.Minute:

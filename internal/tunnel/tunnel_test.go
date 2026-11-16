@@ -2,10 +2,12 @@ package tunnel_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
 	"net/netip"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -108,5 +110,45 @@ func TestServicePortNotOnHost(t *testing.T) {
 	if c, err := net.DialTimeout("tcp", "127.0.0.1:18443", time.Second); err == nil {
 		c.Close()
 		t.Fatal("the service port must exist only inside the tunnel")
+	}
+}
+
+// Debt: a DNS outage at startup must not be fatal; the tunnel comes up when the hub resolves.
+func TestHubResolvedLaterNotFatal(t *testing.T) {
+	priv, pub := tunnel.GenerateKey()
+	hubPub, endpoint, dial := tunneltest.Hub(t, pub, nodeAddr)
+	var calls atomic.Int32
+	node, err := tunnel.Up(context.Background(), tunnel.Config{
+		Address: nodeAddr, PrivateKey: priv, HubPublicKey: hubPub, HubEndpoint: "wg-hub.invalid:51820",
+		AllowedIPs: []netip.Prefix{netip.PrefixFrom(tunneltest.HubAddress, 32)}, Keepalive: 25 * time.Second,
+		RetryResolveEvery: 20 * time.Millisecond,
+		Resolve: func(string) (string, error) {
+			if calls.Add(1) < 3 {
+				return "", errors.New("no such host")
+			}
+			return endpoint, nil
+		},
+	}, slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatalf("a DNS failure at startup must not be fatal: %v", err)
+	}
+	t.Cleanup(func() { _ = node.Close() })
+	l, _ := node.Listen(testPort)
+	go func() {
+		if c, err := l.Accept(); err == nil {
+			c.Close()
+		}
+	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for {
+		c, err := dial(ctx, netip.AddrPortFrom(nodeAddr.Addr(), testPort))
+		if err == nil {
+			c.Close()
+			break
+		}
+		if ctx.Err() != nil {
+			t.Fatalf("the tunnel never came up after the hub resolved: %v", err)
+		}
 	}
 }

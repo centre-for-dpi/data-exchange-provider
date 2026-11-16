@@ -71,3 +71,16 @@ Cerrado con `make e2e` contra el portal real (`test/e2e/`). Queda para K2: `inst
 - Métricas.
 - Firma de imágenes y SBOM.
 - Prueba de carga del túnel.
+- Salud real de los servicios `proxy`: hoy es una prueba TCP. Un upstream que acepta la conexión y no responde sale `ok`, y con un solo servicio caído la salud es `failing`, no `degraded`. Hay que alimentar la salud con los 502 y 504 recientes del proxy.
+
+## Pendientes del portal (se llevan a `../data-exchange`)
+
+No se implementan aquí; la frontera es el contrato v1.
+
+- **`direct`:** dejarlo como excepción aprobada por el operador, con mTLS obligatorio y una prueba de que la API rechaza certificados que no son del gateway (ADR-0001).
+- **Carrera al enviar a revisión:** una versión enviada en el mismo segundo del enrolamiento da 502, porque el hub aún no tiene la ruta SNI del nodo (S-2). El portal no debería validar antes de que el hub esté sincronizado.
+- **Hash del OpenAPI:** comparar el que reporta el heartbeat con el de la versión publicada.
+- **Query string:** bloquear en el gateway los parámetros no declarados en el OpenAPI.
+- **SPEC §3.1:** `node` es el canal de cualquier proveedor, no solo de las APIs instantáneas.
+- **`/config`:** devolver la raíz de la red y `gatewayClientName`, para no tener que re-enrolar si cambian (ARCHITECTURE §5).
+- **Guía de entidades:** Ubuntu Server LTS con Docker como requisito del nodo (ADR-0002).

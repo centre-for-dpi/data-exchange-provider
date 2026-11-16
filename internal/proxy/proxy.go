@@ -9,11 +9,14 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	stdlog "log"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
@@ -95,6 +98,7 @@ func New(servicePath string, spec config.ProxySpec) (http.Handler, error) {
 		},
 		FlushInterval: -1, // stream: documents can be large
 		ErrorHandler:  errorHandler,
+		ErrorLog:      stdlog.New(slogWriter{}, "", 0),
 	}
 	limit := spec.MaxRequestBytes
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -125,6 +129,15 @@ func errorHandler(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		server.Problem(w, http.StatusBadGateway, "bad_gateway", "La API interna no respondió")
 	}
+}
+
+// slogWriter sends net/http/httputil's own error lines (e.g. a body copy cut by the upstream) to
+// the structured log. They carry the error, not the URL.
+type slogWriter struct{}
+
+func (slogWriter) Write(p []byte) (int, error) {
+	slog.Default().Warn("proxy_error", "detail", strings.TrimSpace(string(p)))
+	return len(p), nil
 }
 
 // Probe checks that the upstream accepts TCP connections (the heartbeat's health).

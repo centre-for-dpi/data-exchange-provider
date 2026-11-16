@@ -264,3 +264,25 @@ func TestDropsForgeableIdentityAndRoutingHeaders(t *testing.T) {
 		}
 	}
 }
+
+// Debt: the reverse proxy's own errors go to the structured log, not to stderr.
+func TestProxyErrorsGoToSlog(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(prev)
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		_, _ = w.Write([]byte("short"))
+		if hj, ok := w.(http.Hijacker); ok {
+			if c, _, err := hj.Hijack(); err == nil {
+				c.Close()
+			}
+		}
+	}))
+	defer up.Close()
+	through(t, spec(up.URL), "GET", "/certificados/1", nil, nil)
+	if !strings.Contains(buf.String(), `"msg":"proxy_error"`) {
+		t.Fatalf("slog: %s", buf.String())
+	}
+}

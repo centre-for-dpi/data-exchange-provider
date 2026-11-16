@@ -4,11 +4,14 @@ package agent
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"os"
 	"strings"
 	"time"
@@ -67,6 +70,9 @@ func (e *Enroller) LoadOrEnroll(ctx context.Context) (*state.State, error) {
 		switch status := contract.StatusOf(err); {
 		case err == nil:
 			st := fromEnrollment(res, keyPEM, wgPriv)
+			if err := validateEnrollment(st); err != nil {
+				return nil, fmt.Errorf("la respuesta de enrolamiento del portal no es usable (%w); el token ya se consumió: pide uno nuevo y avisa al operador de la red", err)
+			}
 			if err := e.Store.Save(st); err != nil {
 				return nil, fmt.Errorf("enrolado como %s, pero no se pudo guardar el estado: %w", res.NodeName, err)
 			}
@@ -129,6 +135,45 @@ func (e *Enroller) waitForToken(ctx context.Context) (string, error) {
 		case <-time.After(e.TokenPoll):
 		}
 	}
+}
+
+// validateEnrollment checks the answer before it becomes the node's identity: the names the TLS
+// check relies on, the network root, a certificate that matches our key and names this node, and
+// a tunnel configuration the device can take.
+func validateEnrollment(st *state.State) error {
+	if st.NodeID == "" || st.NodeName == "" || st.GatewayClientName == "" || st.ControlURL == "" {
+		return errors.New("faltan nodeId, nodeName, gatewayClientName o controlUrl")
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM([]byte(st.CACertificate)) {
+		return errors.New("la raíz de la red no es un certificado PEM")
+	}
+	pair, err := tls.X509KeyPair([]byte(st.Certificate), []byte(st.KeyPEM))
+	if err != nil {
+		return fmt.Errorf("el certificado no corresponde a la clave del nodo: %w", err)
+	}
+	leaf, err := x509.ParseCertificate(pair.Certificate[0])
+	if err != nil {
+		return err
+	}
+	if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, DNSName: st.NodeName, KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {
+		return fmt.Errorf("el certificado no es de la red para %s: %w", st.NodeName, err)
+	}
+	if _, err := netip.ParsePrefix(st.WireGuard.Address); err != nil {
+		return fmt.Errorf("dirección del túnel %q inválida", st.WireGuard.Address)
+	}
+	if _, err := tunnel.ParseKey(st.WireGuard.HubPublicKey); err != nil {
+		return errors.New("clave pública del hub inválida")
+	}
+	if st.WireGuard.HubEndpoint == "" || len(st.WireGuard.AllowedIPs) == 0 {
+		return errors.New("falta el endpoint del hub o allowedIps")
+	}
+	for _, a := range st.WireGuard.AllowedIPs {
+		if _, err := netip.ParsePrefix(a); err != nil {
+			return fmt.Errorf("allowedIps %q inválida", a)
+		}
+	}
+	return nil
 }
 
 func fromEnrollment(r *contract.EnrollResponse, keyPEM string, wgPriv tunnel.Key) *state.State {
