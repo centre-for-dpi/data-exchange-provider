@@ -45,6 +45,9 @@ type Portal struct {
 	RenewDrops      int  // drop this many renew calls after signing (the response is lost)
 	RenewStatus     int  // non-zero: refuse renewals with this status
 	Config          contract.ConfigResponse
+	// OnEnroll, if set, returns the tunnel configuration for the enrolling node (tests start a
+	// hub that knows the node's WireGuard public key).
+	OnEnroll func(req contract.EnrollRequest) contract.WireGuard
 }
 
 // New starts the fake portal.
@@ -195,12 +198,16 @@ func (p *Portal) enroll(w http.ResponseWriter, body []byte) {
 		problem(w, http.StatusBadRequest, "validation_failed")
 		return
 	}
+	wg := p.WireGuard
+	if p.OnEnroll != nil {
+		wg = p.OnEnroll(req)
+	}
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(contract.EnrollResponse{
 		ContractVersion: "1", NodeID: p.NodeID, NodeName: p.NodeName, Certificate: cert,
 		CertificateNotAfter: "2027-02-14T00:00:00Z", CACertificate: p.PKI.CA.CertPEM(),
 		ControlURL: p.ControlURL(), GatewayClientName: p.GatewayClientName,
-		HeartbeatIntervalSeconds: 60, WireGuard: p.WireGuard,
+		HeartbeatIntervalSeconds: 60, WireGuard: wg,
 	})
 }
 

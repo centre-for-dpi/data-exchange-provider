@@ -124,7 +124,7 @@ func TestControlDownKeepsRetryingWithBackoff(t *testing.T) {
 	// Run never gives up while the portal is down; it returns only when asked to stop.
 	c.BackoffMin, c.BackoffMax = time.Millisecond, 5*time.Millisecond
 	before := p.Count("/heartbeat")
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second) // each attempt is a fresh TLS handshake
 	defer cancel()
 	if err := c.Run(ctx); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Run returned %v", err)
