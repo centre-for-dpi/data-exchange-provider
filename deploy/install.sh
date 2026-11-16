@@ -506,6 +506,20 @@ cmd_backup() {
   trap - EXIT
   ok "Respaldo: $out"
   info "Contiene las claves del nodo: cópialo fuera de este servidor y guárdalo como un secreto."
+  rotate_backups
+}
+
+# rotate_backups: keeps the newest RID_BACKUPS_KEEP (10) rid-node-*.tar.gz in backups/
+rotate_backups() {
+  local keep=${RID_BACKUPS_KEEP:-10} old
+  [[ $keep =~ ^[0-9]+$ && $keep -ge 1 ]] || keep=10
+  old=$(find "$HOME_DIR/backups" -maxdepth 1 -name 'rid-node-*.tar.gz' -printf '%T@ %p
+' 2>/dev/null |
+    sort -rn | tail -n +$((keep + 1)) | cut -d' ' -f2-)
+  [[ -z $old ]] && return 0
+  printf '%s
+' "$old" | xargs -r rm -f
+  info "Respaldos antiguos borrados: se conservan los $keep más recientes (RID_BACKUPS_KEEP)"
 }
 
 cmd_restaurar() {

@@ -230,3 +230,14 @@ func TestServicesDirectoryYmlHiddenAndFileInErrors(t *testing.T) {
 		t.Fatalf("a duplicate path must name the service file: %v", err)
 	}
 }
+
+// Pending: a service file with several YAML documents is refused, not half-read.
+func TestServiceFileWithSeveralDocumentsRefused(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte("portal: https://portal.red.example\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "services", "dos.yaml"), []byte("name: a\npath: /a\ntype: proxy\nupstream: https://api.interna/a\n---\nname: b\npath: /b\ntype: proxy\nupstream: https://api.interna/b\n"), 0o644)
+	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "dos.yaml") || !strings.Contains(err.Error(), "un solo servicio") {
+		t.Fatalf("got %v", err)
+	}
+}

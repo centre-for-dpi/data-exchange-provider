@@ -48,6 +48,15 @@ No se abre ningún puerto de entrada. El operador de la red indica los nombres d
 
 El operador entrega el paquete `rid-node-kit-<versión>.tar.gz`. Trae el instalador, las imágenes del nodo (no hace falta salida a internet para descargarlas) y esta guía.
 
+**Primero, verifica el paquete.** El operador publica su huella SHA-256 por un canal distinto al del paquete (el portal o su canal oficial con la entidad). Compárala antes de abrirlo:
+
+```bash
+sha256sum rid-node-kit-<versión>.tar.gz
+# debe coincidir con la huella publicada por el operador; si no coincide, no lo instales
+```
+
+Dentro del paquete, el instalador verifica además cada archivo contra `SHA256SUMS`.
+
 ```bash
 tar -xzf rid-node-kit-<versión>.tar.gz
 cd rid-node-kit-<versión>

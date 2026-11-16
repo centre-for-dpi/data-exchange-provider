@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2016,SC2030,SC2031  # stubs are written with single quotes; PATH changes are meant to stay in subshells
+# shellcheck disable=SC2012,SC2016,SC2030,SC2031  # stubs are written with single quotes; PATH changes are meant to stay in subshells
 # Unit tests of deploy/install.sh's functions, on Ubuntu, with stubbed commands (no Docker).
 #   docker run --rm -v "<repo>:/w" -w /w ubuntu:24.04 bash test/install/unit.sh
 set -uo pipefail
@@ -113,6 +113,20 @@ t_no_docker_offline() (
   [[ $out == *download.docker.com* ]] && ! grep -q "apt-get" "$d/calls" 2>/dev/null
 )
 check "no Docker and no internet: a clear message, no apt" t_no_docker_offline
+
+# --- backups are rotated: the newest RID_BACKUPS_KEEP stay ------------------------------------
+t_backup_rotation() (
+  src
+  HOME_DIR=$(mktemp -d)
+  mkdir -p "$HOME_DIR/backups"
+  for i in 01 02 03 04 05; do touch -d "2026-11-$i" "$HOME_DIR/backups/rid-node-202611${i}-000000.tar.gz"; done
+  touch "$HOME_DIR/backups/otro-archivo.txt"
+  RID_BACKUPS_KEEP=3 rotate_backups >/dev/null
+  left=$(cd "$HOME_DIR/backups" && ls | sort | tr '
+' ' ')
+  [[ $left == "otro-archivo.txt rid-node-20261103-000000.tar.gz rid-node-20261104-000000.tar.gz rid-node-20261105-000000.tar.gz " ]]
+)
+check "backups are rotated (only rid-node-*.tar.gz, newest kept)" t_backup_rotation
 
 echo "passed $PASS, failed $FAILS"
 [[ $FAILS -eq 0 ]]

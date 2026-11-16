@@ -28,4 +28,8 @@ echo "$VERSION" >"$OUT/VERSION"
 sums=$(cd "$OUT" && find . -type f | sed 's|^\./||' | sort | xargs sha256sum)
 printf '%s\n' "$sums" >"$OUT/SHA256SUMS"
 tar -C "$ROOT/dist" -czf "$ROOT/dist/rid-node-kit-$VERSION.tar.gz" "rid-node-kit-$VERSION"
+# The bundle's own checksum is published apart from the bundle (portal, operator's channel), so
+# an entity can tell a genuine bundle from a tampered one before opening it.
+(cd "$ROOT/dist" && sha256sum "rid-node-kit-$VERSION.tar.gz" >"rid-node-kit-$VERSION.tar.gz.sha256")
 echo "dist/rid-node-kit-$VERSION.tar.gz"
+echo "dist/rid-node-kit-$VERSION.tar.gz.sha256  (publícalo por un canal distinto al del paquete)"

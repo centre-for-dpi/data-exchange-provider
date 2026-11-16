@@ -4,7 +4,9 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -116,6 +118,10 @@ func loadServiceFiles(dir string) ([]Service, error) {
 		dec.KnownFields(true)
 		if err := dec.Decode(&s); err != nil {
 			return nil, fmt.Errorf("servicio %s inválido: %w", f, err)
+		}
+		var extra yaml.Node
+		if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
+			return nil, fmt.Errorf("servicio %s inválido: cada archivo debe tener un solo servicio (sin separadores ---)", f)
 		}
 		s.File = f
 		out = append(out, s)
