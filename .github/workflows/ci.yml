@@ -60,6 +60,8 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: data-exchange-provider/go.mod
+          # The kit is checked out in a subfolder here: tell the module cache where go.sum is.
+          cache-dependency-path: data-exchange-provider/go.sum
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: data-exchange/package.json
