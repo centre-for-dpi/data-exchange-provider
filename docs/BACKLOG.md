@@ -66,7 +66,7 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 - En la guía: la sección de APIs instantáneas.
 - **Criterio de cierre:** punta a punta con un servicio `instant` publicado y consumido por el gateway, y el lint del portal en 0 errores con los cuatro motores.
 - **Cerrado:** `make test-engines` en verde con SQL Server 2019, PostgreSQL 17, MySQL 8.4 y Oracle 23ai, con el lint del portal en 0 errores en los cuatro. Punta a punta con el instalador en modo `completo` y una vista de PostgreSQL contra el portal desplegado (`RID_E2E_SERVICE=instant`).
-- **Para después:** un comando del instalador para agregar un segundo recurso a un servicio existente (hoy se edita el archivo y se regenera el OpenAPI); ~~normalizar `timestamptz` a UTC~~ (hecho el 2026-11-17: toda fecha con zona sale en UTC, en todos los motores).
+- **Mejoras hechas el 2026-11-17:** `install.sh servicio recurso NOMBRE` agrega otra vista a un servicio existente; ~~normalizar `timestamptz` a UTC~~ (hecho el 2026-11-17: toda fecha con zona sale en UTC, en todos los motores).
 
 ## K4 — Endurecimiento y lo que viene del portal
 

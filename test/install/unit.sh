@@ -143,7 +143,8 @@ instant_env() { # instant_env <dir> <tag suffix>: a fake installation; node, dc 
     case $1 in
       catalog) [[ -f $HOME_DIR/catalog-fails ]] && { echo "✘ no se pudo conectar con la base de datos"; return 1; }
         echo "salud.v_afiliados (vista)" ;;
-      scaffold) cat "$HOME_DIR/config/services/afiliacion.yaml"
+      scaffold) [[ -f $HOME_DIR/scaffold-fails ]] && { echo "✘ el usuario de la base no puede leer salud.no_existe"; return 1; }
+        cat "$HOME_DIR/config/services/afiliacion.yaml"
         printf 'resources:\n  - name: afiliados\n    entity: Afiliados\n    source: salud.v_afiliados\n    key:\n      column: numero_documento\n    columns:\n      - name: numero_documento\n' ;;
       validate) return 0 ;;
       openapi) echo '{"openapi": "3.1.0"}' ;;
@@ -217,6 +218,45 @@ t_instant_ca_prompt_defaults_to_system() (
   ! grep -q "caFile" "$HOME_DIR/config/services/afiliacion.yaml" && grep -q "CA de la base" "$HOME_DIR/out"
 )
 check "the CA question defaults to the system's roots" t_instant_ca_prompt_defaults_to_system
+
+# --- servicio recurso: another view in an existing instant service ----------------------------
+t_instant_add_resource() (
+  src
+  instant_env "$(mktemp -d)" ""
+  instant_answers
+  cmd_servicio >/dev/null 2>&1 || return 1
+  export RID_INSTALL_SERVICE_SOURCE=salud.v_hogares RID_INSTALL_SERVICE_KEY=hogar_id RID_INSTALL_SERVICE_SUBJECT=ninguno \
+    RID_INSTALL_SERVICE_MANY=s RID_INSTALL_SERVICE_RESOURCE=hogares RID_INSTALL_SERVICE_ENTITY=-
+  : >"$HOME_DIR/calls"
+  cmd_servicio recurso afiliacion >"$HOME_DIR/out" 2>&1 || { cat "$HOME_DIR/out"; return 1; }
+  grep -q -- "node scaffold --print --service-file /etc/rid-node/services/afiliacion.yaml --source salud.v_hogares --key hogar_id --resource hogares --many$" "$HOME_DIR/calls" &&
+    grep -q "node openapi afiliacion" "$HOME_DIR/calls" && grep -q "versión nueva" "$HOME_DIR/out" &&
+    ! compgen -G "$HOME_DIR/config/services/*.antes" >/dev/null
+)
+check "servicio recurso adds a view to an existing instant service" t_instant_add_resource
+
+t_instant_add_resource_failure_restores() (
+  src
+  instant_env "$(mktemp -d)" ""
+  instant_answers
+  cmd_servicio >/dev/null 2>&1 || return 1
+  local f=$HOME_DIR/config/services/afiliacion.yaml before
+  before=$(cat "$f" "$HOME_DIR/config/services/afiliacion.openapi.json")
+  touch "$HOME_DIR/scaffold-fails"
+  export RID_INSTALL_SERVICE_SOURCE=salud.no_existe RID_INSTALL_SERVICE_KEY=id
+  out=$( (cmd_servicio recurso afiliacion) 2>&1 ) && return 1
+  [[ $(cat "$f" "$HOME_DIR/config/services/afiliacion.openapi.json") == "$before" ]] && ! compgen -G "$HOME_DIR/config/services/*.antes" >/dev/null
+)
+check "a failed servicio recurso leaves the service as it was" t_instant_add_resource_failure_restores
+
+t_add_resource_to_proxy_refused() (
+  src
+  instant_env "$(mktemp -d)" ""
+  printf 'name: certificados\npath: /certificados\ntype: proxy\nupstream: https://api\n' >"$HOME_DIR/config/services/certificados.yaml"
+  out=$( (cmd_servicio recurso certificados) 2>&1 ) && return 1
+  [[ $out == *"no es instant"* ]]
+)
+check "servicio recurso refuses a proxy service" t_add_resource_to_proxy_refused
 
 echo "passed $PASS, failed $FAILS"
 [[ $FAILS -eq 0 ]]

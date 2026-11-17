@@ -235,13 +235,10 @@ sudo docker compose exec rid-node /rid-node <comando>
 **Agregar un recurso a un servicio existente** (otra vista sobre la misma base):
 
 ```bash
-cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node scaffold --print \
-  --service-file /etc/rid-node/services/afiliacion.yaml --source salud.v_hogares --key hogar_id --many \
-  | sudo tee config/services/afiliacion.yaml.nuevo >/dev/null
-# revisa el archivo nuevo y, si está bien:
-sudo mv config/services/afiliacion.yaml.nuevo config/services/afiliacion.yaml
+sudo /opt/rid-node/install.sh servicio recurso afiliacion
 ```
+
+Muestra las vistas que el usuario puede leer, pide la vista y su clave, agrega el recurso, valida, regenera el OpenAPI y reinicia el nodo. Si algo falla, deja el servicio como estaba. El OpenAPI cambia, así que hay que publicar una versión nueva en el portal.
 
 **Después de cualquier cambio**, valida, regenera el OpenAPI y reinicia:
 

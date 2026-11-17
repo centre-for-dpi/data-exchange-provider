@@ -14,6 +14,7 @@ USAGE="Uso: sudo ./install.sh [comando]
   doctor                 revisa configuración, secretos, DNS, portal, reloj, APIs internas y túnel
   servicio               agrega un servicio: una API propia de la entidad o una API
                          instantánea sobre una vista de una base de datos (modo completo)
+  servicio recurso NOMBRE agrega otra vista a un servicio instant
   servicio quitar NOMBRE quita un servicio
   logs [-f]              logs del nodo (solo metadatos)
   backup                 respaldo del estado (claves, certificado, túnel), la configuración y los secretos
@@ -400,6 +401,7 @@ undo_service() { [[ ${#CREATED[@]} -gt 0 ]] && rm -f "${CREATED[@]}"; return 0; 
 cmd_servicio() {
   require_install
   [[ ${1:-} == quitar ]] && { cmd_servicio_quitar "${2:-}"; return; }
+  [[ ${1:-} == recurso ]] && { cmd_servicio_recurso "${2:-}"; return; }
   step "Nuevo servicio"
   local type=${RID_INSTALL_SERVICE_TYPE:-}
   echo "  proxy    una API propia de la entidad: el nodo le da el canal seguro"
@@ -497,9 +499,7 @@ service_instant() {
   local name=$1 path=$2 file=$3
   local engine=${RID_INSTALL_SERVICE_ENGINE:-} host=${RID_INSTALL_SERVICE_DB_HOST:-} port=${RID_INSTALL_SERVICE_DB_PORT:-}
   local db=${RID_INSTALL_SERVICE_DB_NAME:-} user=${RID_INSTALL_SERVICE_DB_USER:-} password=${RID_INSTALL_SERVICE_DB_PASSWORD:-}
-  local tls=${RID_INSTALL_SERVICE_DB_TLS:-} ca=${RID_INSTALL_SERVICE_DB_CA:-} source=${RID_INSTALL_SERVICE_SOURCE:-}
-  local key=${RID_INSTALL_SERVICE_KEY:-} subject=${RID_INSTALL_SERVICE_SUBJECT:-} many=${RID_INSTALL_SERVICE_MANY:-}
-  local resource=${RID_INSTALL_SERVICE_RESOURCE:-} entity=${RID_INSTALL_SERVICE_ENTITY:-}
+  local tls=${RID_INSTALL_SERVICE_DB_TLS:-} ca=${RID_INSTALL_SERVICE_DB_CA:-}
   step "Base de datos"
   ask engine "Motor (sqlserver, postgres, mysql, oracle)"
   local default_port
@@ -545,6 +545,24 @@ service_instant() {
   printf '%s' "$yaml" >"$file"
   chmod 0644 "$file"
 
+  CREATED+=("$HOME_DIR/config/services/$name.openapi.json")
+  instant_add_resource "$name" "$file"
+  trap - EXIT
+  CREATED=()
+  dc up -d --force-recreate rid-node >/dev/null
+  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
+  instant_summary "$name" "$path" "$file" "Servicio $name listo"
+  return 0
+}
+
+# instant_add_resource NAME FILE: shows what the database user can read, asks for the view, its
+# key and the rest (RID_INSTALL_SERVICE_SOURCE, _KEY, _SUBJECT, _MANY, _RESOURCE, _ENTITY), adds the
+# resource to FILE with rid-node scaffold --print, validates and regenerates the OpenAPI. Any
+# failure calls fail: the caller's EXIT trap undoes.
+instant_add_resource() {
+  local name=$1 file=$2
+  local source=${RID_INSTALL_SERVICE_SOURCE:-} key=${RID_INSTALL_SERVICE_KEY:-} subject=${RID_INSTALL_SERVICE_SUBJECT:-}
+  local many=${RID_INSTALL_SERVICE_MANY:-} resource=${RID_INSTALL_SERVICE_RESOURCE:-} entity=${RID_INSTALL_SERVICE_ENTITY:-}
   local cfile=/etc/rid-node/services/$name.yaml catalog
   if ! catalog=$(node catalog --service-file "$cfile" 2>&1); then
     printf '%s\n' "$catalog" >&2
@@ -573,22 +591,50 @@ service_instant() {
   printf '%s\n' "$updated" >"$file"
   node validate || fail "La configuración del servicio no es válida; no se aplicó ningún cambio"
   local openapi="$HOME_DIR/config/services/$name.openapi.json"
-  CREATED+=("$openapi")
   node openapi "$name" >"$openapi" || fail "No se pudo generar el OpenAPI; no se aplicó ningún cambio"
   chmod 0644 "$openapi"
-  trap - EXIT
-  CREATED=()
-  dc up -d --force-recreate rid-node >/dev/null
-  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
-  local sha
+}
+
+# instant_summary NAME PATH FILE TITLE: what the publisher needs in the portal.
+instant_summary() {
+  local name=$1 path=$2 file=$3 openapi="$HOME_DIR/config/services/$1.openapi.json" sha
   sha=$(sha256sum "$openapi" | cut -d' ' -f1)
-  step "Servicio $name listo"
+  step "$4"
   echo "  La API responde GET $path/<recurso>/<clave>; los recursos y sus columnas están en $file"
   echo "  En el portal, al registrar la versión:"
   echo "    ¿Dónde vive el servicio?      Nodo del kit"
   echo "    Nodo del kit:                 $(status_field nodeName)"
   echo "    Ruta del servicio en el nodo: $path"
   echo "    OpenAPI:                      sube $openapi (SHA-256 $sha)"
+}
+
+# servicio recurso NAME: another view in an existing instant service. The service file and its
+# OpenAPI are restored if anything fails. The OpenAPI changes: the portal needs a new version.
+RESTORE=()
+restore_service() {
+  local f
+  for f in "${RESTORE[@]}"; do [[ -f $f.antes ]] && mv -f "$f.antes" "$f"; done
+  return 0
+}
+cmd_servicio_recurso() {
+  local name=$1 file="$HOME_DIR/config/services/$1.yaml" openapi="$HOME_DIR/config/services/$1.openapi.json" path
+  [[ $name =~ ^[a-z0-9][a-z0-9-]*$ && -f $file ]] || fail "No existe el servicio \"$name\""
+  grep -q '^type: instant' "$file" || fail "El servicio \"$name\" no es instant: sus recursos son los de su propia API"
+  [[ $(env_get RID_NODE_TAG_SUFFIX) != -canal ]] || fail "Las APIs instantáneas necesitan el modo completo: sudo $HOME_DIR/install.sh modo completo"
+  path=$(sed -n "s/^path: '\(.*\)'$/\1/p; s/^path: \([^'].*\)$/\1/p" "$file" | head -n 1)
+  step "Nuevo recurso en el servicio $name"
+  RESTORE=("$file" "$openapi")
+  cp -p "$file" "$file.antes"
+  [[ -f $openapi ]] && cp -p "$openapi" "$openapi.antes"
+  trap restore_service EXIT
+  instant_add_resource "$name" "$file"
+  trap - EXIT
+  rm -f "$file.antes" "$openapi.antes"
+  RESTORE=()
+  dc up -d --force-recreate rid-node >/dev/null
+  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
+  instant_summary "$name" "$path" "$file" "Recurso agregado al servicio $name"
+  echo "  El OpenAPI cambió: publica una versión nueva de la API en el portal con este archivo."
   return 0
 }
 
