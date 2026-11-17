@@ -8,4 +8,4 @@ services:
     type: proxy
     upstream: http://mock-salud:8000
     allowPlainHttp: true
-    openapi: /etc/rid-node/salud.openapi.yaml # copied from the portal by canal-e2e.mjs
+    openapi: /etc/den-node/salud.openapi.yaml # copied from the portal by canal-e2e.mjs

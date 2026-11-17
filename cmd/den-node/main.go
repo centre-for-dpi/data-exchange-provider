@@ -1,4 +1,4 @@
-// Command rid-node is the provider node of the data exchange network: it enrolls with the
+// Command den-node is the provider node of the data exchange network: it enrolls with the
 // portal, keeps a WireGuard tunnel to the network's hub and serves the entity's services only
 // to the gateway.
 package main
@@ -19,7 +19,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
-const usage = `usage: rid-node <command>
+const usage = `usage: den-node <command>
 
 commands:
   run              starts the node (the container's entry point)
@@ -36,8 +36,8 @@ Instant APIs (full mode):
                                        adds a resource with every column that can be exposed
   openapi <service>                    prints the generated OpenAPI
 
-variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
-           RID_TOKEN_FILE (/run/secrets/enrollment_token), RID_HEARTBEAT_SECONDS (development only)
+variables: DEN_CONFIG (/etc/den-node/node.yaml), DEN_STATE_DIR (/var/lib/den-node),
+           DEN_TOKEN_FILE (/run/secrets/enrollment_token), DEN_HEARTBEAT_SECONDS (development only)
 `
 
 func main() {
@@ -54,7 +54,7 @@ func env(name, fallback string) string {
 	return fallback
 }
 
-// heartbeatOverride reads RID_HEARTBEAT_SECONDS (development): never below 10 s, so a typo
+// heartbeatOverride reads DEN_HEARTBEAT_SECONDS (development): never below 10 s, so a typo
 // cannot hammer the portal; 0 or invalid means "follow the portal's interval".
 func heartbeatOverride(s string) time.Duration {
 	n, err := strconv.Atoi(s)
@@ -69,19 +69,19 @@ func run(args []string, out io.Writer) int {
 		fmt.Fprint(out, i18n.T(usage))
 		return 2
 	}
-	configPath := env("RID_CONFIG", "/etc/rid-node/node.yaml")
-	stateDir := env("RID_STATE_DIR", "/var/lib/rid-node")
-	tokenFile := env("RID_TOKEN_FILE", "/run/secrets/enrollment_token")
+	configPath := env("DEN_CONFIG", "/etc/den-node/node.yaml")
+	stateDir := env("DEN_STATE_DIR", "/var/lib/den-node")
+	tokenFile := env("DEN_TOKEN_FILE", "/run/secrets/enrollment_token")
 	switch args[0] {
 	case "version":
-		i18n.Fprintf(out, "rid-node %s (%s), node contract v%s\n", buildinfo.Version, buildinfo.Variant(), buildinfo.ContractVersion)
+		i18n.Fprintf(out, "den-node %s (%s), node contract v%s\n", buildinfo.Version, buildinfo.Variant(), buildinfo.ContractVersion)
 		return 0
 	case "run":
 		log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		if err := runNode(ctx, runOptions{ConfigPath: configPath, StateDir: stateDir, TokenFile: tokenFile,
-			HeartbeatEvery: heartbeatOverride(os.Getenv("RID_HEARTBEAT_SECONDS")), Log: log}); err != nil {
+			HeartbeatEvery: heartbeatOverride(os.Getenv("DEN_HEARTBEAT_SECONDS")), Log: log}); err != nil {
 			log.Error("fatal", "error", err.Error())
 			return 1
 		}

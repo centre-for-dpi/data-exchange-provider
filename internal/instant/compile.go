@@ -29,7 +29,7 @@ type Compiled struct {
 const defaultStringKeyLength = 64
 
 // Compile checks every resource of the service against the catalog and reports every problem at
-// once, in the operator's language (RID_LANG).
+// once, in the operator's language (DEN_LANG).
 func Compile(svc config.Service, catalog []Object, d Dialect) ([]Compiled, error) {
 	var out []Compiled
 	var errs []error

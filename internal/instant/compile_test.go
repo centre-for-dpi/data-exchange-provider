@@ -16,7 +16,7 @@ import (
 // fakeDialect quotes like PostgreSQL and talks to the instanttest driver.
 type fakeDialect struct{}
 
-func (fakeDialect) Driver() string                                   { return "ridfake" }
+func (fakeDialect) Driver() string                                   { return "denfake" }
 func (fakeDialect) DSN(db config.Database, _ string) (string, error) { return db.Name, nil }
 func (fakeDialect) Objects() string                                  { return "OBJECTS" }
 func (fakeDialect) Columns() string                                  { return "COLUMNS" }

@@ -9,14 +9,14 @@ import (
 	"encoding/pem"
 )
 
-// NewKeyAndCSR makes an EC P-256 key and its CSR as the contract asks: CN=rid-node and no
-// other names (the portal puts DNS:rid-node-<nodeId> in the certificate).
+// NewKeyAndCSR makes an EC P-256 key and its CSR as the contract asks: CN=den-node and no
+// other names (the portal puts DNS:den-node-<nodeId> in the certificate).
 func NewKeyAndCSR() (keyPEM, csrPEM string, err error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		return "", "", err
 	}
-	csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{Subject: pkix.Name{CommonName: "rid-node"}}, key)
+	csr, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{Subject: pkix.Name{CommonName: "den-node"}}, key)
 	if err != nil {
 		return "", "", err
 	}

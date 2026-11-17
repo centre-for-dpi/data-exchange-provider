@@ -4,7 +4,7 @@ Este archivo es el contexto permanente para Claude Code. Léelo completo al inic
 
 ## Qué es este repositorio
 
-El **kit de APIs instantáneas** es lo que se entrega e instala en cada **entidad proveedora** de la Red de Intercambio de Datos (RID). El kit sirve a las entidades que no tienen una API propia:
+El **kit de APIs instantáneas** es lo que se entrega e instala en cada **entidad proveedora** de la red de intercambio de datos DEN (Data Exchange Network). El kit sirve a las entidades que no tienen una API propia:
 
 1. Se conecta a una base de datos de la entidad con un **usuario de solo lectura**.
 2. Descubre las **vistas y tablas** a las que ese usuario tiene acceso, y la entidad elige cuáles exponer.
@@ -35,7 +35,7 @@ El primer despliegue es Colombia (entidades públicas; el gateway lo opera la AN
 2. **No se guarda el contenido de las respuestas.** Ni el kit ni sus logs guardan cuerpos de petición o respuesta, ni siquiera en modo debug. Solo metadatos. Rutas y query strings van **enmascarados** en los logs, porque pueden llevar números de identificación.
 3. **Los datos se quedan en la entidad.** El kit lee con un usuario de solo lectura y no copia ni replica datos fuera de la base de la entidad.
 4. **Nada específico de un país en el código.**
-5. **Código, identificadores, commits y comentarios en inglés.** La documentación oficial va en inglés, con su versión en español en `docs/es/` (misma ruta), actualizada en el mismo commit. Los mensajes del kit (instalador, CLI, errores, títulos problem+json, textos del OpenAPI) se escriben en inglés en el código y su español va en el catálogo (`internal/i18n/catalog_es.go`, `MSG_ES` en `install.sh`); `RID_LANG=es` los cambia. Los ADRs, spikes, planes y BACKLOG anteriores quedan en español; los nuevos, en inglés (ADR-0004).
+5. **Código, identificadores, commits y comentarios en inglés.** La documentación oficial va en inglés, con su versión en español en `docs/es/` (misma ruta), actualizada en el mismo commit. Los mensajes del kit (instalador, CLI, errores, títulos problem+json, textos del OpenAPI) se escriben en inglés en el código y su español va en el catálogo (`internal/i18n/catalog_es.go`, `MSG_ES` en `install.sh`); `DEN_LANG=es` los cambia. Los ADRs, spikes, planes y BACKLOG anteriores quedan en español; los nuevos, en inglés (ADR-0004).
 6. **Sin secretos en el repo.** Ni tokens de enrolamiento, ni claves, ni credenciales de bases de datos.
 7. **Seguridad por defecto.** El kit corre dentro de la red de la entidad: no abre puertos de entrada a internet, sirve solo por el túnel y solo al certificado del gateway, y se ejecuta con el mínimo privilegio.
 8. **Las decisiones de arquitectura van en ADRs** (`docs/adr/NNNN-titulo.md`, formato en `docs/adr/0000-template.md`). Los ADRs aceptados no se modifican: se reemplazan con uno nuevo.

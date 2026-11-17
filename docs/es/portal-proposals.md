@@ -6,7 +6,7 @@ Para el **equipo del portal** (`../data-exchange`). Salen de construir y probar 
 
 ## 1. Entregar el slug de la entidad al nodo
 
-**Problema.** La aserción del gateway (ADR-0024) lleva `aud` = el slug de la entidad proveedora. El nodo la verifica, pero el contrato v1 no le dice su slug. Hoy lo deduce de `gatewayClientName` (`rid-gateway.<slug>`), una convención que no está escrita en el contrato. Si cambia, el nodo deja de verificar, o no arranca en modo `require`.
+**Problema.** La aserción del gateway (ADR-0024) lleva `aud` = el slug de la entidad proveedora. El nodo la verifica, pero el contrato v1 no le dice su slug. Hoy lo deduce de `gatewayClientName` (`den-gateway.<slug>`), una convención que no está escrita en el contrato. Si cambia, el nodo deja de verificar, o no arranca en modo `require`.
 
 **Propuesta.** Agregar `entitySlug` a la respuesta de `POST /nodes/enroll` y de `GET /nodes/{id}/config`. Es un campo nuevo, así que el cambio es compatible.
 
@@ -33,7 +33,7 @@ Para el **equipo del portal** (`../data-exchange`). Salen de construir y probar 
 **Problema.** El gateway firma la URI que recibe el nodo. El nodo la verifica y reenvía la cabecera, pero la API interna de la entidad recibe otra ruta (la base de su upstream), así que no puede verificar la aserción por su cuenta.
 
 **Propuesta.** Decidir una de dos:
-- que el nodo pase la URI original en una cabecera (por ejemplo `X-RID-Original-URI`);
+- que el nodo pase la URI original en una cabecera (por ejemplo `X-DEN-Original-URI`);
 - o que, para los servicios detrás de un nodo, valga la verificación del nodo y su log.
 
 La guía de proveedores tiene que decir cuál.

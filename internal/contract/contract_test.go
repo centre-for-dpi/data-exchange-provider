@@ -80,9 +80,9 @@ func TestRequestsMatchContract(t *testing.T) {
 }
 
 func TestResponsesDecode(t *testing.T) {
-	enroll := `{"contractVersion":"1","nodeId":"` + nodeID + `","nodeName":"rid-node-` + nodeID + `",
+	enroll := `{"contractVersion":"1","nodeId":"` + nodeID + `","nodeName":"den-node-` + nodeID + `",
 	  "certificate":"c","certificateNotAfter":"2027-02-14T18:37:54Z","caCertificate":"ca",
-	  "controlUrl":"https://localhost:9443","gatewayClientName":"rid-gateway.salud","heartbeatIntervalSeconds":60,
+	  "controlUrl":"https://localhost:9443","gatewayClientName":"den-gateway.salud","heartbeatIntervalSeconds":60,
 	  "wireguard":{"address":"10.77.0.19/32","hubPublicKey":"` + wgKey + `","hubEndpoint":"wg-hub:51820",
 	  "hubAddress":"10.77.0.1","allowedIps":["10.77.0.1/32"],"persistentKeepaliveSeconds":25}}`
 	mustValidate(t, responseSchema(t, "/api/v1/nodes/enroll", "post", "201"), json.RawMessage(enroll))
@@ -90,7 +90,7 @@ func TestResponsesDecode(t *testing.T) {
 	if err := json.Unmarshal([]byte(enroll), &e); err != nil {
 		t.Fatal(err)
 	}
-	if e.NodeName != "rid-node-"+nodeID || e.WireGuard.AllowedIPs[0] != "10.77.0.1/32" || e.WireGuard.PersistentKeepaliveSeconds != 25 || e.GatewayClientName != "rid-gateway.salud" {
+	if e.NodeName != "den-node-"+nodeID || e.WireGuard.AllowedIPs[0] != "10.77.0.1/32" || e.WireGuard.PersistentKeepaliveSeconds != 25 || e.GatewayClientName != "den-gateway.salud" {
 		t.Fatalf("decoded: %+v", e)
 	}
 

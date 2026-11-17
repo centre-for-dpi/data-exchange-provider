@@ -78,7 +78,7 @@ func instantSetup(t *testing.T, portal, engine, resources string) (configPath, s
 	serviceFile = writeFile(t, filepath.Join(dir, "services"), "afiliacion.yaml", fmt.Sprintf(`name: afiliacion
 path: /salud
 type: instant
-database: { engine: %s, host: bd.interna, port: 5432, name: %s, user: rid_reader, passwordFile: %s }
+database: { engine: %s, host: bd.interna, port: 5432, name: %s, user: den_reader, passwordFile: %s }
 %s`, engine, name, filepath.ToSlash(secret), resources), 0o644)
 	return configPath, serviceFile, db
 }
@@ -94,7 +94,7 @@ const afiliadosYAML = `resources:
 
 func cli(t *testing.T, configPath string, args ...string) (int, string) {
 	t.Helper()
-	t.Setenv("RID_CONFIG", configPath)
+	t.Setenv("DEN_CONFIG", configPath)
 	var out bytes.Buffer
 	code := run(args, &out)
 	return code, out.String()

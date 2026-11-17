@@ -58,10 +58,10 @@ func TestFromEnv(t *testing.T) {
 		want Lang
 		warn bool
 	}{{"", EN, false}, {"es", ES, false}, {"ES", ES, false}, {"es_CO.UTF-8", ES, false}, {"en", EN, false}, {"fr", EN, true}} {
-		t.Setenv("RID_LANG", c.env)
+		t.Setenv("DEN_LANG", c.env)
 		warn := FromEnv()
 		if Current() != c.want || (warn != "") != c.warn {
-			t.Fatalf("RID_LANG=%q → %q, warning %q", c.env, Current(), warn)
+			t.Fatalf("DEN_LANG=%q → %q, warning %q", c.env, Current(), warn)
 		}
 	}
 }

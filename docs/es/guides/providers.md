@@ -4,7 +4,7 @@
 
 Versión 2.0 · noviembre 2026 · para la jornada de incorporación (bootcamp) con las entidades
 
-Esta guía explica qué tiene que **designar, disponer y hacer** una entidad para publicar sus datos en la Red de Intercambio de Datos (RID) como **proveedora**. Lo que hace una entidad **consumidora** está en la guía de entidades del portal (`docs/es/guides/entities.md` del repositorio del portal). La plataforma central (portal y gateway) la opera el operador nacional: la entidad no instala nada de eso. Lo único que instala la proveedora es el **nodo**.
+Esta guía explica qué tiene que **designar, disponer y hacer** una entidad para publicar sus datos en la red de intercambio de datos DEN (Data Exchange Network) como **proveedora**. Lo que hace una entidad **consumidora** está en la guía de entidades del portal (`docs/es/guides/entities.md` del repositorio del portal). La plataforma central (portal y gateway) la opera el operador nacional: la entidad no instala nada de eso. Lo único que instala la proveedora es el **nodo**.
 
 El paso a paso de la instalación del nodo está en la [guía de instalación del nodo](../INSTALL.md), y la preparación de la base y la configuración de las APIs instantáneas, en [APIs instantáneas: uso y configuración](../INSTANT-APIS.md).
 
@@ -52,7 +52,7 @@ Con una API propia, la entidad responde por su API y por su contrato OpenAPI. Co
 **Otras conexiones**
 
 - **X-Road.** Si la entidad ya publica servicios en X-Road, el gateway llega por el Security Server del operador. La entidad necesita su miembro X-Road, que registra el operador. No lleva nodo.
-- **API expuesta directamente,** sin nodo. Es una excepción que se acuerda con el operador: la API debe tener HTTPS con un certificado público válido, permitir la entrada desde la IP del gateway y, de preferencia, exigir mTLS con el certificado del gateway emitido para la entidad (`CN=rid-gateway.<slug>`). El nodo evita todo esto, por eso es la opción por defecto.
+- **API expuesta directamente,** sin nodo. Es una excepción que se acuerda con el operador: la API debe tener HTTPS con un certificado público válido, permitir la entrada desde la IP del gateway y, de preferencia, exigir mTLS con el certificado del gateway emitido para la entidad (`CN=den-gateway.<slug>`). El nodo evita todo esto, por eso es la opción por defecto.
 
 ## 4. Lo que la entidad debe disponer
 
@@ -85,7 +85,7 @@ No se abre ningún puerto de entrada. El operador indica los nombres del portal 
   - al menos una respuesta de éxito por operación;
   - solo referencias `$ref` locales (`#/...`);
   - **ningún identificador en el query string:** los números de documento van en la ruta (`/personas/{documento}`) o en el cuerpo de un POST, nunca en `?documento=...`;
-  - en APIs con datos personales o sensibles, cada operación declara dónde está el titular de los datos (`x-rid-data-subject`) o que no tiene (`none`).
+  - en APIs con datos personales o sensibles, cada operación declara dónde está el titular de los datos (`x-den-data-subject`) o que no tiene (`none`).
 - **Con el modo canal:** la URL interna de la API y, si la pide, su credencial (una cabecera, usuario y contraseña, o un certificado de cliente).
 - **Con las APIs instantáneas:** una **vista** por cada consulta, con solo las columnas que se van a compartir, y un **usuario de solo lectura** con `SELECT` sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en [APIs instantáneas: uso y configuración](../INSTANT-APIS.md#2-preparar-la-base-de-datos-dba).
 - **Un sandbox** (recomendado): el mismo servicio con **datos sintéticos**. Con él el portal prueba el contrato al enviar a revisión, y los consumidores integran sin tocar datos reales. Se publica por el mismo nodo, como un servicio más.
@@ -115,7 +115,7 @@ chmod +x entity-check.sh
 
 Comprueba el DNS, la salida HTTPS al portal y al gateway, y que el certificado del gateway verifica contra la raíz de la red. Solo necesita `bash`, `curl` y `openssl`.
 
-El script no puede probar el túnel (UDP 51820) sin un nodo. Eso lo comprueba el nodo mismo después de instalarlo, con `sudo /opt/rid-node/install.sh doctor`.
+El script no puede probar el túnel (UDP 51820) sin un nodo. Eso lo comprueba el nodo mismo después de instalarlo, con `sudo /opt/den-node/install.sh doctor`.
 
 ### 5.2 Alta de la entidad y de su gente
 
@@ -129,17 +129,17 @@ El script no puede probar el túnel (UDP 51820) sin un nodo. Eso lo comprueba el
 1. El `entity_admin` va a **Mi entidad → Nodos del kit**, registra el nodo y copia el **token de enrolamiento**. Se muestra una sola vez, sirve para un solo nodo y vence en **72 horas**. Se lo pasa al equipo de infraestructura por un canal seguro.
 2. El equipo de infraestructura verifica el paquete y lo instala:
    ```bash
-   sha256sum rid-node-kit-<versión>.tar.gz   # debe coincidir con la huella publicada por el operador
-   tar -xzf rid-node-kit-<versión>.tar.gz
-   cd rid-node-kit-<versión>
+   sha256sum den-node-kit-<versión>.tar.gz   # debe coincidir con la huella publicada por el operador
+   tar -xzf den-node-kit-<versión>.tar.gz
+   cd den-node-kit-<versión>
    sudo ./install.sh                          # pide el modo (canal o completo), la URL del portal y el token
    ```
 3. Agrega el servicio (y su sandbox, si lo tiene):
    ```bash
-   sudo /opt/rid-node/install.sh servicio
+   sudo /opt/den-node/install.sh servicio
    ```
    - **API propia** (tipo `proxy`): pide el nombre, la **ruta en el nodo** (por ejemplo `/certificados`), la URL interna, la credencial y el OpenAPI.
-   - **API instantánea** (tipo `instant`, modo completo): pide el nombre, la ruta en el nodo, la conexión a la base con el usuario de solo lectura, la vista y la columna clave. Muestra las vistas que el usuario puede leer y genera el OpenAPI en `/opt/rid-node/config/services/<nombre>.openapi.json`.
+   - **API instantánea** (tipo `instant`, modo completo): pide el nombre, la ruta en el nodo, la conexión a la base con el usuario de solo lectura, la vista y la columna clave. Muestra las vistas que el usuario puede leer y genera el OpenAPI en `/opt/den-node/config/services/<nombre>.openapi.json`.
 4. En el portal, el nodo aparece **En línea**.
 
 El detalle de cada pregunta, el proxy corporativo, el respaldo y la actualización están en la [guía de instalación del nodo](../INSTALL.md).
@@ -164,15 +164,15 @@ El gateway pone estas cabeceras y borra las que intente mandar el consumidor. El
 
 | Cabecera | Contenido |
 | :-- | :-- |
-| `X-RID-Consumer-Entity` / `X-RID-Consumer-App` | Entidad y aplicación consumidoras |
-| `X-RID-Subscription` | La autorización con que se hizo la consulta |
-| `X-RID-Purpose` | Finalidad declarada |
-| `X-RID-Operation` | Operación del contrato (`operationId`) |
-| `X-RID-End-User-Hash` | Hash del funcionario que consulta, si la API lo exige |
-| `X-RID-Subject-Ref` | Seudónimo del titular de los datos, si la operación lo declara |
+| `X-DEN-Consumer-Entity` / `X-DEN-Consumer-App` | Entidad y aplicación consumidoras |
+| `X-DEN-Subscription` | La autorización con que se hizo la consulta |
+| `X-DEN-Purpose` | Finalidad declarada |
+| `X-DEN-Operation` | Operación del contrato (`operationId`) |
+| `X-DEN-End-User-Hash` | Hash del funcionario que consulta, si la API lo exige |
+| `X-DEN-Subject-Ref` | Seudónimo del titular de los datos, si la operación lo declara |
 | `X-Request-Id` | Identificador de correlación, el mismo en la bitácora de la red |
 
-Más adelante el gateway firmará cada llamada en una cabecera `X-RID-Assertion`, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway.
+Más adelante el gateway firmará cada llamada en una cabecera `X-DEN-Assertion`, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway.
 
 ## 7. Recomendaciones para el servicio de la entidad
 
@@ -182,22 +182,22 @@ La red no puede verificar lo que pasa dentro de la entidad. Estas prácticas son
 - **Sin contenido en los logs.** Que los logs de la API no guarden cuerpos de petición ni de respuesta, y que enmascaren rutas y query strings, porque pueden llevar números de identificación.
 - **Solo lectura.** Que la API lea los datos con un usuario de solo lectura.
 - **Solo por el nodo.** Que la API no quede expuesta fuera de la red interna: el nodo es su única puerta hacia la red.
-- **Guardar la trazabilidad.** Registrar `X-Request-Id`, `X-RID-Consumer-Entity` y `X-RID-Purpose` junto a cada consulta permite responder ante una auditoría.
+- **Guardar la trazabilidad.** Registrar `X-Request-Id`, `X-DEN-Consumer-Entity` y `X-DEN-Purpose` junto a cada consulta permite responder ante una auditoría.
 
 ## 8. Compromisos de la entidad
 
 - **Decidir los accesos.** El `data_steward` aprueba solo las finalidades legítimas y con base legal, y revoca un acceso cuando deja de corresponder.
 - **Mantener el nodo en línea.** Si el nodo deja de enviar señales por 5 minutos, el portal lo marca **Fuera de línea** y avisa a los administradores. Cuando el portal exige una versión mínima del kit, se actualiza.
-- **Respaldar el nodo.** El respaldo (`sudo /opt/rid-node/install.sh backup`) lleva las claves del nodo: se copia fuera del servidor y se guarda como un secreto.
+- **Respaldar el nodo.** El respaldo (`sudo /opt/den-node/install.sh backup`) lleva las claves del nodo: se copia fuera del servidor y se guarda como un secreto.
 - **Avisar los cambios.** Un cambio incompatible en una API publicada exige una versión mayor nueva. La anterior se deprecia con fecha de retiro.
 
 ## 9. Operación del nodo
 
 | Comando | Para qué |
 | :-- | :-- |
-| `sudo /opt/rid-node/install.sh status` | Estado: portal, túnel, certificado, salud de cada servicio y avisos |
-| `sudo /opt/rid-node/install.sh doctor` | Revisa la configuración, los secretos, el DNS, el portal, el reloj, las APIs internas y el túnel |
-| `sudo /opt/rid-node/install.sh logs` | Los últimos logs del nodo (solo metadatos). Con `-f` los sigue en vivo |
+| `sudo /opt/den-node/install.sh status` | Estado: portal, túnel, certificado, salud de cada servicio y avisos |
+| `sudo /opt/den-node/install.sh doctor` | Revisa la configuración, los secretos, el DNS, el portal, el reloj, las APIs internas y el túnel |
+| `sudo /opt/den-node/install.sh logs` | Los últimos logs del nodo (solo metadatos). Con `-f` los sigue en vivo |
 
 Los problemas comunes y cómo resolverlos están en la [guía de instalación del nodo](../INSTALL.md#10-problemas-comunes). Para reportar un problema al operador, adjunta la salida de `status` y `doctor`: no contienen secretos ni datos de personas.
 

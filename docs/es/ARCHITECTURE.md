@@ -30,8 +30,8 @@ Para el portal, los dos tipos son iguales: una versión con `upstream: node` y s
 
 | Modo | Para quién | Qué trae |
 | :-- | :-- | :-- |
-| `canal` (solo seguridad) | Entidades que ya tienen sus APIs | El canal completo: enrolamiento, túnel, mTLS solo con el gateway, heartbeat, renovación y logs sin contenido. Sirve **solo servicios `proxy`**. Usa la imagen `rid-node:<versión>-canal`, compilada **sin** el módulo de APIs instantáneas ni drivers de bases de datos |
-| `completo` | Entidades sin API, o con las dos cosas | El canal más las APIs instantáneas. Sirve servicios `proxy` e `instant`. Usa la imagen `rid-node:<versión>` |
+| `canal` (solo seguridad) | Entidades que ya tienen sus APIs | El canal completo: enrolamiento, túnel, mTLS solo con el gateway, heartbeat, renovación y logs sin contenido. Sirve **solo servicios `proxy`**. Usa la imagen `den-node:<versión>-canal`, compilada **sin** el módulo de APIs instantáneas ni drivers de bases de datos |
+| `completo` | Entidades sin API, o con las dos cosas | El canal más las APIs instantáneas. Sirve servicios `proxy` e `instant`. Usa la imagen `den-node:<versión>` |
 
 Las dos imágenes salen del mismo código. La variante `canal` se compila con la etiqueta `canal`, que excluye `internal/instant`. Si `node.yaml` declara un servicio `instant` en modo `canal`, el nodo no arranca y dice por qué. El modo se cambia después con `install.sh modo`, sin perder el estado.
 
@@ -50,11 +50,11 @@ Los usuarios del kit son:
 - **Salida durante la instalación y las actualizaciones:** `download.docker.com` (solo si falta Docker) y el registro de imágenes. Para servidores sin esa salida, el instalador acepta un paquete fuera de línea: la imagen como `.tar`, que se carga con `docker load`, y Docker Engine instalado antes por la entidad.
 - Para servicios `instant`: un usuario de base de datos **de solo lectura**, con `SELECT` sobre las vistas que se van a exponer.
 
-## 3. Componentes (un solo binario `rid-node`)
+## 3. Componentes (un solo binario `den-node`)
 
 ```
-          ┌──────────────────────────── contenedor rid-node ──────────────────────────────┐
- portal ◄─┤ agent: enroll · heartbeat · renew · config      state: /var/lib/rid-node (vol) │
+          ┌──────────────────────────── contenedor den-node ──────────────────────────────┐
+ portal ◄─┤ agent: enroll · heartbeat · renew · config      state: /var/lib/den-node (vol) │
  (443)    │                                                                              │
  hub   ◄──┤ tunnel: wireguard-go + netstack (IP del túnel solo dentro del proceso)        │
  (51820)  │   └─ server: TLS 1.3, mTLS (CA de la red + gatewayClientName + SNI)           │
@@ -67,7 +67,7 @@ Los usuarios del kit son:
 Código (módulo Go `github.com/centre-for-dpi/data-exchange-provider`, que se ajusta al crear el remoto):
 
 ```
-cmd/rid-node/            CLI y punto de entrada
+cmd/den-node/            CLI y punto de entrada
 internal/config/         node.yaml y declaraciones de servicios; validación
 internal/state/          estado persistente (escritura atómica, 0600)
 internal/contract/       cliente del contrato de nodos v1 (tipos + prueba contra el OpenAPI del portal)
@@ -82,13 +82,13 @@ deploy/                  Dockerfile, compose.yaml, install.sh, .env.example
 
 ## 4. Configuración
 
-En el host, todo vive en `/opt/rid-node/`:
+En el host, todo vive en `/opt/den-node/`:
 
 ```
-/opt/rid-node/
+/opt/den-node/
   compose.yaml          generado por el instalador
-  .env                  RID_NODE_VERSION (etiqueta de la imagen)
-  config/               montado de solo lectura en /etc/rid-node
+  .env                  DEN_NODE_VERSION (etiqueta de la imagen)
+  config/               montado de solo lectura en /etc/den-node
     node.yaml
     services/<servicio>.yaml
   secrets/              0700; cada archivo 0600, montado en /run/secrets
@@ -96,7 +96,7 @@ En el host, todo vive en `/opt/rid-node/`:
     <servicio>_db_password | <servicio>_credential
 ```
 
-El estado vive en el volumen `rid-node-state`, montado en `/var/lib/rid-node`. Ahí están la clave del nodo, el certificado, la clave WireGuard y la configuración recibida.
+El estado vive en el volumen `den-node-state`, montado en `/var/lib/den-node`. Ahí están la clave del nodo, el certificado, la clave WireGuard y la configuración recibida.
 
 `node.yaml` tiene el portal. Cada servicio va en su propio archivo, `services/<servicio>.yaml` (un solo documento por archivo):
 
@@ -112,9 +112,9 @@ name: certificados                     # nombre en el heartbeat: [a-z0-9-]
 path: /certificados                    # servicePath que se registra en el portal
 type: proxy
 upstream: https://api.interna.entidad/certificados/v1
-caFile: /etc/rid-node/ca-interna.pem   # opcional: CA del API interna
+caFile: /etc/den-node/ca-interna.pem   # opcional: CA del API interna
 credential: { header: X-Api-Key, file: /run/secrets/certificados_credential }
-openapi: /etc/rid-node/services/certificados.openapi.json   # opcional: plantillas de ruta para los logs
+openapi: /etc/den-node/services/certificados.openapi.json   # opcional: plantillas de ruta para los logs
 ```
 
 ```yaml
@@ -127,7 +127,7 @@ database:
   host: bd.interna
   port: 5432
   name: entidad                        # base (Oracle: servicio, p. ej. ORCLPDB1)
-  user: rid_reader
+  user: den_reader
   passwordFile: /run/secrets/afiliacion_db_password
   tls: require                         # disable | require | verify (+ caFile; Oracle: solo las CA del sistema)
   maxConnections: 4                    # por defecto 4
@@ -137,7 +137,7 @@ resources:
     entity: Afiliado                   # esquema y operationId (getAfiliado) del OpenAPI
     source: salud.v_afiliados          # esquema.vista; se compara sin distinguir mayúsculas
     key: { column: numero_documento }  # pattern opcional; por defecto, según el tipo
-    dataSubject: { documentType: CC }  # x-rid-data-subject; sin esto, "none"
+    dataSubject: { documentType: CC }  # x-den-data-subject; sin esto, "none"
     many: false                        # true: lista, hasta maxRows (por defecto 100, máximo 1000)
     columns:
       - { name: numero_documento }
@@ -147,7 +147,7 @@ resources:
 Las declaraciones son las del spike S-2, con estos agregados:
 - `as` por columna, para ajustar el tipo expuesto (`boolean` para un `NUMBER(1)`, `date` para un `DATE` de Oracle). Solo se aceptan conversiones fieles.
 - `maxRows` para los recursos `many`, que el OpenAPI declara como `maxItems`.
-- `columns` es obligatorio: una columna nueva en la vista no se expone sin declararla. `rid-node scaffold` la escribe con todas las columnas exponibles, y anota como comentario las que omite.
+- `columns` es obligatorio: una columna nueva en la vista no se expone sin declararla. `den-node scaffold` la escribe con todas las columnas exponibles, y anota como comentario las que omite.
 - Un servicio `instant` sin recursos es válido, pero no se sirve: el instalador escribe primero la conexión.
 
 Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, se aplica con un reinicio: no hay recarga en caliente.
@@ -160,7 +160,7 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 3. Si no hay estado, se enrola. El token sale de `/run/secrets/enrollment_token`. Después se registra el aviso de que ese secreto ya se puede borrar.
 4. Levanta el túnel, sirve y empieza el ciclo de control.
 
-**Enrolamiento.** Genera una clave EC P-256 y el CSR `CN=rid-node`, y una clave WireGuard. Las respuestas:
+**Enrolamiento.** Genera una clave EC P-256 y el CSR `CN=den-node`, y una clave WireGuard. Las respuestas:
 - `401` (token inválido, usado o vencido): error fatal con un mensaje claro.
 - `409` (clave WireGuard ya enrolada): fatal. Indica que el estado se perdió y hace falta un token nuevo.
 - `503` u errores de red: reintenta con backoff.
@@ -169,7 +169,7 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 
 **Servidor.**
 - TLS 1.3.
-- Durante la conexión TLS exige un certificado de la CA de la red, con CN exacto = `gatewayClientName` y SNI = `rid-node-<id>`. Si no, corta la conexión.
+- Durante la conexión TLS exige un certificado de la CA de la red, con CN exacto = `gatewayClientName` y SNI = `den-node-<id>`. Si no, corta la conexión.
 - `Host` debe ser el nombre del nodo; si no, 421.
 - Tiene tiempos máximos de lectura y escritura, un tope de cabeceras y un límite de peticiones simultáneas por servicio, para proteger la base de la entidad.
 
@@ -207,10 +207,10 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 - Los errores de la base se registran por clase (`connection`, `timeout`, `query`), nunca con el mensaje del driver, que puede llevar valores. Tres errores seguidos hacen releer el catálogo; cuando la base vuelve, el servicio se recupera sin reiniciar.
 - Errores en problem+json, con títulos en español y códigos estables.
 - `GET /` del servicio responde `{"status":"ok"}`, o 503 si la base no responde. Lo usa el healthcheck del portal.
-- El OpenAPI es determinista, y `rid-node openapi` produce exactamente el archivo cuyo hash va en el heartbeat.
+- El OpenAPI es determinista, y `den-node openapi` produce exactamente el archivo cuyo hash va en el heartbeat.
 
 **Proxy.**
-- Reescribe `servicePath` hacia la ruta base del upstream y reenvía las cabeceras `X-RID-*` y `X-Request-Id`.
+- Reescribe `servicePath` hacia la ruta base del upstream y reenvía las cabeceras `X-DEN-*` y `X-Request-Id`.
 - **Métodos:** pasan todos. El gateway ya restringe a las operaciones declaradas en el OpenAPI y suscritas.
 - **Cuerpos:**
   - el tope (1 MiB por defecto, configurable con `maxRequestBytes`) aplica solo a la **petición**;
@@ -223,7 +223,7 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 
 ## 6. Privacidad y seguridad
 
-- **Logs:** una línea JSON por petición, con `request_id`, método, **plantilla** de ruta, estado, duración, CN del cliente, nombres de las cabeceras `X-RID-*` y si hubo query.
+- **Logs:** una línea JSON por petición, con `request_id`, método, **plantilla** de ruta, estado, duración, CN del cliente, nombres de las cabeceras `X-DEN-*` y si hubo query.
   - Nunca la ruta real, el query, los cuerpos ni los valores de las cabeceras.
   - Los errores de la base se registran por código o clase, no por mensaje, porque el mensaje puede llevar valores.
 - **Contenedor:**
@@ -239,7 +239,7 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 
 ## 7. CLI
 
-Todos los comandos corren con el mismo binario y la misma configuración: `docker compose run --rm rid-node <comando>`, o `exec` sobre el contenedor en marcha.
+Todos los comandos corren con el mismo binario y la misma configuración: `docker compose run --rm den-node <comando>`, o `exec` sobre el contenedor en marcha.
 
 | Comando | Para qué |
 | :-- | :-- |
@@ -258,7 +258,7 @@ Sigue el patrón del `install.sh` del portal: preguntas paso a paso, mensajes en
 
 ```
 sudo ./install.sh              # instala: pregunta el modo, prepara Docker, configura y arranca
-sudo ./install.sh status       # rid-node status (enrolamiento, túnel, heartbeat, certificado, servicios)
+sudo ./install.sh status       # den-node status (enrolamiento, túnel, heartbeat, certificado, servicios)
 sudo ./install.sh doctor       # conectividad y configuración
 sudo ./install.sh servicio     # agrega un servicio: proxy (URL interna) o instant (vista); valida y muestra el OpenAPI
 sudo ./install.sh logs         # sigue los logs (solo metadatos)
@@ -276,7 +276,7 @@ La instalación:
 3. **Pregunta el modo:** "¿La entidad ya tiene APIs propias que quiere publicar?"
    - Sí, y solo eso: `canal`.
    - No, o también quiere exponer vistas: `completo`.
-4. Crea `/opt/rid-node` con permisos estrictos.
+4. Crea `/opt/den-node` con permisos estrictos.
 5. Pide la URL del portal y el token de enrolamiento, que guarda en `secrets/`.
 6. Ofrece agregar el primer servicio:
    - en `canal`: la URL interna de su API y, si la pide, la credencial;
@@ -286,7 +286,7 @@ La instalación:
 
 **El respaldo del estado importa.** Si se pierden las claves del nodo, hace falta un token nuevo y volver a registrar las versiones. Por eso `update` hace backup antes de cambiar nada.
 
-**Actualizar:** `install.sh update` cambia `RID_NODE_VERSION` en `.env` y corre `pull` y `up -d`. **No hay actualización automática:** la decide la entidad. El aviso de versión mínima llega por `/config`.
+**Actualizar:** `install.sh update` cambia `DEN_NODE_VERSION` en `.env` y corre `pull` y `up -d`. **No hay actualización automática:** la decide la entidad. El aviso de versión mínima llega por `/config`.
 
 Las imágenes se publican en un registro de contenedores, para amd64 y arm64 y en sus dos variantes. Cuál registro se decide al crear el remoto.
 
@@ -307,7 +307,7 @@ Las imágenes se publican en un registro de contenedores, para amd64 y arm64 y e
 
 ## 10. Fuera de alcance por ahora
 
-- Verificar `X-RID-Assertion`: cuando el gateway la envíe (M6-10 del portal).
+- Verificar `X-DEN-Assertion`: cuando el gateway la envíe (M6-10 del portal).
 - Un sandbox con datos sintéticos servido por el nodo.
 - Métricas Prometheus.
 - Firma de imágenes.

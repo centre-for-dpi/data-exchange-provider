@@ -4,7 +4,7 @@
 
 Version 2.0 · November 2026 · for the onboarding day (bootcamp) with the entities
 
-This guide explains what an entity must **designate, provide and do** to publish its data on the Data Exchange Network (RID) as a **provider**. What a **consumer** entity does is covered in the portal's entities guide (`docs/guides/entities.md` in the portal repository). The central platform (portal and gateway) is run by the national operator: the entity installs none of it. The only thing the provider installs is the **node**.
+This guide explains what an entity must **designate, provide and do** to publish its data on the Data Exchange Network (DEN) as a **provider**. What a **consumer** entity does is covered in the portal's entities guide (`docs/guides/entities.md` in the portal repository). The central platform (portal and gateway) is run by the national operator: the entity installs none of it. The only thing the provider installs is the **node**.
 
 The step-by-step installation of the node is in the [node installation guide](../INSTALL.md), and preparing the database and configuring the instant APIs is in [Instant APIs: usage and configuration](../INSTANT-APIS.md).
 
@@ -52,7 +52,7 @@ With its own API, the entity is accountable for its API and for its OpenAPI cont
 **Other connections**
 
 - **X-Road.** If the entity already publishes services on X-Road, the gateway reaches them through the operator's Security Server. The entity needs its X-Road member, which the operator registers. No node is involved.
-- **Directly exposed API,** without a node. This is an exception agreed with the operator: the API must have HTTPS with a valid public certificate, allow inbound traffic from the gateway's IP and, preferably, require mTLS with the gateway certificate issued for the entity (`CN=rid-gateway.<slug>`). The node avoids all of this, which is why it is the default option.
+- **Directly exposed API,** without a node. This is an exception agreed with the operator: the API must have HTTPS with a valid public certificate, allow inbound traffic from the gateway's IP and, preferably, require mTLS with the gateway certificate issued for the entity (`CN=den-gateway.<slug>`). The node avoids all of this, which is why it is the default option.
 
 ## 4. What the entity must provide
 
@@ -85,7 +85,7 @@ No inbound port is opened. The operator provides the names of the portal and the
   - at least one success response per operation;
   - only local `$ref` references (`#/...`);
   - **no identifiers in the query string:** document numbers go in the path (`/personas/{documento}`) or in the body of a POST, never in `?documento=...`;
-  - in APIs with personal or sensitive data, each operation declares where the data subject is (`x-rid-data-subject`) or that there is none (`none`).
+  - in APIs with personal or sensitive data, each operation declares where the data subject is (`x-den-data-subject`) or that there is none (`none`).
 - **With `canal` mode:** the API's internal URL and, if it requires one, its credential (a header, a username and password, or a client certificate).
 - **With instant APIs:** one **view** per query, with only the columns that will be shared, and a **read-only user** with `SELECT` on those views and nothing else. The node generates the OpenAPI. The commands for each engine are in [Instant APIs: usage and configuration](../INSTANT-APIS.md#2-prepare-the-database-dba).
 - **A sandbox** (recommended): the same service with **synthetic data**. The portal uses it to test the contract when the API is submitted for review, and consumers integrate without touching real data. It is published through the same node, as one more service.
@@ -115,7 +115,7 @@ chmod +x entity-check.sh
 
 It checks DNS, outbound HTTPS to the portal and the gateway, and that the gateway's certificate verifies against the network's root. It only needs `bash`, `curl` and `openssl`.
 
-The script cannot test the tunnel (UDP 51820) without a node. The node itself checks that after it is installed, with `sudo /opt/rid-node/install.sh doctor`.
+The script cannot test the tunnel (UDP 51820) without a node. The node itself checks that after it is installed, with `sudo /opt/den-node/install.sh doctor`.
 
 ### 5.2 Registering the entity and its people
 
@@ -129,17 +129,17 @@ The script cannot test the tunnel (UDP 51820) without a node. The node itself ch
 1. The `entity_admin` goes to **My entity → Kit nodes**, registers the node and copies the **enrollment token**. It is shown only once, works for a single node and expires in **72 hours**. They pass it to the infrastructure team through a secure channel.
 2. The infrastructure team verifies the bundle and installs it:
    ```bash
-   sha256sum rid-node-kit-<version>.tar.gz   # must match the checksum published by the operator
-   tar -xzf rid-node-kit-<version>.tar.gz
-   cd rid-node-kit-<version>
+   sha256sum den-node-kit-<version>.tar.gz   # must match the checksum published by the operator
+   tar -xzf den-node-kit-<version>.tar.gz
+   cd den-node-kit-<version>
    sudo ./install.sh                          # asks for the mode (canal or completo), the portal URL and the token
    ```
 3. Add the service (and its sandbox, if there is one):
    ```bash
-   sudo /opt/rid-node/install.sh service
+   sudo /opt/den-node/install.sh service
    ```
    - **Own API** (type `proxy`): asks for the name, the **path on the node** (for example `/certificados`), the internal URL, the credential and the OpenAPI.
-   - **Instant API** (type `instant`, `completo` mode): asks for the name, the path on the node, the database connection with the read-only user, the view and the key column. It shows the views the user can read and generates the OpenAPI in `/opt/rid-node/config/services/<name>.openapi.json`.
+   - **Instant API** (type `instant`, `completo` mode): asks for the name, the path on the node, the database connection with the read-only user, the view and the key column. It shows the views the user can read and generates the OpenAPI in `/opt/den-node/config/services/<name>.openapi.json`.
 4. In the portal, the node shows as **Online**.
 
 The details of each question, the corporate proxy, backup and updates are in the [node installation guide](../INSTALL.md).
@@ -164,15 +164,15 @@ The gateway sets these headers and removes any the consumer tries to send. The n
 
 | Header | Content |
 | :-- | :-- |
-| `X-RID-Consumer-Entity` / `X-RID-Consumer-App` | Consumer entity and application |
-| `X-RID-Subscription` | The authorization under which the query was made |
-| `X-RID-Purpose` | Declared purpose |
-| `X-RID-Operation` | Contract operation (`operationId`) |
-| `X-RID-End-User-Hash` | Hash of the official making the query, if the API requires it |
-| `X-RID-Subject-Ref` | Pseudonym of the data subject, if the operation declares one |
+| `X-DEN-Consumer-Entity` / `X-DEN-Consumer-App` | Consumer entity and application |
+| `X-DEN-Subscription` | The authorization under which the query was made |
+| `X-DEN-Purpose` | Declared purpose |
+| `X-DEN-Operation` | Contract operation (`operationId`) |
+| `X-DEN-End-User-Hash` | Hash of the official making the query, if the API requires it |
+| `X-DEN-Subject-Ref` | Pseudonym of the data subject, if the operation declares one |
 | `X-Request-Id` | Correlation identifier, the same as in the network's log |
 
-Later on, the gateway will sign each call in an `X-RID-Assertion` header, so the entity can prove who queried it and verify that the query comes from the gateway.
+Later on, the gateway will sign each call in an `X-DEN-Assertion` header, so the entity can prove who queried it and verify that the query comes from the gateway.
 
 ## 7. Recommendations for the entity's service
 
@@ -182,22 +182,22 @@ The network cannot verify what happens inside the entity. These practices are **
 - **No content in the logs.** The API's logs should not store request or response bodies, and they should mask paths and query strings, because these can contain identification numbers.
 - **Read-only.** The API should read the data with a read-only user.
 - **Only through the node.** The API should not be exposed outside the internal network: the node is its only door to the network.
-- **Keep traceability.** Logging `X-Request-Id`, `X-RID-Consumer-Entity` and `X-RID-Purpose` with each query lets you answer an audit.
+- **Keep traceability.** Logging `X-Request-Id`, `X-DEN-Consumer-Entity` and `X-DEN-Purpose` with each query lets you answer an audit.
 
 ## 8. The entity's commitments
 
 - **Decide on access.** The `data_steward` approves only legitimate purposes with a legal basis, and revokes access when it is no longer appropriate.
 - **Keep the node online.** If the node stops sending signals for 5 minutes, the portal marks it **Offline** and alerts the administrators. When the portal requires a minimum kit version, update.
-- **Back up the node.** The backup (`sudo /opt/rid-node/install.sh backup`) contains the node's keys: copy it off the server and keep it as a secret.
+- **Back up the node.** The backup (`sudo /opt/den-node/install.sh backup`) contains the node's keys: copy it off the server and keep it as a secret.
 - **Announce changes.** An incompatible change in a published API requires a new major version. The previous one is deprecated with a retirement date.
 
 ## 9. Operating the node
 
 | Command | Purpose |
 | :-- | :-- |
-| `sudo /opt/rid-node/install.sh status` | Status: portal, tunnel, certificate, health of each service and warnings |
-| `sudo /opt/rid-node/install.sh doctor` | Checks the configuration, secrets, DNS, portal, clock, internal APIs and tunnel |
-| `sudo /opt/rid-node/install.sh logs` | The node's latest logs (metadata only). With `-f` it follows them live |
+| `sudo /opt/den-node/install.sh status` | Status: portal, tunnel, certificate, health of each service and warnings |
+| `sudo /opt/den-node/install.sh doctor` | Checks the configuration, secrets, DNS, portal, clock, internal APIs and tunnel |
+| `sudo /opt/den-node/install.sh logs` | The node's latest logs (metadata only). With `-f` it follows them live |
 
 Common problems and how to solve them are in the [node installation guide](../INSTALL.md#10-common-problems). To report a problem to the operator, attach the output of `status` and `doctor`: it contains no secrets and no personal data.
 

@@ -8,12 +8,12 @@ El primer entregable es el **modo `canal`**: la parte de seguridad para las enti
 
 - Módulo Go, estructura de `cmd/` e `internal/`, `Makefile` (`build`, `test`, `check`, `image`, `e2e`).
 - Dockerfile multi-etapa con dos variantes:
-  - `rid-node:<v>` (completo);
-  - `rid-node:<v>-canal` (etiqueta `canal`, sin `internal/instant` ni drivers).
+  - `den-node:<v>` (completo);
+  - `den-node:<v>-canal` (etiqueta `canal`, sin `internal/instant` ni drivers).
 
   Las dos con Go fijado, imagen final `scratch` con certificados raíz y usuario 65532.
 - Verificación de licencias de los módulos contra la lista permitida, `go mod verify` y `govulncheck`.
-- `rid-node version` (dice también la variante).
+- `den-node version` (dice también la variante).
 
 ## K1 — Canal seguro (modo `canal`) ✅ (2026-11-16)
 
@@ -42,7 +42,7 @@ Cerrado con `make e2e` contra el portal real (`test/e2e/`). Queda para K2: `inst
 
 ## K2 — Instalador y guía del modo `canal` ✅ (2026-11-16)
 
-Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/ubuntu.sh`): instalación limpia en Ubuntu 24.04 desde el paquete, servicio de API propia, respaldo y cambio de modo, publicación y consumo por el gateway del portal desplegado (131 s). La instalación de Docker Engine desde `download.docker.com` también está probada: `RID_TEST_DOCKER=install` usa un Ubuntu 24.04 con systemd como PID 1 y sin Docker, y la corrida completa contra el portal desplegado quedó en verde (537 s).
+Cerrado con `DEN_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/ubuntu.sh`): instalación limpia en Ubuntu 24.04 desde el paquete, servicio de API propia, respaldo y cambio de modo, publicación y consumo por el gateway del portal desplegado (131 s). La instalación de Docker Engine desde `download.docker.com` también está probada: `DEN_TEST_DOCKER=install` usa un Ubuntu 24.04 con systemd como PID 1 y sin Docker, y la corrida completa contra el portal desplegado quedó en verde (537 s).
 
 - `deploy/compose.yaml` (secrets, rotación de logs, sin puertos) e `install.sh`, con la pregunta de modo y los subcomandos `status`, `doctor`, `servicio` (proxy), `logs`, `backup`, `update`, `modo`, `reenrolar`, `stop` y `start`.
 - Paquete fuera de línea (imagen `.tar` con `docker load`) para servidores sin salida al registro.
@@ -65,20 +65,20 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 - En el instalador: modo `completo` y `servicio` de tipo `instant` (conexión, catálogo, vista, clave, titular).
 - En la guía: la sección de APIs instantáneas.
 - **Criterio de cierre:** punta a punta con un servicio `instant` publicado y consumido por el gateway, y el lint del portal en 0 errores con los cuatro motores.
-- **Cerrado:** `make test-engines` en verde con SQL Server 2019, PostgreSQL 17, MySQL 8.4 y Oracle 23ai, con el lint del portal en 0 errores en los cuatro. Punta a punta con el instalador en modo `completo` y una vista de PostgreSQL contra el portal desplegado (`RID_E2E_SERVICE=instant`).
+- **Cerrado:** `make test-engines` en verde con SQL Server 2019, PostgreSQL 17, MySQL 8.4 y Oracle 23ai, con el lint del portal en 0 errores en los cuatro. Punta a punta con el instalador en modo `completo` y una vista de PostgreSQL contra el portal desplegado (`DEN_E2E_SERVICE=instant`).
 - **Mejoras hechas el 2026-11-17:** `install.sh servicio recurso NOMBRE` agrega otra vista a un servicio existente; ~~normalizar `timestamptz` a UTC~~ (hecho el 2026-11-17: toda fecha con zona sale en UTC, en todos los motores).
 
 ## K4 — Endurecimiento y lo que viene del portal
 
-- ✅ Verificación de `X-RID-Assertion` (2026-11-17; el portal la hizo en M6-10). Cada llamada se verifica con el JWKS del portal: firma ES256, `aud` (el *slug* de la entidad), `iss` si se configura, vencimiento, método, URI tal como llega al nodo, cuerpo y repetición del `jti`. Modos en `node.yaml`, `gatewayAssertion.mode`:
+- ✅ Verificación de `X-DEN-Assertion` (2026-11-17; el portal la hizo en M6-10). Cada llamada se verifica con el JWKS del portal: firma ES256, `aud` (el *slug* de la entidad), `iss` si se configura, vencimiento, método, URI tal como llega al nodo, cuerpo y repetición del `jti`. Modos en `node.yaml`, `gatewayAssertion.mode`:
   - `verify` (por defecto): registra el resultado en el log de acceso y nunca rechaza;
   - `require`: responde 401 sin una aserción válida;
   - `off`.
   El portal desplegado en el VPS aún no publica el JWKS, así que ahí sale `absent`.
 - Sandbox con datos sintéticos.
 - ✅ Métricas (2026-11-17): cada servicio cuenta sus peticiones desde el arranque (4xx y 5xx aparte) y su latencia p50/p95 sobre las últimas 1024. Van en `status.json` y se ven con `install.sh status`. No hay endpoint Prometheus, porque el nodo no abre puertos; si el operador lo pide, se puede exponer solo en `127.0.0.1`.
-- ✅ Firma y SBOM (2026-11-16): el paquete lleva un SBOM CycloneDX por variante (`tools/licensecheck -cyclonedx`), y con `RID_SIGN_KEY` se firma con `ssh-keygen -Y` (la entidad verifica con OpenSSH, sin instalar nada). Las imágenes van dentro del paquete y las cubre `SHA256SUMS`. Falta que el operador cree su clave y publique `allowed_signers`.
-- ✅ Prueba de carga del túnel (2026-11-16): `TestTunnelLoad`, 32 clientes HTTP del hub al nodo por WireGuard en espacio de usuario, con lecturas pequeñas y documentos de 256 KiB. En la máquina de desarrollo da unas 680 peticiones/s, p50 de 10 ms, p99 de 620 ms y 18 MiB/s, sin errores. `RID_LOAD_SECONDS` la alarga.
+- ✅ Firma y SBOM (2026-11-16): el paquete lleva un SBOM CycloneDX por variante (`tools/licensecheck -cyclonedx`), y con `DEN_SIGN_KEY` se firma con `ssh-keygen -Y` (la entidad verifica con OpenSSH, sin instalar nada). Las imágenes van dentro del paquete y las cubre `SHA256SUMS`. Falta que el operador cree su clave y publique `allowed_signers`.
+- ✅ Prueba de carga del túnel (2026-11-16): `TestTunnelLoad`, 32 clientes HTTP del hub al nodo por WireGuard en espacio de usuario, con lecturas pequeñas y documentos de 256 KiB. En la máquina de desarrollo da unas 680 peticiones/s, p50 de 10 ms, p99 de 620 ms y 18 MiB/s, sin errores. `DEN_LOAD_SECONDS` la alarga.
 - ✅ Salud real de los servicios `proxy` (2026-11-16): además de la prueba TCP, cuentan las respuestas del último minuto. Con 3 o más errores (502, 503 o 504, del nodo o de la API) que sean al menos la mitad, el servicio sale con problemas, aunque acepte la conexión. Se mantiene la regla del nodo: `degraded` si fallan algunos servicios, `failing` si fallan todos.
 
 ## Pendientes del portal (se llevan a `../data-exchange`)
@@ -92,5 +92,5 @@ No se implementan aquí; la frontera es el contrato v1. Redactadas para el equip
 - **SPEC §3.1:** `node` es el canal de cualquier proveedor, no solo de las APIs instantáneas.
 - **`/config`:** devolver la raíz de la red y `gatewayClientName`, para no tener que re-enrolar si cambian (ARCHITECTURE §5).
 - **Guía de entidades:** Ubuntu Server LTS con Docker como requisito del nodo (ADR-0002).
-- **Slug de la entidad en el contrato:** la aserción del gateway lleva `aud` = el *slug* de la entidad, pero el contrato v1 no se lo da al nodo. Hoy el nodo lo deduce de `gatewayClientName` (`rid-gateway.<slug>`), una convención no escrita. Proponer `entitySlug` en la respuesta del enrolamiento y en `/config`.
-- **Aserción y API propia detrás del nodo:** el gateway firma la URI que recibe el nodo. El nodo la verifica y reenvía la cabecera, pero la API interna recibe otra ruta (la base del upstream) y no puede verificarla por su cuenta. Definir si el nodo debe pasar la URI original (por ejemplo `X-RID-Original-URI`) o si basta con su verificación y su log.
+- **Slug de la entidad en el contrato:** la aserción del gateway lleva `aud` = el *slug* de la entidad, pero el contrato v1 no se lo da al nodo. Hoy el nodo lo deduce de `gatewayClientName` (`den-gateway.<slug>`), una convención no escrita. Proponer `entitySlug` en la respuesta del enrolamiento y en `/config`.
+- **Aserción y API propia detrás del nodo:** el gateway firma la URI que recibe el nodo. El nodo la verifica y reenvía la cabecera, pero la API interna recibe otra ruta (la base del upstream) y no puede verificarla por su cuenta. Definir si el nodo debe pasar la URI original (por ejemplo `X-DEN-Original-URI`) o si basta con su verificación y su log.

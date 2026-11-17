@@ -41,7 +41,7 @@ func (s signer) jwk() map[string]string {
 
 func hash(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
 
-// sign builds what the gateway's rid-assertion plugin sends.
+// sign builds what the gateway's den-assertion plugin sends.
 func (s signer) sign(t *testing.T, claims map[string]any) string {
 	t.Helper()
 	enc := func(v any) string { b, _ := json.Marshal(v); return base64.RawURLEncoding.EncodeToString(b) }

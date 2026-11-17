@@ -24,7 +24,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 )
 
-const nodeName = "rid-node-test"
+const nodeName = "den-node-test"
 
 type syncBuffer struct {
 	mu sync.Mutex

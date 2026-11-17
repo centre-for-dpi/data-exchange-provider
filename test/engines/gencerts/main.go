@@ -43,7 +43,7 @@ func run(dir string) error {
 	}
 	now := time.Now()
 	caTmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "rid-engines test CA"},
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "den-engines test CA"},
 		NotBefore: now.Add(-time.Hour), NotAfter: now.AddDate(1, 0, 0),
 		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign,
 	}

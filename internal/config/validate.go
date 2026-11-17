@@ -19,7 +19,7 @@ var (
 	pathPattern = regexp.MustCompile(`^/[A-Za-z0-9._~\-/]*$`)
 )
 
-// Validate returns every problem at once, in the operator's language (RID_LANG), naming the service and the field.
+// Validate returns every problem at once, in the operator's language (DEN_LANG), naming the service and the field.
 func (n *Node) Validate() error {
 	var errs []error
 	add := func(err error) { errs = append(errs, err) }

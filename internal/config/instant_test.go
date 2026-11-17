@@ -22,7 +22,7 @@ services:
       host: bd.interna
       port: 5432
       name: entidad
-      user: rid_reader
+      user: den_reader
       passwordFile: /run/secrets/afiliacion_db_password
     resources:
       - name: afiliados
@@ -67,7 +67,7 @@ func TestProxyRejectsInstantFields(t *testing.T) {
 }
 
 func TestDatabaseRequiredFields(t *testing.T) {
-	for _, field := range []string{"engine: postgres", "host: bd.interna", "name: entidad", "user: rid_reader", "passwordFile: /run/secrets/afiliacion_db_password"} {
+	for _, field := range []string{"engine: postgres", "host: bd.interna", "name: entidad", "user: den_reader", "passwordFile: /run/secrets/afiliacion_db_password"} {
 		mustFail(t, strings.Replace(validInstant, field, "", 1), "database")
 	}
 	mustFail(t, strings.Replace(validInstant, "engine: postgres", "engine: db2", 1), "db2")
@@ -76,7 +76,7 @@ func TestDatabaseRequiredFields(t *testing.T) {
 
 func TestOracleVerifyWithCAFileRejected(t *testing.T) {
 	y := strings.Replace(validInstant, "engine: postgres", "engine: oracle", 1)
-	y = strings.Replace(y, "port: 5432", "port: 1521\n      tls: verify\n      caFile: /etc/rid-node/ca.pem", 1)
+	y = strings.Replace(y, "port: 5432", "port: 1521\n      tls: verify\n      caFile: /etc/den-node/ca.pem", 1)
 	mustFail(t, y, "caFile")
 }
 

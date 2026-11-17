@@ -6,7 +6,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
 )
 
-// Status is status.json: what `rid-node status` shows. No secrets.
+// Status is status.json: what `den-node status` shows. No secrets.
 type Status struct {
 	NodeID              string          `json:"nodeId"`
 	NodeName            string          `json:"nodeName"`

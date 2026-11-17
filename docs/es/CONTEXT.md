@@ -23,7 +23,7 @@ Estados del nodo: `enrollment_issued → enrolled → online ⇄ offline`, más 
 
 | Endpoint | Autenticación | Qué hace el kit |
 | :-- | :-- | :-- |
-| `POST /api/v1/nodes/enroll` | token de enrolamiento en el cuerpo | Envía el token, un CSR (`CN=rid-node`, sin SAN), su clave pública WireGuard, `kitVersion` y `servicePort`. Recibe `nodeId` y `nodeName`, el certificado (SAN `DNS:rid-node-<nodeId>`), la raíz de la red, la URL del canal de control, el intervalo de heartbeat, la configuración WireGuard (dirección `/32`, clave y endpoint del hub, `AllowedIPs` = solo el hub) y `gatewayClientName` |
+| `POST /api/v1/nodes/enroll` | token de enrolamiento en el cuerpo | Envía el token, un CSR (`CN=den-node`, sin SAN), su clave pública WireGuard, `kitVersion` y `servicePort`. Recibe `nodeId` y `nodeName`, el certificado (SAN `DNS:den-node-<nodeId>`), la raíz de la red, la URL del canal de control, el intervalo de heartbeat, la configuración WireGuard (dirección `/32`, clave y endpoint del hub, `AllowedIPs` = solo el hub) y `gatewayClientName` |
 | `POST /api/v1/nodes/{id}/heartbeat` | mTLS del nodo | Cada `heartbeatIntervalSeconds` (60): versión, puerto de servicio, **servicios expuestos (nombre, ruta, hash del OpenAPI)** y salud. Responde el estado y si toca renovar (último tercio de la vida del certificado) |
 | `POST /api/v1/nodes/{id}/renew` | mTLS del nodo, con el certificado vigente | CSR nuevo → certificado nuevo. Si la respuesta se pierde, puede repetir la misma renovación con el certificado reemplazado durante 24 h |
 | `GET /api/v1/nodes/{id}/config` | mTLS del nodo | Versiones publicadas que sirve el nodo (ruta pública y `servicePath`), versión mínima del kit y avisos |
@@ -43,18 +43,18 @@ Comportamiento que el kit debe conocer:
 - **Solo salida:** UDP 51820 hacia el hub WireGuard y 443/tcp hacia el gateway. No abre puertos de entrada.
 - **Servir solo en la dirección del túnel**, en `servicePort`, con TLS usando el certificado del nodo.
 - **mTLS estricto:** aceptar solo el certificado de cliente emitido por la CA de la red con el nombre `gatewayClientName`. Cualquier otro se rechaza.
-- **Rutas:** el gateway llama al nodo en el `servicePath` de cada versión publicada (ver `GET /config`), con el SNI y el `Host` `rid-node-<nodeId>`.
+- **Rutas:** el gateway llama al nodo en el `servicePath` de cada versión publicada (ver `GET /config`), con el SNI y el `Host` `den-node-<nodeId>`.
 
 **API generada**
 
-El OpenAPI debe pasar el lint RID que corre el portal al registrar una versión (`apps/api/src/apis/lint/openapi-lint.ts`):
+El OpenAPI debe pasar el lint DEN que corre el portal al registrar una versión (`apps/api/src/apis/lint/openapi-lint.ts`):
 
 - OpenAPI 3.x válido (`oas3-schema`).
 - `operationId` en cada operación, y únicos.
 - Al menos una respuesta de éxito por operación. Parámetros y parámetros de ruta coherentes. Sin hermanos junto a `$ref`.
 - **Solo `$ref` locales** (`#/...`).
 - **Ningún identificador en el query string** (`noIdInQuery`): los identificadores van en la ruta (`/recurso/{id}`) o en un cuerpo POST. El lint detecta nombres como `id`, `documento` o `identificacion`.
-- En APIs `personal` o `sensitive`, cada operación declara dónde está el titular de los datos (`x-rid-data-subject`, ADR-0015) o que no tiene (`none`).
+- En APIs `personal` o `sensitive`, cada operación declara dónde está el titular de los datos (`x-den-data-subject`, ADR-0015) o que no tiene (`none`).
 
 Las descripciones en español **no** se validan hoy, aunque se espera que las haya. Por estas reglas el portal descartó PostgREST para sus mocks (ADR-0009): filtra por query (`?id=eq.…`) y su OpenAPI autogenerado no las cumple.
 
@@ -65,8 +65,8 @@ Las descripciones en español **no** se validan hoy, aunque se espera que las ha
 
 **Lo que recibe en cada llamada**
 
-- Cabeceras `X-RID-*` (`ARCHITECTURE.md §6`): entidad y aplicación consumidora, suscripción, finalidad, operación, hash del funcionario, seudónimo del titular y `X-Request-Id`.
-- Más adelante (M6-10, ADR-0024), una aserción firmada `X-RID-Assertion` (JWS ES256). El proveedor debe verificar la firma, `aud`, `exp` y `uri_sha256` contra un JWKS en caché. Encaja de forma natural en el kit.
+- Cabeceras `X-DEN-*` (`ARCHITECTURE.md §6`): entidad y aplicación consumidora, suscripción, finalidad, operación, hash del funcionario, seudónimo del titular y `X-Request-Id`.
+- Más adelante (M6-10, ADR-0024), una aserción firmada `X-DEN-Assertion` (JWS ES256). El proveedor debe verificar la firma, `aud`, `exp` y `uri_sha256` contra un JWKS en caché. Encaja de forma natural en el kit.
 
 **Privacidad**
 
@@ -99,7 +99,7 @@ Preguntas para discutir a fondo antes del ADR-0001:
 
 1. **Motores.** ¿Qué bases tienen las entidades del piloto (Oracle, SQL Server, PostgreSQL, MySQL) y en qué versiones? Hay que preguntarlo en el bootcamp.
 2. **Descubrimiento.** ¿La herramienta descubre sola lo que el usuario de BD puede leer, o necesita una configuración por entidad? Si es lo segundo, ¿la genera el kit introspeccionando el catálogo?
-3. **Rutas y lint.** ¿Las rutas por clave (`/recurso/{id}`) y el OpenAPI que produce pasan el lint RID? Si no, ¿se ajusta con configuración, se postprocesa el OpenAPI o se pone un proxy delante?
+3. **Rutas y lint.** ¿Las rutas por clave (`/recurso/{id}`) y el OpenAPI que produce pasan el lint DEN? Si no, ¿se ajusta con configuración, se postprocesa el OpenAPI o se pone un proxy delante?
 4. **mTLS.** ¿La herramienta termina mTLS con validación del nombre del cliente, o va detrás de un proxy (por ejemplo nginx o Caddy) que lo haga?
 5. **Agente.** Enrolamiento, WireGuard, heartbeat, renovación y servir `/config`: ninguna herramienta lo trae. ¿En qué lenguaje se hace y cómo se empaqueta junto a la herramienta?
 6. **Licencias.** ¿Qué licencia tienen la herramienta y cada driver? Con Oracle, ¿hace falta un cliente propietario?

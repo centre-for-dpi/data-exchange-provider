@@ -92,7 +92,7 @@ func TestDoctorSecretPermsWarn(t *testing.T) {
 }
 
 func TestDoctorStaleHandshake(t *testing.T) {
-	st := &agent.Status{NodeName: "rid-node-x", PortalState: "online", LastHandshake: time.Now().Add(-10 * time.Minute), LastHeartbeat: time.Now(), UpdatedAt: time.Now()}
+	st := &agent.Status{NodeName: "den-node-x", PortalState: "online", LastHandshake: time.Now().Add(-10 * time.Minute), LastHeartbeat: time.Now(), UpdatedAt: time.Now()}
 	code, out := doctorFor(t, portalWithDate(t, 0), "", st)
 	if code != 1 || !strings.Contains(out, "UDP 51820") {
 		t.Fatalf("code=%d\n%s", code, out)
@@ -112,7 +112,7 @@ func TestDoctorUpstreamDown(t *testing.T) {
 
 func TestStatusHuman(t *testing.T) {
 	dir := t.TempDir()
-	st := agent.Status{NodeName: "rid-node-abc", PortalState: "online", LastHeartbeat: time.Now().Add(-12 * time.Second),
+	st := agent.Status{NodeName: "den-node-abc", PortalState: "online", LastHeartbeat: time.Now().Add(-12 * time.Second),
 		LastHandshake: time.Now().Add(-30 * time.Second), CertificateNotAfter: "2027-02-14T00:00:00Z",
 		Health: contract.Health{Status: "degraded", Detail: "sin respuesta: afiliacion"},
 		Services: []agent.ServiceStatus{{Name: "certificados", Path: "/certificados", Healthy: true, Requests: 1234, ServerErrors: 2, P50Ms: 12, P95Ms: 80},
@@ -125,7 +125,7 @@ func TestStatusHuman(t *testing.T) {
 	if code := status(dir, false, &out, time.Now); code != 0 {
 		t.Fatalf("code %d", code)
 	}
-	for _, want := range []string{"rid-node-abc", "online", "2027-02-14", "certificados", "upstream no responde", "actualiza el kit", "canal",
+	for _, want := range []string{"den-node-abc", "online", "2027-02-14", "certificados", "upstream no responde", "actualiza el kit", "canal",
 		"1234 requests", "5xx: 2", "p50 12 ms", "p95 80 ms"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("status lacks %q:\n%s", want, out.String())
@@ -155,7 +155,7 @@ func TestRunEndToEndInProcess(t *testing.T) {
 			HubAddress: tunneltest.HubAddress.String(), AllowedIPs: []string{tunneltest.HubAddress.String() + "/32"}, PersistentKeepaliveSeconds: 25}
 	}
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, "upstream:"+r.URL.Path+":"+r.Header.Get("X-RID-Purpose"))
+		_, _ = io.WriteString(w, "upstream:"+r.URL.Path+":"+r.Header.Get("X-DEN-Purpose"))
 	}))
 	defer upstream.Close()
 	dir := t.TempDir()
@@ -187,7 +187,7 @@ services:
 		},
 	}}
 	req, _ := http.NewRequest("GET", "https://"+p.NodeName+":8443/certificados/v1/abc", nil)
-	req.Header.Set("X-RID-Purpose", "eligibility_check")
+	req.Header.Set("X-DEN-Purpose", "eligibility_check")
 	res, err := gw.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -253,7 +253,7 @@ func TestDoctorBehindCorporateProxy(t *testing.T) {
 
 // Debt: a status written long ago means the node is not running, not that UDP is blocked.
 func TestDoctorStaleStatusIsNotTunnelBlame(t *testing.T) {
-	st := &agent.Status{NodeName: "rid-node-x", PortalState: "online", LastHandshake: time.Now().Add(-2 * time.Hour),
+	st := &agent.Status{NodeName: "den-node-x", PortalState: "online", LastHandshake: time.Now().Add(-2 * time.Hour),
 		LastHeartbeat: time.Now().Add(-2 * time.Hour), UpdatedAt: time.Now().Add(-2 * time.Hour)}
 	_, out := doctorFor(t, portalWithDate(t, 0), "", st)
 	if strings.Contains(out, "UDP 51820") || !strings.Contains(out, "is it stopped?") {
@@ -320,9 +320,9 @@ func TestIdentityCommand(t *testing.T) {
 	if code := identity(dir, &out); code != 3 {
 		t.Fatalf("no state: code %d, want 3", code)
 	}
-	_ = (state.Store{Dir: dir}).Save(&state.State{NodeID: "n1", NodeName: "rid-node-n1"})
+	_ = (state.Store{Dir: dir}).Save(&state.State{NodeID: "n1", NodeName: "den-node-n1"})
 	out.Reset()
-	if code := identity(dir, &out); code != 0 || strings.TrimSpace(out.String()) != "rid-node-n1" {
+	if code := identity(dir, &out); code != 0 || strings.TrimSpace(out.String()) != "den-node-n1" {
 		t.Fatalf("code=%d out=%q", code, out.String())
 	}
 	_ = os.WriteFile(filepath.Join(dir, "state.json"), []byte("{"), 0o600)
@@ -340,13 +340,13 @@ func TestImportState(t *testing.T) {
 	if code := importState(src, dst, &out); code != 1 || !strings.Contains(out.String(), "node state") {
 		t.Fatalf("empty source: code=%d %s", code, out.String())
 	}
-	_ = (state.Store{Dir: src}).Save(&state.State{NodeID: "n1", NodeName: "rid-node-n1", KeyPEM: "k"})
+	_ = (state.Store{Dir: src}).Save(&state.State{NodeID: "n1", NodeName: "den-node-n1", KeyPEM: "k"})
 	out.Reset()
 	if code := importState(src, dst, &out); code != 0 {
 		t.Fatalf("code=%d %s", code, out.String())
 	}
 	got, err := (state.Store{Dir: dst}).Load()
-	if err != nil || got.NodeName != "rid-node-n1" || got.KeyPEM != "k" {
+	if err != nil || got.NodeName != "den-node-n1" || got.KeyPEM != "k" {
 		t.Fatalf("imported %+v %v", got, err)
 	}
 }

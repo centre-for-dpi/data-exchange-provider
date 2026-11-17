@@ -47,37 +47,37 @@ A dedicated user for the node, with `SELECT` **on the exposed views and nothing 
 **PostgreSQL**
 
 ```sql
-CREATE ROLE rid_reader LOGIN PASSWORD '<password>';
-GRANT CONNECT ON DATABASE entidad TO rid_reader;
-GRANT USAGE ON SCHEMA salud TO rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;
+CREATE ROLE den_reader LOGIN PASSWORD '<password>';
+GRANT CONNECT ON DATABASE entidad TO den_reader;
+GRANT USAGE ON SCHEMA salud TO den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;
 ```
 
 **SQL Server**
 
 ```sql
-CREATE LOGIN rid_reader WITH PASSWORD = '<password>';
+CREATE LOGIN den_reader WITH PASSWORD = '<password>';
 USE entidad;
-CREATE USER rid_reader FOR LOGIN rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;
+CREATE USER den_reader FOR LOGIN den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;
 ```
 
 **MySQL** (the "schema" is the database)
 
 ```sql
-CREATE USER 'rid_reader'@'<IP of the node server>' IDENTIFIED BY '<password>';
-GRANT SELECT ON salud.v_afiliados TO 'rid_reader'@'<IP of the node server>';
+CREATE USER 'den_reader'@'<IP of the node server>' IDENTIFIED BY '<password>';
+GRANT SELECT ON salud.v_afiliados TO 'den_reader'@'<IP of the node server>';
 ```
 
 **Oracle** (in the PDB; on the node, the "database" is the service name, for example `ORCLPDB1`)
 
 ```sql
-CREATE USER rid_reader IDENTIFIED BY "<password>";
-GRANT CREATE SESSION TO rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;
+CREATE USER den_reader IDENTIFIED BY "<password>";
+GRANT CREATE SESSION TO den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;
 ```
 
-The password is not written in any configuration file: the installer asks for it without echoing it and stores it in `/opt/rid-node/secrets/<service>_db_password`.
+The password is not written in any configuration file: the installer asks for it without echoing it and stores it in `/opt/den-node/secrets/<service>_db_password`.
 
 `doctor` checks that the user **cannot write** to the exposed views. If it can, `doctor` flags it with ✘.
 
@@ -98,14 +98,14 @@ The node server must be able to connect to the database: `1433` (SQL Server), `5
 Instant APIs need the node in **`completo` mode**. If it was installed in `canal` mode (secure channel only), you can switch without losing the node's identity or its services:
 
 ```bash
-sudo /opt/rid-node/install.sh mode completo
+sudo /opt/den-node/install.sh mode completo
 ```
 
-Then run `sudo /opt/rid-node/install.sh service` and choose the type `instant`. The installer shows the views the user can read, creates the resource and generates the OpenAPI in `/opt/rid-node/config/services/<service>.openapi.json`.
+Then run `sudo /opt/den-node/install.sh service` and choose the type `instant`. The installer shows the views the user can read, creates the resource and generates the OpenAPI in `/opt/den-node/config/services/<service>.openapi.json`.
 
 ## 4. The service file
 
-Each service lives in `/opt/rid-node/config/services/<service>.yaml`. The installer writes it; you can edit it later (section 8).
+Each service lives in `/opt/den-node/config/services/<service>.yaml`. The installer writes it; you can edit it later (section 8).
 
 ```yaml
 name: afiliacion                       # service name: lowercase letters, digits and hyphens
@@ -119,7 +119,7 @@ database:
   host: bd.interna.entidad
   port: 5432
   name: entidad                        # the database; on Oracle, the service name
-  user: rid_reader
+  user: den_reader
   passwordFile: /run/secrets/afiliacion_db_password
   tls: require                         # disable | require | verify
   # caFile: /run/secrets/afiliacion_db_ca.pem   # only with verify (not on Oracle)
@@ -218,16 +218,16 @@ If the database goes down, the service responds 503 and the portal shows it as h
 
 ## 8. Changing a service
 
-The node's commands run inside the container, from `/opt/rid-node`. Inside the container, the configuration is in `/etc/rid-node/services/`:
+The node's commands run inside the container, from `/opt/den-node`. Inside the container, the configuration is in `/etc/den-node/services/`:
 
 ```bash
-cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node <command>
+cd /opt/den-node
+sudo docker compose exec den-node /den-node <command>
 ```
 
 | Command | Purpose |
 | :-- | :-- |
-| `catalog --service-file /etc/rid-node/services/<service>.yaml` | The views and tables the user can read, with their columns and whether they can be published |
+| `catalog --service-file /etc/den-node/services/<service>.yaml` | The views and tables the user can read, with their columns and whether they can be published |
 | `scaffold --print --service-file ... --source schema.view --key column [--resource name] [--entity Name] [--subject CC] [--many]` | Prints the service file with a new resource that includes every column that can be published |
 | `validate` | Validates all services against their databases |
 | `openapi <service>` | Prints the OpenAPI that you upload to the portal |
@@ -237,7 +237,7 @@ sudo docker compose exec rid-node /rid-node <command>
 **Adding a resource to an existing service** (another view on the same database):
 
 ```bash
-sudo /opt/rid-node/install.sh service resource afiliacion
+sudo /opt/den-node/install.sh service resource afiliacion
 ```
 
 It shows the views the user can read, asks for the view and its key, adds the resource, validates, regenerates the OpenAPI and restarts the node. If anything fails, it leaves the service as it was. The OpenAPI changes, so you must publish a new version in the portal.
@@ -245,10 +245,10 @@ It shows the views the user can read, asks for the view and its key, adds the re
 **After any change**, validate, regenerate the OpenAPI and restart:
 
 ```bash
-cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node validate
-sudo docker compose exec rid-node /rid-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json >/dev/null
-sudo docker compose restart rid-node
+cd /opt/den-node
+sudo docker compose exec den-node /den-node validate
+sudo docker compose exec den-node /den-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json >/dev/null
+sudo docker compose restart den-node
 ```
 
 **If the view changes in the database**, the service keeps serving the declared columns. A new column in the view is not published until it is added to `columns`. If a declared column is removed from the view, the service stops serving and `doctor` says which one is missing.

@@ -6,7 +6,7 @@ For the **portal team** (`../data-exchange`). They come from building and testin
 
 ## 1. Deliver the entity slug to the node
 
-**Problem.** The gateway assertion (ADR-0024) carries `aud` = the provider entity's slug. The node verifies it, but contract v1 does not tell the node its slug. Today the node infers it from `gatewayClientName` (`rid-gateway.<slug>`), a convention that is not written in the contract. If it changes, the node stops verifying, or does not start in `require` mode.
+**Problem.** The gateway assertion (ADR-0024) carries `aud` = the provider entity's slug. The node verifies it, but contract v1 does not tell the node its slug. Today the node infers it from `gatewayClientName` (`den-gateway.<slug>`), a convention that is not written in the contract. If it changes, the node stops verifying, or does not start in `require` mode.
 
 **Proposal.** Add `entitySlug` to the response of `POST /nodes/enroll` and of `GET /nodes/{id}/config`. It is a new field, so the change is backward compatible.
 
@@ -33,7 +33,7 @@ For the **portal team** (`../data-exchange`). They come from building and testin
 **Problem.** The gateway signs the URI that the node receives. The node verifies it and forwards the header, but the entity's internal API receives a different path (its upstream's base path), so it cannot verify the assertion on its own.
 
 **Proposal.** Decide one of two options:
-- the node passes the original URI in a header (for example `X-RID-Original-URI`);
+- the node passes the original URI in a header (for example `X-DEN-Original-URI`);
 - or, for services behind a node, the node's verification and its log are sufficient.
 
 The provider guide has to say which.

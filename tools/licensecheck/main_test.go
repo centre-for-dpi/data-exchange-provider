@@ -88,7 +88,7 @@ func TestNoLicenseFileIsViolation(t *testing.T) {
 
 // K4: the same modules and licenses as a CycloneDX SBOM, shipped in the bundle.
 func TestCycloneDX(t *testing.T) {
-	b, err := cyclonedx("rid-node", "0.1.0", "completo", []module{
+	b, err := cyclonedx("den-node", "0.1.0", "completo", []module{
 		{Path: "github.com/sijms/go-ora/v2", Version: "v2.9.0", License: "MIT"},
 		{Path: "example.com/odd", Version: "v1.0.0", License: "PostgreSQL — OSI approved, reviewed 2026-11-16"},
 	})
@@ -111,12 +111,12 @@ func TestCycloneDX(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := doc.Components
-	if doc.BOMFormat != "CycloneDX" || doc.SpecVersion != "1.5" || doc.Metadata.Component.Name != "rid-node" || len(c) != 2 ||
+	if doc.BOMFormat != "CycloneDX" || doc.SpecVersion != "1.5" || doc.Metadata.Component.Name != "den-node" || len(c) != 2 ||
 		c[1].Purl != "pkg:golang/github.com/sijms/go-ora/v2@v2.9.0" || c[1].Licenses[0].License.ID != "MIT" ||
 		c[0].Licenses[0].License.ID != "" || c[0].Licenses[0].License.Name == "" {
 		t.Fatalf("%s", b)
 	}
-	again, _ := cyclonedx("rid-node", "0.1.0", "completo", []module{
+	again, _ := cyclonedx("den-node", "0.1.0", "completo", []module{
 		{Path: "github.com/sijms/go-ora/v2", Version: "v2.9.0", License: "MIT"},
 		{Path: "example.com/odd", Version: "v1.0.0", License: "PostgreSQL — OSI approved, reviewed 2026-11-16"},
 	})

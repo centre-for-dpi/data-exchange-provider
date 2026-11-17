@@ -9,6 +9,6 @@ for _ in $(seq 1 90); do
   "${sqlcmd[@]}" -Q "SELECT 1" >/dev/null 2>&1 && break
   sleep 2
 done
-"${sqlcmd[@]}" -b -f 65001 -i /init/seed.tsql -v READER_PASSWORD="$RID_READER_PASSWORD" WRITER_PASSWORD="$RID_WRITER_PASSWORD"
+"${sqlcmd[@]}" -b -f 65001 -i /init/seed.tsql -v READER_PASSWORD="$DEN_READER_PASSWORD" WRITER_PASSWORD="$DEN_WRITER_PASSWORD"
 touch /tmp/seeded
 wait "$server"

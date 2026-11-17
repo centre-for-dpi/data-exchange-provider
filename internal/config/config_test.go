@@ -174,7 +174,7 @@ func TestRejectRootServicePath(t *testing.T) {
 
 // Final review: credentials in the upstream URL were dropped silently and printed by doctor.
 func TestRejectUserinfoInUpstream(t *testing.T) {
-	mustFail(t, strings.Replace(validProxy, "https://api.interna.entidad", "https://rid:s3cr3t@api.interna.entidad", 1), "credential.basic")
+	mustFail(t, strings.Replace(validProxy, "https://api.interna.entidad", "https://den:s3cr3t@api.interna.entidad", 1), "credential.basic")
 }
 
 // K2: one file per service under services/, so the installer never edits YAML by hand.

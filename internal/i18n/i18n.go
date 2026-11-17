@@ -1,7 +1,7 @@
 // Package i18n holds the node's user-facing messages: what an operator reads from the CLI,
 // doctor, status and errors, the problem titles the node answers, and the texts of the OpenAPI
 // it generates. The English text is written in the code and is the key of the Spanish catalog
-// (catalog_es.go). RID_LANG chooses the language: en (default) or es. Logs stay in English.
+// (catalog_es.go). DEN_LANG chooses the language: en (default) or es. Logs stay in English.
 package i18n
 
 import (
@@ -42,9 +42,9 @@ func Set(lang string) error {
 	return fmt.Errorf("unsupported language %q: use en or es", lang)
 }
 
-// FromEnv applies RID_LANG. An unknown value keeps English and returns a warning to log.
+// FromEnv applies DEN_LANG. An unknown value keeps English and returns a warning to log.
 func FromEnv() (warning string) {
-	v := os.Getenv("RID_LANG")
+	v := os.Getenv("DEN_LANG")
 	if v == "" {
 		current.Store(EN)
 		return ""

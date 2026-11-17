@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-// Problem writes an RFC 9457 problem details answer. title is for people, in the node's language (RID_LANG); code is
+// Problem writes an RFC 9457 problem details answer. title is for people, in the node's language (DEN_LANG); code is
 // stable for programs.
 func Problem(w http.ResponseWriter, status int, code, title string) {
 	w.Header().Set("Content-Type", "application/problem+json")

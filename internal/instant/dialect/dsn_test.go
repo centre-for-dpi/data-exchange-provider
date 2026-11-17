@@ -22,7 +22,7 @@ import (
 const hardPassword = `p@ss:w/rd?&=#%"' x`
 
 func db(engine, tls string) config.Database {
-	return config.Database{Engine: engine, Host: "bd.interna", Port: 1234, Name: "entidad", User: "rid_reader",
+	return config.Database{Engine: engine, Host: "bd.interna", Port: 1234, Name: "entidad", User: "den_reader",
 		TLS: tls, MaxConnections: 4, QueryTimeout: 5 * time.Second}
 }
 
@@ -55,7 +55,7 @@ func TestDSN(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if p, _ := u.User.Password(); p != hardPassword || u.User.Username() != "rid_reader" {
+			if p, _ := u.User.Password(); p != hardPassword || u.User.Username() != "den_reader" {
 				t.Fatalf("credentials not escaped: %q", dsn)
 			}
 			q := u.Query()
@@ -108,12 +108,12 @@ func TestDSN(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if mc.Passwd != hardPassword || mc.User != "rid_reader" || mc.DBName != "entidad" || !mc.ParseTime || mc.Addr != "bd.interna:1234" {
+			if mc.Passwd != hardPassword || mc.User != "den_reader" || mc.DBName != "entidad" || !mc.ParseTime || mc.Addr != "bd.interna:1234" {
 				t.Fatalf("%+v", mc)
 			}
 			want := map[string]string{"disable": "false", "require": "skip-verify", "verify": "true"}[tls]
 			if want == "" {
-				want = "rid-" // a registered config with the CA
+				want = "den-" // a registered config with the CA
 			}
 			if !strings.HasPrefix(mc.TLSConfig, want) {
 				t.Fatalf("tls=%s: TLSConfig %q", tls, mc.TLSConfig)

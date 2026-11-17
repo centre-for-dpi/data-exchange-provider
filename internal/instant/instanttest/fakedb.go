@@ -1,6 +1,6 @@
 //go:build !canal
 
-// Package instanttest is an in-memory database behind a database/sql driver ("ridfake"), for
+// Package instanttest is an in-memory database behind a database/sql driver ("denfake"), for
 // tests of the instant APIs and the commands that use them. Each DSN (the database name) is
 // one DB.
 package instanttest
@@ -41,7 +41,7 @@ var (
 )
 
 // Driver is the database/sql driver name.
-const Driver = "ridfake"
+const Driver = "denfake"
 
 func init() { sql.Register(Driver, fakeDriver{}) }
 

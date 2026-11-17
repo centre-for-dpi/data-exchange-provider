@@ -14,7 +14,7 @@ func TestVersionCommand(t *testing.T) {
 	if code := run([]string{"version"}, &out); code != 0 {
 		t.Fatalf("exit code %d", code)
 	}
-	want := "rid-node 0.1.0-dev (completo), node contract v1\n"
+	want := "den-node 0.1.0-dev (completo), node contract v1\n"
 	if out.String() != want {
 		t.Fatalf("got %q, want %q", out.String(), want)
 	}
@@ -32,9 +32,9 @@ func TestAssertionAudience(t *testing.T) {
 		configured, gateway, mode, want string
 		fails                           bool
 	}{
-		{"", "rid-gateway.salud", "verify", "salud", false},
+		{"", "den-gateway.salud", "verify", "salud", false},
 		{"", "gw-red.salud", "verify", "salud", false}, // the prefix is the portal's setting
-		{"otra", "rid-gateway.salud", "require", "otra", false},
+		{"otra", "den-gateway.salud", "require", "otra", false},
 		{"", "gateway-propio", "verify", "", false}, // unknown: verification off, with a warning
 		{"", "gateway-propio", "require", "", true}, // unknown and required: the node does not start
 	}

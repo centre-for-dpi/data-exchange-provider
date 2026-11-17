@@ -39,12 +39,12 @@ type PKI struct {
 
 // New builds the PKI for one node and its entity's gateway client name.
 func New(nodeName, gatewayClientName string) *PKI {
-	ca, foreign := NewCA("RID test network CA"), NewCA("Some other CA")
+	ca, foreign := NewCA("DEN test network CA"), NewCA("Some other CA")
 	roots := x509.NewCertPool()
 	roots.AddCert(ca.Cert)
 	return &PKI{
 		CA: ca, Foreign: foreign, Roots: roots,
-		Node:           ca.Issue("rid-node", []string{nodeName}, x509.ExtKeyUsageServerAuth),
+		Node:           ca.Issue("den-node", []string{nodeName}, x509.ExtKeyUsageServerAuth),
 		Gateway:        ca.Issue(gatewayClientName, nil, x509.ExtKeyUsageClientAuth),
 		ConsumerApp:    ca.Issue("app-consumidora-123", nil, x509.ExtKeyUsageClientAuth),
 		ForeignGateway: foreign.Issue(gatewayClientName, nil, x509.ExtKeyUsageClientAuth),

@@ -37,7 +37,7 @@ func goldenService() (config.Service, []Compiled) {
 	return svc, rs
 }
 
-// spanish runs the rest of the test with RID_LANG=es.
+// spanish runs the rest of the test with DEN_LANG=es.
 func spanish(t *testing.T) {
 	t.Helper()
 	if err := i18n.Set("es"); err != nil {
@@ -47,7 +47,7 @@ func spanish(t *testing.T) {
 }
 
 // The golden file is the Spanish OpenAPI the node generated before it spoke English: with
-// RID_LANG=es the document (and so the SHA-256 the portal sees) stays byte for byte the same.
+// DEN_LANG=es the document (and so the SHA-256 the portal sees) stays byte for byte the same.
 func TestOpenAPIGolden(t *testing.T) {
 	spanish(t)
 	svc, rs := goldenService()
@@ -76,13 +76,13 @@ func TestOpenAPIGolden(t *testing.T) {
 	if op["operationId"] != "getAfiliado" {
 		t.Fatalf("operationId: %v", op["operationId"])
 	}
-	subject := op["x-rid-data-subject"].(map[string]any)
+	subject := op["x-den-data-subject"].(map[string]any)
 	if subject["in"] != "path" || subject["name"] != "numero_documento" || subject["documentType"] != "CC" {
-		t.Fatalf("x-rid-data-subject: %v", subject)
+		t.Fatalf("x-den-data-subject: %v", subject)
 	}
 	many := doc["paths"].(map[string]any)["/historial/{numero_documento}"].(map[string]any)["get"].(map[string]any)
-	if many["x-rid-data-subject"] != "none" {
-		t.Fatalf("a resource without dataSubject declares none: %v", many["x-rid-data-subject"])
+	if many["x-den-data-subject"] != "none" {
+		t.Fatalf("a resource without dataSubject declares none: %v", many["x-den-data-subject"])
 	}
 	body := many["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
 	if body["type"] != "array" || body["maxItems"] != float64(50) {
@@ -90,7 +90,7 @@ func TestOpenAPIGolden(t *testing.T) {
 	}
 }
 
-// The OpenAPI's human texts follow RID_LANG: English by default, Spanish with es.
+// The OpenAPI's human texts follow DEN_LANG: English by default, Spanish with es.
 func TestOpenAPILanguage(t *testing.T) {
 	svc, rs := goldenService()
 	en, err := OpenAPI(svc, rs)

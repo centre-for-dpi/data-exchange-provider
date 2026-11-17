@@ -133,7 +133,7 @@ func newHandler(servicePath string, spec config.ProxySpec, h *health) (http.Hand
 	}), nil
 }
 
-// errorHandler answers upstream failures quickly, with titles in the node's language (RID_LANG). It never logs the error text:
+// errorHandler answers upstream failures quickly, with titles in the node's language (DEN_LANG). It never logs the error text:
 // a *url.Error carries the URL, and the URL can carry an identifier.
 func errorHandler(w http.ResponseWriter, r *http.Request, err error) int {
 	var tooLarge *http.MaxBytesError

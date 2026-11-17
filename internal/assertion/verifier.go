@@ -1,4 +1,4 @@
-// Package assertion verifies the gateway's signed assertion (X-RID-Assertion, the portal's
+// Package assertion verifies the gateway's signed assertion (X-DEN-Assertion, the portal's
 // ADR-0024): a compact JWS ES256 per call, bound to the method, the URI the node receives and its
 // body, for this provider entity, with the gateway's keys from the portal's JWKS.
 package assertion

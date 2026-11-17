@@ -105,11 +105,11 @@ func TestDefaultRouteIsServiceWildcard(t *testing.T) {
 	}
 }
 
-func TestRidHeaderNamesOnly(t *testing.T) {
+func TestDenHeaderNamesOnly(t *testing.T) {
 	h, logs := newTestHandler([]Route{okRoute})
-	request(h, nodeName, "/svc/x", map[string]string{"X-RID-Purpose": "secreto-de-prueba", "X-RID-Subject-Ref": "abc"})
+	request(h, nodeName, "/svc/x", map[string]string{"X-DEN-Purpose": "secreto-de-prueba", "X-DEN-Subject-Ref": "abc"})
 	line := logs.String()
-	if strings.Contains(line, "secreto-de-prueba") || !strings.Contains(line, `"rid_headers":["x-rid-purpose","x-rid-subject-ref"]`) {
+	if strings.Contains(line, "secreto-de-prueba") || !strings.Contains(line, `"den_headers":["x-den-purpose","x-den-subject-ref"]`) {
 		t.Fatalf("log: %s", line)
 	}
 }

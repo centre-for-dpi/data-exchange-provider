@@ -60,14 +60,14 @@ func New(t testing.TB) *Portal {
 	t.Helper()
 	const id = "01a1e5a6-9381-738c-a707-d6e29330ea26"
 	p := &Portal{
-		Token: "tok_0123456789abcdefghij", NodeID: id, NodeName: "rid-node-" + id,
-		GatewayClientName: "rid-gateway.salud",
+		Token: "tok_0123456789abcdefghij", NodeID: id, NodeName: "den-node-" + id,
+		GatewayClientName: "den-gateway.salud",
 		WireGuard: contract.WireGuard{Address: "10.77.0.2/32", HubPublicKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
 			HubEndpoint: "127.0.0.1:1", HubAddress: "10.77.0.1", AllowedIPs: []string{"10.77.0.1/32"}, PersistentKeepaliveSeconds: 25},
 		Heartbeat: contract.HeartbeatResponse{Status: "online", NextHeartbeatSeconds: 60},
 	}
 	p.PKI = testpki.New(p.NodeName, p.GatewayClientName)
-	p.Intermediate = p.PKI.CA.NewIntermediate("RID test intermediate CA")
+	p.Intermediate = p.PKI.CA.NewIntermediate("DEN test intermediate CA")
 	p.Config = contract.ConfigResponse{ContractVersion: "1", NodeID: id, HeartbeatIntervalSeconds: 60, Services: []contract.PublishedService{}, Notices: []contract.Notice{}}
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(p.serve))
 	srv.TLS = &tls.Config{
@@ -157,7 +157,7 @@ func (p *Portal) serve(w http.ResponseWriter, r *http.Request) {
 		drop(w)
 		return
 	}
-	if cn != "rid-node" {
+	if cn != "den-node" {
 		problem(w, http.StatusUnauthorized, "unauthenticated")
 		return
 	}

@@ -1,28 +1,28 @@
 # The node as an entity runs it, in canal mode: no capabilities, read-only filesystem, non-root,
-# no published ports; outbound only. Joins the portal's development stack (network rid_providers).
-name: rid-kit-e2e
+# no published ports; outbound only. Joins the portal's development stack (network den_providers).
+name: den-kit-e2e
 
 services:
-  rid-node:
-    image: rid-node:${RID_NODE_VERSION:-0.1.0-dev}-canal
+  den-node:
+    image: den-node:${DEN_NODE_VERSION:-0.1.0-dev}-canal
     read_only: true
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     environment:
-      RID_HEARTBEAT_SECONDS: '15'
+      DEN_HEARTBEAT_SECONDS: '15'
     volumes:
-      - rid-node-state:/var/lib/rid-node
-      - ./config:/etc/rid-node:ro
+      - den-node-state:/var/lib/den-node
+      - ./config:/etc/den-node:ro
     secrets: [enrollment_token]
-    networks: [rid_providers]
+    networks: [den_providers]
 
 secrets:
   enrollment_token:
     file: ./.run/enrollment_token
 
 networks:
-  rid_providers:
+  den_providers:
     external: true
 
 volumes:
-  rid-node-state: {}
+  den-node-state: {}

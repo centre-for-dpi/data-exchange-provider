@@ -7,10 +7,10 @@ GOBUILD := CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)"
 .PHONY: build build-canal test
 
 build:
-	$(GOBUILD) -o bin/rid-node ./cmd/rid-node
+	$(GOBUILD) -o bin/den-node ./cmd/den-node
 
 build-canal:
-	$(GOBUILD) -tags canal -o bin/rid-node-canal ./cmd/rid-node
+	$(GOBUILD) -tags canal -o bin/den-node-canal ./cmd/den-node
 
 test:
 	go test ./...
@@ -23,8 +23,8 @@ fmt-check:
 
 # Rule 1 of CLAUDE.md: every module linked into either variant has an allowed license.
 licenses:
-	go run ./tools/licensecheck ./cmd/rid-node
-	go run ./tools/licensecheck -tags canal ./cmd/rid-node
+	go run ./tools/licensecheck ./cmd/den-node
+	go run ./tools/licensecheck -tags canal ./cmd/den-node
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
@@ -32,19 +32,19 @@ vuln:
 .PHONY: image image-canal check-canal-deps
 
 image:
-	docker build -f deploy/Dockerfile --build-arg VARIANT=completo --build-arg VERSION=$(VERSION) -t rid-node:$(VERSION) .
+	docker build -f deploy/Dockerfile --build-arg VARIANT=completo --build-arg VERSION=$(VERSION) -t den-node:$(VERSION) .
 
 image-canal:
-	docker build -f deploy/Dockerfile --build-arg VARIANT=canal --build-arg VERSION=$(VERSION) -t rid-node:$(VERSION)-canal .
+	docker build -f deploy/Dockerfile --build-arg VARIANT=canal --build-arg VERSION=$(VERSION) -t den-node:$(VERSION)-canal .
 
 # The canal variant must not link the instant APIs module or any database driver (ADR-0001,
 # install modes in ARCHITECTURE.md §1).
 CANAL_FORBIDDEN := github.com/jackc/|github.com/go-sql-driver/|github.com/microsoft/go-mssqldb|github.com/sijms/go-ora|/internal/instant
 check-canal-deps:
-	@found="$$(go list -deps -tags canal ./cmd/rid-node | grep -E '$(CANAL_FORBIDDEN)')"; \
+	@found="$$(go list -deps -tags canal ./cmd/den-node | grep -E '$(CANAL_FORBIDDEN)')"; \
 	if [ -n "$$found" ]; then echo "canal links forbidden packages:"; echo "$$found"; exit 1; fi
 
-# Delivery bundle: dist/rid-node-kit-$(VERSION).tar.gz (install.sh, both images, guide, SHA256SUMS).
+# Delivery bundle: dist/den-node-kit-$(VERSION).tar.gz (install.sh, both images, guide, SHA256SUMS).
 .PHONY: bundle
 bundle:
 	bash deploy/bundle.sh $(VERSION)
@@ -62,10 +62,10 @@ check: fmt-check check-canal-deps
 	$(MAKE) test licenses vuln
 
 # Instant APIs against real SQL Server, PostgreSQL, MySQL and Oracle (test/engines), then the
-# portal's lint on the OpenAPI each engine generated. RID_IT_ENV is an env file outside the repo
-# with RID_IT_ADMIN_PASSWORD, RID_IT_READER_PASSWORD and RID_IT_WRITER_PASSWORD (docs/DEVELOPMENT.md).
-RID_IT_ENV ?= $(HOME)/.config/rid-node/engines.env
-ENGINES    := docker compose -f test/engines/compose.yaml --env-file $(RID_IT_ENV)
+# portal's lint on the OpenAPI each engine generated. DEN_IT_ENV is an env file outside the repo
+# with DEN_IT_ADMIN_PASSWORD, DEN_IT_READER_PASSWORD and DEN_IT_WRITER_PASSWORD (docs/DEVELOPMENT.md).
+DEN_IT_ENV ?= $(HOME)/.config/den-node/engines.env
+ENGINES    := docker compose -f test/engines/compose.yaml --env-file $(DEN_IT_ENV)
 
 .PHONY: test-engines engines-up engines-down
 engines-up:
@@ -77,12 +77,12 @@ engines-down:
 
 test-engines: engines-up
 	rm -rf internal/instant/testdata/out
-	set -a && . $(RID_IT_ENV) && set +a && go test -tags integration -count=1 ./internal/instant/...
-	for f in internal/instant/testdata/out/*.json; do node spikes/tools/rid-lint.mts $$f || exit 1; done
+	set -a && . $(DEN_IT_ENV) && set +a && go test -tags integration -count=1 ./internal/instant/...
+	for f in internal/instant/testdata/out/*.json; do node spikes/tools/den-lint.mts $$f || exit 1; done
 
 # The same suite against older Oracle versions the pilot entities may run (11g XE, 21c XE).
 .PHONY: test-engines-legacy
 test-engines-legacy:
 	go run ./test/engines/gencerts test/engines/.certs
 	$(ENGINES) --profile legacy up -d --wait --wait-timeout 900 oracle11 oracle21
-	set -a && . $(RID_IT_ENV) && set +a && RID_IT_ENGINES=oracle11,oracle21 go test -tags integration -count=1 ./internal/instant/...
+	set -a && . $(DEN_IT_ENV) && set +a && DEN_IT_ENGINES=oracle11,oracle21 go test -tags integration -count=1 ./internal/instant/...

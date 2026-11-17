@@ -23,7 +23,7 @@ func (postgres) Driver() string { return "pgx" }
 
 func (postgres) DSN(db config.Database, password string) (string, error) {
 	q := url.Values{}
-	q.Set("application_name", "rid-node")
+	q.Set("application_name", "den-node")
 	q.Set("connect_timeout", strconv.Itoa(timeoutSeconds(db.QueryTimeout)))
 	switch db.TLS {
 	case "disable":

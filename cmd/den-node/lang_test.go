@@ -9,7 +9,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
-// The CLI speaks English by default and Spanish with RID_LANG=es, errors from the packages
+// The CLI speaks English by default and Spanish with DEN_LANG=es, errors from the packages
 // below it included.
 func TestCLILanguage(t *testing.T) {
 	t.Cleanup(func() { _ = i18n.Set("en") })
@@ -18,18 +18,18 @@ func TestCLILanguage(t *testing.T) {
 		{"", "✘ cannot read the configuration", "no se pudo leer"},
 		{"es", "✘ no se pudo leer la configuración", "cannot read"},
 	} {
-		t.Setenv("RID_LANG", c.lang)
+		t.Setenv("DEN_LANG", c.lang)
 		if w := i18n.FromEnv(); w != "" {
 			t.Fatal(w)
 		}
 		var out bytes.Buffer
 		if code := validate(missing, &out); code != 1 || !strings.Contains(out.String(), c.want) || strings.Contains(out.String(), c.not) {
-			t.Fatalf("RID_LANG=%q: code=%d %s", c.lang, code, out.String())
+			t.Fatalf("DEN_LANG=%q: code=%d %s", c.lang, code, out.String())
 		}
 		out.Reset()
 		run([]string{"nope"}, &out)
-		if usage := map[string]string{"": "usage: rid-node", "es": "uso: rid-node"}[c.lang]; !strings.HasPrefix(out.String(), usage) {
-			t.Fatalf("RID_LANG=%q: usage %s", c.lang, out.String())
+		if usage := map[string]string{"": "usage: den-node", "es": "uso: den-node"}[c.lang]; !strings.HasPrefix(out.String(), usage) {
+			t.Fatalf("DEN_LANG=%q: usage %s", c.lang, out.String())
 		}
 	}
 }

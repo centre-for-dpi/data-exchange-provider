@@ -65,7 +65,7 @@ func TestCSRShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	pub, ok := csr.PublicKey.(*ecdsa.PublicKey)
-	if csr.Subject.CommonName != "rid-node" || len(csr.DNSNames) != 0 || len(csr.IPAddresses) != 0 || !ok || pub.Curve != elliptic.P256() {
+	if csr.Subject.CommonName != "den-node" || len(csr.DNSNames) != 0 || len(csr.IPAddresses) != 0 || !ok || pub.Curve != elliptic.P256() {
 		t.Fatalf("CSR: CN=%q DNS=%v IP=%v key=%T", csr.Subject.CommonName, csr.DNSNames, csr.IPAddresses, csr.PublicKey)
 	}
 	if !strings.Contains(keyPEM, "PRIVATE KEY") {
@@ -84,7 +84,7 @@ func TestEnrollPersistsState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.NodeID != p.NodeID || saved.NodeName != p.NodeName || saved.GatewayClientName != "rid-gateway.salud" ||
+	if st.NodeID != p.NodeID || saved.NodeName != p.NodeName || saved.GatewayClientName != "den-gateway.salud" ||
 		saved.KeyPEM == "" || saved.WGPrivateKey == "" || saved.WireGuard.Address != "10.77.0.2/32" || saved.ControlURL != p.ControlURL() {
 		t.Fatalf("state: %+v", saved)
 	}
@@ -217,10 +217,10 @@ func TestInvalidEnrollmentAnswerNotSaved(t *testing.T) {
 
 func TestEnrollmentCertificateMustNameTheNode(t *testing.T) {
 	p := fakeportal.New(t)
-	p.NodeName = "rid-node-otro" // the certificate is signed for a different name than nodeName says
-	p.SignAs = "rid-node-01a1e5a6-9381-738c-a707-d6e29330ea26"
+	p.NodeName = "den-node-otro" // the certificate is signed for a different name than nodeName says
+	p.SignAs = "den-node-01a1e5a6-9381-738c-a707-d6e29330ea26"
 	e, _ := enroller(t, p, p.Token)
-	if _, err := e.LoadOrEnroll(context.Background()); err == nil || !strings.Contains(err.Error(), "rid-node-otro") {
+	if _, err := e.LoadOrEnroll(context.Background()); err == nil || !strings.Contains(err.Error(), "den-node-otro") {
 		t.Fatalf("got %v", err)
 	}
 }

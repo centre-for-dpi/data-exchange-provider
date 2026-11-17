@@ -1,7 +1,7 @@
 // Command licensecheck fails when a Go module linked into the given packages has a license
 // outside the kit's allowed list (CLAUDE.md, rule 1).
 //
-//	go run ./tools/licensecheck [-tags canal] [-cyclonedx sbom.json -version 0.1.0] ./cmd/rid-node
+//	go run ./tools/licensecheck [-tags canal] [-cyclonedx sbom.json -version 0.1.0] ./cmd/den-node
 package main
 
 import (
@@ -65,7 +65,7 @@ func main() {
 		if strings.Contains(*tags, "canal") {
 			variant = "canal"
 		}
-		b, err := cyclonedx("rid-node", *version, variant, mods)
+		b, err := cyclonedx("den-node", *version, variant, mods)
 		if err == nil {
 			err = os.WriteFile(*sbomFile, b, 0o644)
 		}

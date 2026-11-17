@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	nodeName          = "rid-node-01a1e5a6-9381-738c-a707-d6e29330ea26"
-	gatewayClientName = "rid-gateway.salud"
+	nodeName          = "den-node-01a1e5a6-9381-738c-a707-d6e29330ea26"
+	gatewayClientName = "den-gateway.salud"
 )
 
 type syncBuffer struct {
@@ -129,7 +129,7 @@ func TestWrongSNIRejected(t *testing.T) {
 	pki := testpki.New(nodeName, gatewayClientName)
 	addr, logs := serve(t, pki, nil)
 	rejected(t, addr, logs, "is not this node", func() (*http.Response, error) {
-		return call(addr, "rid-node-otro", pki.Roots, &pki.Gateway, true)
+		return call(addr, "den-node-otro", pki.Roots, &pki.Gateway, true)
 	})
 }
 
@@ -138,7 +138,7 @@ func TestRenewedCertificateServed(t *testing.T) {
 	live := &atomic.Pointer[tls.Certificate]{}
 	live.Store(&pki.Node)
 	addr, _ := serve(t, pki, live)
-	renewed := pki.CA.Issue("rid-node", []string{nodeName}, x509.ExtKeyUsageServerAuth)
+	renewed := pki.CA.Issue("den-node", []string{nodeName}, x509.ExtKeyUsageServerAuth)
 	live.Store(&renewed)
 	res, err := call(addr, nodeName, pki.Roots, &pki.Gateway, false)
 	if err != nil {

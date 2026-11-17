@@ -24,7 +24,7 @@ func (sqlServer) Driver() string { return "sqlserver" }
 func (sqlServer) DSN(db config.Database, password string) (string, error) {
 	q := url.Values{}
 	q.Set("database", db.Name)
-	q.Set("app name", "rid-node")
+	q.Set("app name", "den-node")
 	q.Set("dial timeout", strconv.Itoa(timeoutSeconds(db.QueryTimeout)))
 	switch db.TLS {
 	case "disable":

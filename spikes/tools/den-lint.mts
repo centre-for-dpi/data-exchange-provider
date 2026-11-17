@@ -1,4 +1,4 @@
-// Spike helper: runs the portal's real RID lint on an OpenAPI file, with the options the portal
+// Spike helper: runs the portal's real DEN lint on an OpenAPI file, with the options the portal
 // uses for a personal-data API in the reference country config (noIdInQuery on, data subject
 // required, person document types from config/country/co.yaml).
 import { readFileSync } from 'node:fs';
@@ -6,7 +6,7 @@ import { lintOpenApi } from '../../../data-exchange/apps/api/src/apis/lint/opena
 
 const file = process.argv[2];
 if (!file) {
-  console.error('usage: rid-lint.mts <openapi.json|yaml>');
+  console.error('usage: den-lint.mts <openapi.json|yaml>');
   process.exit(2);
 }
 

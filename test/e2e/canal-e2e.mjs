@@ -16,21 +16,21 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { DEFAULT_DEMO_TOTP_SECRET, totp } from '../../../data-exchange/scripts/totp.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../data-exchange');
-// Against the deployed portal (RID_E2E_TARGET=vps) every URL and secret comes from the environment.
-const VPS = process.env.RID_E2E_TARGET === 'vps';
+// Against the deployed portal (DEN_E2E_TARGET=vps) every URL and secret comes from the environment.
+const VPS = process.env.DEN_E2E_TARGET === 'vps';
 if (!VPS && existsSync(resolve(root, '.env'))) process.loadEnvFile(resolve(root, '.env'));
 
 const env = (name, fallback) => process.env[name] ?? fallback;
-const API = `${env('RID_API_URL', 'http://localhost:4000')}/api/v1`;
+const API = `${env('DEN_API_URL', 'http://localhost:4000')}/api/v1`;
 const KEYCLOAK = env('KEYCLOAK_URL', 'http://localhost:8080');
-const GATEWAY = env('RID_GATEWAY_PUBLIC_URL', 'https://localhost:9443');
+const GATEWAY = env('DEN_GATEWAY_PUBLIC_URL', 'https://localhost:9443');
 // The plain-HTTP listener of the local gateway: only for "does the route exist yet?" (no token).
-const GATEWAY_HTTP = env('RID_GATEWAY_HTTP_URL', 'http://localhost:9080');
+const GATEWAY_HTTP = env('DEN_GATEWAY_HTTP_URL', 'http://localhost:9080');
 // With mTLS (M3-10) the gateway is HTTPS and every call presents the application's certificate.
 const MTLS = GATEWAY.startsWith('https://');
-const WEB = env('RID_WEB_URL', 'http://localhost:3000');
-const PASSWORD = env('RID_DEMO_USER_PASSWORD', 'demo');
-const TOTP_SECRET = env('RID_DEMO_TOTP_SECRET', DEFAULT_DEMO_TOTP_SECRET);
+const WEB = env('DEN_WEB_URL', 'http://localhost:3000');
+const PASSWORD = env('DEN_DEMO_USER_PASSWORD', 'demo');
+const TOTP_SECRET = env('DEN_DEMO_TOTP_SECRET', DEFAULT_DEMO_TOTP_SECRET);
 const RUN = Date.now().toString(36);
 const SLUG = `afiliacion-${RUN}`;
 
@@ -76,22 +76,22 @@ async function waitFor(probe, { timeoutMs, everyMs = 1_000, what }) {
 // --- Keycloak login (Authorization Code + PKCE, like the web app) ------------------------------
 
 const PORTAL_CLIENT = {
-  realm: 'rid-portal',
-  clientId: env('RID_PORTAL_WEB_CLIENT_ID', 'rid-portal-web'),
-  secret: env('RID_PORTAL_WEB_CLIENT_SECRET', ''),
+  realm: 'den-portal',
+  clientId: env('DEN_PORTAL_WEB_CLIENT_ID', 'den-portal-web'),
+  secret: env('DEN_PORTAL_WEB_CLIENT_SECRET', ''),
   redirectUri: `${WEB}/api/auth/callback/keycloak`,
 };
 /** The reference citizen folder in the (simulated) national identity (MT-05, MT-07). */
 const CITIZEN_CLIENT = {
-  realm: 'rid-citizens',
+  realm: 'den-citizens',
   clientId: 'carpeta-ciudadana',
-  secret: env('RID_CARPETA_CLIENT_SECRET', ''),
-  redirectUri: `${env('RID_CARPETA_URL', 'http://localhost:3100')}/auth/callback`,
+  secret: env('DEN_CARPETA_CLIENT_SECRET', ''),
+  redirectUri: `${env('DEN_CARPETA_URL', 'http://localhost:3100')}/auth/callback`,
 };
 
 /** Seed users with a critical role: their realm entry has a one-time code (M3-08). */
 const MFA_USERS = new Set(
-  JSON.parse(readFileSync(resolve(root, 'infra/keycloak/rid-portal-realm.json'), 'utf8'))
+  JSON.parse(readFileSync(resolve(root, 'infra/keycloak/den-portal-realm.json'), 'utf8'))
     .users.filter((u) => u.credentials?.some((c) => c.type === 'otp'))
     .map((u) => u.username),
 );
@@ -121,7 +121,7 @@ async function submitOtp(username, html, post) {
     html = await res.text();
   }
   throw new DemoError(
-    `Keycloak refused the one-time codes of ${username} (is RID_DEMO_TOTP_SECRET right?)`,
+    `Keycloak refused the one-time codes of ${username} (is DEN_DEMO_TOTP_SECRET right?)`,
   );
 }
 
@@ -171,7 +171,7 @@ async function login(username, client = PORTAL_CLIENT) {
     submitted = await submitOtp(username, await submitted.text(), post);
   }
   const code = new URL(submitted.headers.get('location') ?? 'http://x/').searchParams.get('code');
-  expect(code, `Login failed for ${username} (is RID_DEMO_USER_PASSWORD right?)`);
+  expect(code, `Login failed for ${username} (is DEN_DEMO_USER_PASSWORD right?)`);
   const { clientId, secret } = client;
   const tokens = await fetch(`${realm}/token`, {
     method: 'POST',
@@ -263,7 +263,7 @@ async function gatewayFetch(url, { method = 'GET', headers = {}, body } = {}) {
  * here a temporary folder); the portal has the network CA sign it. The key never leaves.
  */
 async function clientCertificate(carlos, entityId, applicationId, clientId) {
-  const dir = mkdtempSync(join(tmpdir(), 'rid-demo-'));
+  const dir = mkdtempSync(join(tmpdir(), 'den-demo-'));
   try {
     const run = spawnSync(
       'openssl',
@@ -328,19 +328,19 @@ async function callGateway(token, headers = {}) {
   } catch {
     body = text;
   }
-  return { status: res.status, reason: res.headers.get('x-rid-deny-reason'), body };
+  return { status: res.status, reason: res.headers.get('x-den-deny-reason'), body };
 }
 
-/** X-RID-* headers the provider (salud mock) logged for one request. */
+/** X-DEN-* headers the provider (salud mock) logged for one request. */
 function providerSaw(requestId) {
-  const logs = spawnSync('docker', ['logs', '--since', '2m', 'rid-mock-salud-1'], {
+  const logs = spawnSync('docker', ['logs', '--since', '2m', 'den-mock-salud-1'], {
     encoding: 'utf8',
   });
   for (const line of `${logs.stdout}${logs.stderr}`.split('\n')) {
     if (!line.includes(requestId)) continue;
     try {
       const entry = JSON.parse(line);
-      if (entry.rid?.['x-request-id'] === requestId) return entry.rid;
+      if (entry.den?.['x-request-id'] === requestId) return entry.den;
     } catch {
       // not a JSON log line
     }
@@ -352,7 +352,7 @@ function providerSaw(requestId) {
 async function preflight() {
   const checks = [
     ['portal API', `${API}/health`],
-    ['Keycloak', `${KEYCLOAK}/realms/rid-portal`],
+    ['Keycloak', `${KEYCLOAK}/realms/den-portal`],
     ['gateway', `${GATEWAY_HTTP}/`],
   ];
   for (const [name, url] of checks) {
@@ -386,17 +386,17 @@ globalThis.fetch = async (...args) => {
 const here = dirname(fileURLToPath(import.meta.url));
 const COMPOSE_FILE = resolve(here, VPS ? 'compose.vps.yaml' : 'compose.yaml');
 const CONFIG_DIR = resolve(here, VPS ? 'config-vps' : 'config');
-const PROJECT = VPS ? 'rid-kit-e2e-vps' : 'rid-kit-e2e';
-const NODE_CONTAINER = `${PROJECT}-rid-node-1`;
-// RID_E2E_NODE=installer: the node is installed with install.sh from the delivery bundle on a
+const PROJECT = VPS ? 'den-kit-e2e-vps' : 'den-kit-e2e';
+const NODE_CONTAINER = `${PROJECT}-den-node-1`;
+// DEN_E2E_NODE=installer: the node is installed with install.sh from the delivery bundle on a
 // clean Ubuntu server (test/install/ubuntu.sh), as an entity would do it.
-const INSTALLER = process.env.RID_E2E_NODE === 'installer';
-const KIT = process.env.RID_E2E_KIT ?? resolve(here, '../../dist/rid-node-kit-0.1.0');
+const INSTALLER = process.env.DEN_E2E_NODE === 'installer';
+const KIT = process.env.DEN_E2E_KIT ?? resolve(here, '../../dist/den-node-kit-0.1.0');
 const SERVER = resolve(here, '../install/ubuntu.sh');
-const TEST_SERVER = process.env.RID_TEST_SERVER ?? 'rid-install-test';
-// RID_E2E_SERVICE=instant (with RID_E2E_NODE=installer): the node is installed in modo completo
+const TEST_SERVER = process.env.DEN_TEST_SERVER ?? 'den-install-test';
+// DEN_E2E_SERVICE=instant (with DEN_E2E_NODE=installer): the node is installed in modo completo
 // and publishes an instant API over a PostgreSQL view of the entity (K3 closing criterion).
-const INSTANT = process.env.RID_E2E_SERVICE === 'instant';
+const INSTANT = process.env.DEN_E2E_SERVICE === 'instant';
 const ROUTE_TEMPLATE = INSTANT ? '/salud/afiliados/{numero_documento}' : '/salud/afiliados/{numeroIdentificacion}';
 
 function onServer(command, extraEnv = {}) {
@@ -417,7 +417,7 @@ function compose(args) {
 }
 
 function nodeLogs() {
-  const r = INSTALLER ? onServer('docker logs rid-node-rid-node-1') : spawnSync('docker', ['logs', NODE_CONTAINER], { encoding: 'utf8' });
+  const r = INSTALLER ? onServer('docker logs den-node-den-node-1') : spawnSync('docker', ['logs', NODE_CONTAINER], { encoding: 'utf8' });
   return `${r.stdout}${r.stderr}`.split('\n');
 }
 
@@ -438,23 +438,23 @@ async function installWithInstaller(token) {
   const portal = API.replace(/\/api\/v1$/, '');
   const first = spawnSync('bash', [SERVER, KIT], {
     encoding: 'utf8',
-    env: { ...process.env, MSYS_NO_PATHCONV: '1', RID_INSTALL_PORTAL: `${portal}/api/v1/`, RID_INSTALL_TOKEN: 'tok_equivocado_equivocado_000' },
+    env: { ...process.env, MSYS_NO_PATHCONV: '1', DEN_INSTALL_PORTAL: `${portal}/api/v1/`, DEN_INSTALL_TOKEN: 'tok_equivocado_equivocado_000' },
   });
   expect(first.status !== 0, 'an install with a wrong token must not report success');
   ok('Con un token equivocado la instalación no queda en línea y lo dice');
-  const retry = onServer(`RID_INSTALL_YES=1 RID_INSTALL_TOKEN=' ${token}' bash /root/kit/install.sh </dev/null`);
+  const retry = onServer(`DEN_INSTALL_YES=1 DEN_INSTALL_TOKEN=' ${token}' bash /root/kit/install.sh </dev/null`);
   info(`${retry.stdout}`.trimEnd().split('\n').slice(-6).join('\n').replace(/^/gm, '  '));
   expect(retry.status === 0, `re-run with the right token failed: ${retry.stdout}${retry.stderr}`);
   ok('Volver a ejecutar con el token correcto enrola el nodo (la URL con /api/v1/ se normalizó)');
 
-  const perms = onServer('stat -c "%n %a %u:%g" /opt/rid-node/secrets /opt/rid-node/secrets/enrollment_token /opt/rid-node/.env /opt/rid-node/config/node.yaml /opt/rid-node/install.sh').stdout;
+  const perms = onServer('stat -c "%n %a %u:%g" /opt/den-node/secrets /opt/den-node/secrets/enrollment_token /opt/den-node/.env /opt/den-node/config/node.yaml /opt/den-node/install.sh').stdout;
   info(perms.trimEnd().replace(/^/gm, '  '));
-  for (const want of ['/opt/rid-node/secrets 750 0:65532', '/opt/rid-node/secrets/enrollment_token 400 65532:65532', '/opt/rid-node/.env 600 0:0', 'node.yaml 644', '/opt/rid-node/install.sh 755']) {
+  for (const want of ['/opt/den-node/secrets 750 0:65532', '/opt/den-node/secrets/enrollment_token 400 65532:65532', '/opt/den-node/.env 600 0:0', 'node.yaml 644', '/opt/den-node/install.sh 755']) {
     expect(perms.includes(want), `permissions: expected "${want}"`);
   }
-  ok('Permisos correctos, y el instalador quedó en /opt/rid-node/install.sh');
+  ok('Permisos correctos, y el instalador quedó en /opt/den-node/install.sh');
 
-  const op = (cmd) => onServer(`RID_INSTALL_YES=1 bash /opt/rid-node/install.sh ${cmd} </dev/null`);
+  const op = (cmd) => onServer(`DEN_INSTALL_YES=1 bash /opt/den-node/install.sh ${cmd} </dev/null`);
   const again = op('');
   expect(again.status === 0 && /no hace falta token/.test(again.stdout), `re-install failed: ${again.stdout}${again.stderr}`);
   ok('Reinstalar no pide token ni toca la identidad del nodo');
@@ -462,33 +462,33 @@ async function installWithInstaller(token) {
   const lan = readFileSync(resolve(here, '../install/.lan-address'), 'utf8').trim();
   spawnSync('docker', ['cp', PORTAL_OPENAPI, `${TEST_SERVER}:/root/salud.openapi.yaml`], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   const svc = (name, path) =>
-    onServer(`RID_INSTALL_SERVICE_NAME=${name} RID_INSTALL_SERVICE_PATH=${path} RID_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
-      `RID_INSTALL_SERVICE_PLAIN_HTTP=s RID_INSTALL_SERVICE_CREDENTIAL=ninguna RID_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
-      `bash /opt/rid-node/install.sh service </dev/null`);
+    onServer(`DEN_INSTALL_SERVICE_NAME=${name} DEN_INSTALL_SERVICE_PATH=${path} DEN_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
+      `DEN_INSTALL_SERVICE_PLAIN_HTTP=s DEN_INSTALL_SERVICE_CREDENTIAL=ninguna DEN_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
+      `bash /opt/den-node/install.sh service </dev/null`);
   const added = svc('afiliacion', '/salud');
   info(`${added.stdout}`.trimEnd().split('\n').slice(-5).join('\n').replace(/^/gm, '  '));
   expect(added.status === 0, `servicio failed: ${added.stdout}${added.stderr}`);
   ok('Servicio "afiliacion" agregado, validado y aplicado');
 
   const dup = svc('otra', '/salud');
-  expect(dup.status !== 0 && !onServer('ls /opt/rid-node/config/services').stdout.includes('otra.yaml') && /repeated/.test(dup.stdout + dup.stderr),
+  expect(dup.status !== 0 && !onServer('ls /opt/den-node/config/services').stdout.includes('otra.yaml') && /repeated/.test(dup.stdout + dup.stderr),
     `a duplicate service must be refused and undone: ${dup.stdout}${dup.stderr}`);
   ok('Un servicio con la ruta repetida se rechaza y no deja archivos');
 
   expect(svc('temporal', '/temporal').status === 0 && op('service remove temporal').status === 0 &&
-    !onServer('ls /opt/rid-node/config/services').stdout.includes('temporal'), 'service remove did not remove the service');
+    !onServer('ls /opt/den-node/config/services').stdout.includes('temporal'), 'service remove did not remove the service');
   ok('service remove elimina un servicio');
 
   const bad = op('update 9.9.9');
-  const version = onServer("grep '^RID_NODE_VERSION=' /opt/rid-node/.env").stdout.trim();
-  expect(bad.status !== 0 && version === 'RID_NODE_VERSION=0.1.0' && op('status').status === 0, `update to a missing version: ${bad.stdout}${bad.stderr} / ${version}`);
+  const version = onServer("grep '^DEN_NODE_VERSION=' /opt/den-node/.env").stdout.trim();
+  expect(bad.status !== 0 && version === 'DEN_NODE_VERSION=0.1.0' && op('status').status === 0, `update to a missing version: ${bad.stdout}${bad.stderr} / ${version}`);
   ok('update a una versión que no existe falla sin tocar .env y el nodo sigue en línea');
 
   const name = (op('status').stdout.match(/Node:\s+(\S+)/) ?? [])[1];
-  const backup = onServer('bash /opt/rid-node/install.sh backup >/dev/null && ls -t /opt/rid-node/backups/*.tar.gz | head -1');
+  const backup = onServer('bash /opt/den-node/install.sh backup >/dev/null && ls -t /opt/den-node/backups/*.tar.gz | head -1');
   const file = backup.stdout.trim();
   expect(backup.status === 0 && file.endsWith('.tar.gz') && onServer(`stat -c %a ${file}`).stdout.trim() === '600', `backup: ${backup.stdout}${backup.stderr}`);
-  onServer('cd /opt/rid-node && docker compose down -v >/dev/null 2>&1');
+  onServer('cd /opt/den-node && docker compose down -v >/dev/null 2>&1');
   const restored = op(`restore ${file}`);
   const after = (op('status').stdout.match(/Node:\s+(\S+)/) ?? [])[1];
   expect(restored.status === 0 && after === name, `restore: ${restored.stdout}${restored.stderr} (${name} → ${after})`);
@@ -508,7 +508,7 @@ async function installInstant(token) {
   const portal = API.replace(/\/api\/v1$/, '');
   const installed = spawnSync('bash', [SERVER, KIT], {
     encoding: 'utf8',
-    env: { ...process.env, MSYS_NO_PATHCONV: '1', RID_TEST_SERVER: TEST_SERVER, RID_INSTALL_MODE: 'completo', RID_INSTALL_PORTAL: portal, RID_INSTALL_TOKEN: token },
+    env: { ...process.env, MSYS_NO_PATHCONV: '1', DEN_TEST_SERVER: TEST_SERVER, DEN_INSTALL_MODE: 'completo', DEN_INSTALL_PORTAL: portal, DEN_INSTALL_TOKEN: token },
   });
   info(`${installed.stdout}`.trimEnd().split('\n').slice(-4).join('\n').replace(/^/gm, '  '));
   expect(installed.status === 0, `install failed: ${installed.stdout}${installed.stderr}`);
@@ -525,27 +525,27 @@ async function installInstant(token) {
   const certs = resolve(here, '../engines/.certs');
   expect(spawnSync('go', ['run', './test/engines/gencerts', certs], { cwd: resolve(here, '../..'), encoding: 'utf8' }).status === 0, 'gencerts failed');
   spawnSync('docker', ['cp', certs, `${TEST_SERVER}:/root/bd-certs`], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
-  const db = onServer(`docker run -d --name bd-entidad --network rid-node_default --restart unless-stopped ` +
-    `-e POSTGRES_DB=entidad -e POSTGRES_PASSWORD=${randomBytes(12).toString('hex')} -e RID_READER_PASSWORD='${readerPassword}' ` +
-    `-e RID_WRITER_PASSWORD=${randomBytes(12).toString('hex')} -v /root/bd-init:/docker-entrypoint-initdb.d:ro -v /root/bd-certs:/certs:ro postgres:17-alpine`);
+  const db = onServer(`docker run -d --name bd-entidad --network den-node_default --restart unless-stopped ` +
+    `-e POSTGRES_DB=entidad -e POSTGRES_PASSWORD=${randomBytes(12).toString('hex')} -e DEN_READER_PASSWORD='${readerPassword}' ` +
+    `-e DEN_WRITER_PASSWORD=${randomBytes(12).toString('hex')} -v /root/bd-init:/docker-entrypoint-initdb.d:ro -v /root/bd-certs:/certs:ro postgres:17-alpine`);
   expect(db.status === 0, `the entity's database did not start: ${db.stderr}`);
   await waitFor(async () => onServer('docker exec bd-entidad pg_isready -h 127.0.0.1 -U postgres -d entidad').status === 0,
     { timeoutMs: 120_000, everyMs: 2_000, what: "the entity's database is not ready" });
-  ok('PostgreSQL bd-entidad con salud.v_afiliados; rid_reader solo tiene SELECT sobre las vistas');
+  ok('PostgreSQL bd-entidad con salud.v_afiliados; den_reader solo tiene SELECT sobre las vistas');
 
   step('Agregar la API instantánea con install.sh service', 'entidad');
-  const added = onServer(`RID_INSTALL_SERVICE_TYPE=instant RID_INSTALL_SERVICE_NAME=afiliacion RID_INSTALL_SERVICE_PATH=/salud ` +
-    `RID_INSTALL_SERVICE_ENGINE=postgres RID_INSTALL_SERVICE_DB_HOST=bd-entidad RID_INSTALL_SERVICE_DB_PORT=5432 ` +
-    `RID_INSTALL_SERVICE_DB_NAME=entidad RID_INSTALL_SERVICE_DB_USER=rid_reader RID_INSTALL_SERVICE_DB_PASSWORD='${readerPassword}' ` +
-    `RID_INSTALL_SERVICE_DB_TLS=disable RID_INSTALL_SERVICE_SOURCE=salud.v_afiliados RID_INSTALL_SERVICE_KEY=numero_documento ` +
-    `RID_INSTALL_SERVICE_SUBJECT=CC RID_INSTALL_SERVICE_MANY=n bash /opt/rid-node/install.sh service </dev/null`);
+  const added = onServer(`DEN_INSTALL_SERVICE_TYPE=instant DEN_INSTALL_SERVICE_NAME=afiliacion DEN_INSTALL_SERVICE_PATH=/salud ` +
+    `DEN_INSTALL_SERVICE_ENGINE=postgres DEN_INSTALL_SERVICE_DB_HOST=bd-entidad DEN_INSTALL_SERVICE_DB_PORT=5432 ` +
+    `DEN_INSTALL_SERVICE_DB_NAME=entidad DEN_INSTALL_SERVICE_DB_USER=den_reader DEN_INSTALL_SERVICE_DB_PASSWORD='${readerPassword}' ` +
+    `DEN_INSTALL_SERVICE_DB_TLS=disable DEN_INSTALL_SERVICE_SOURCE=salud.v_afiliados DEN_INSTALL_SERVICE_KEY=numero_documento ` +
+    `DEN_INSTALL_SERVICE_SUBJECT=CC DEN_INSTALL_SERVICE_MANY=n bash /opt/den-node/install.sh service </dev/null`);
   info(`${added.stdout}`.trimEnd().split('\n').slice(-14).join('\n').replace(/^/gm, '  '));
   expect(added.status === 0, `servicio instant failed: ${added.stdout}${added.stderr}`);
-  const openapi = onServer('cat /opt/rid-node/config/services/afiliacion.openapi.json').stdout;
+  const openapi = onServer('cat /opt/den-node/config/services/afiliacion.openapi.json').stdout;
   const doc = JSON.parse(openapi);
   expect(doc.paths?.['/afiliados/{numero_documento}']?.get?.operationId === 'getAfiliados', `generated OpenAPI: ${openapi.slice(0, 400)}`);
   ok('Servicio instant "afiliacion": catálogo leído, recurso creado y OpenAPI generado (getAfiliados)');
-  const yaml = onServer('cat /opt/rid-node/config/services/afiliacion.yaml').stdout;
+  const yaml = onServer('cat /opt/den-node/config/services/afiliacion.yaml').stdout;
   expect(!yaml.includes(readerPassword), 'the database password ended up in the service file');
   return openapi;
 }
@@ -563,7 +563,7 @@ async function main() {
 
   let instantOpenapi;
   if (INSTANT) {
-    expect(INSTALLER, 'RID_E2E_SERVICE=instant needs RID_E2E_NODE=installer');
+    expect(INSTALLER, 'DEN_E2E_SERVICE=instant needs DEN_E2E_NODE=installer');
     instantOpenapi = await installInstant(issued.token);
     elena = await as('elena.admin');
   } else if (INSTALLER) {
@@ -574,9 +574,9 @@ async function main() {
   mkdirSync(resolve(here, '.run'), { recursive: true });
   writeFileSync(resolve(here, '.run/enrollment_token'), `${issued.token}\n`, { mode: 0o644 });
   copyFileSync(PORTAL_OPENAPI, resolve(CONFIG_DIR, 'salud.openapi.yaml'));
-  compose(['rm', '-sf', 'rid-node']);
-  spawnSync('docker', ['volume', 'rm', '-f', `${PROJECT}_rid-node-state`]);
-  compose(['up', '-d', 'rid-node']);
+  compose(['rm', '-sf', 'den-node']);
+  spawnSync('docker', ['volume', 'rm', '-f', `${PROJECT}_den-node-state`]);
+  compose(['up', '-d', 'den-node']);
   }
   const online = await waitFor(
     async () => {
@@ -589,12 +589,12 @@ async function main() {
   info(`Servicios declarados: ${JSON.stringify(online.services)}`);
   if (INSTALLER) {
     // The container was recreated by `servicio` and `modo`: the enrollment line is in an older log.
-    const st = onServer('bash /opt/rid-node/install.sh status').stdout;
-    expect(st.includes(`rid-node-${nodeId}`) && /Tunnel:\s+last handshake .* ago/.test(st), `status: ${st}`);
-    ok(`Enrolado como rid-node-${nodeId}, con handshake reciente del túnel`);
+    const st = onServer('bash /opt/den-node/install.sh status').stdout;
+    expect(st.includes(`den-node-${nodeId}`) && /Tunnel:\s+last handshake .* ago/.test(st), `status: ${st}`);
+    ok(`Enrolado como den-node-${nodeId}, con handshake reciente del túnel`);
   } else {
     const enrolled = events('enrolled')[0];
-    expect(enrolled?.gateway_client === 'rid-gateway.salud', 'the node did not log its enrollment');
+    expect(enrolled?.gateway_client === 'den-gateway.salud', 'the node did not log its enrollment');
     ok(`Enrolado como ${enrolled.node}; solo acepta a ${enrolled.gateway_client}`);
   }
 
@@ -604,8 +604,8 @@ async function main() {
   if (!VPS) {
   const refused = await waitFor(
     async () => {
-      spawnSync('docker', ['run', '--rm', '--network', 'rid_providers', '--entrypoint', 'openssl', 'rid/mock-node:dev',
-        's_client', '-connect', 'wg-hub:8443', '-servername', `rid-node-${nodeId}`, '-brief'],
+      spawnSync('docker', ['run', '--rm', '--network', 'den_providers', '--entrypoint', 'openssl', 'den/mock-node:dev',
+        's_client', '-connect', 'wg-hub:8443', '-servername', `den-node-${nodeId}`, '-brief'],
         { input: '', encoding: 'utf8', timeout: 20_000, env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
       return events('tls_rejected').find((e) => String(e.from).startsWith('10.77.0.1:'));
     },
@@ -626,7 +626,7 @@ async function main() {
     sector: 'salud',
     tags: ['afiliacion'],
     classification: 'personal',
-    ownerContact: 'apis@salud.demo.rid.example',
+    ownerContact: 'apis@salud.demo.den.example',
   });
   const openapi = INSTANT ? instantOpenapi : readFileSync(PORTAL_OPENAPI, 'utf8');
   const version = await pedro.call('POST', `/entities/${salud}/apis/${api.id}/versions`, {
@@ -679,7 +679,7 @@ async function main() {
     name: `Consumidor canal ${RUN}`,
     description: 'Prueba del modo canal.',
     environment: 'production',
-    technicalContact: 'dev@programas.demo.rid.example',
+    technicalContact: 'dev@programas.demo.den.example',
   });
   await waitFor(
     async () => (await carlos.call('GET', `/entities/${programas}/applications/${created.application.id}`)).provisioning === 'ready',
@@ -689,7 +689,7 @@ async function main() {
   const token = await gatewayToken(created.application.clientId, created.clientSecret);
   await waitFor(
     async () => {
-      const r = await callGateway(token, { 'x-rid-purpose': 'eligibility_check' });
+      const r = await callGateway(token, { 'x-den-purpose': 'eligibility_check' });
       return r.reason === 'certificate_revoked' ? undefined : r;
     },
     { timeoutMs: 60_000, what: 'the gateway did not learn the new client certificate' },
@@ -714,8 +714,8 @@ async function main() {
     : 'Llamar por el gateway → hub → túnel → nodo (canal) → API propia', 'terminal');
   const requestId = randomUUID();
   const allowed = await callGateway(token, {
-    'x-rid-purpose': 'eligibility_check',
-    'x-rid-end-user': 'funcionario-42',
+    'x-den-purpose': 'eligibility_check',
+    'x-den-end-user': 'funcionario-42',
     'x-request-id': requestId,
   });
   expect(allowed.status === 200, `expected 200, got ${allowed.status} ${allowed.reason} ${JSON.stringify(allowed.body)}`);
@@ -729,7 +729,7 @@ async function main() {
   const access = events('access').find((e) => e.request_id === requestId);
   expect(access, 'the node did not log the call');
   info(`  access: ${JSON.stringify(access)}`);
-  expect(access.client === 'rid-gateway.salud', 'the node did not see the gateway by name');
+  expect(access.client === 'den-gateway.salud', 'the node did not see the gateway by name');
   // The gateway's signed assertion (portal ADR-0024): verified where the network signs, absent
   // where it does not yet; never invalid.
   expect(access.assertion === 'verified' || access.assertion === 'absent', `gateway assertion: ${access.assertion}`);
@@ -741,14 +741,14 @@ async function main() {
   step('Operación: status y doctor', 'entidad');
   if (INSTALLER) {
     for (const cmd of ['status', 'doctor']) {
-      const r = onServer(`bash /opt/rid-node/install.sh ${cmd}`);
+      const r = onServer(`bash /opt/den-node/install.sh ${cmd}`);
       info(`${r.stdout}`.trimEnd().replace(/^/gm, '  '));
       expect(r.status === 0, `install.sh ${cmd} exited ${r.status}: ${r.stderr}`);
     }
     ok('install.sh status y doctor sin errores');
   } else {
-  info(compose(['exec', '-T', 'rid-node', '/rid-node', 'status']).trimEnd().replace(/^/gm, '  '));
-  const doctor = spawnSync('docker', ['compose', '-f', COMPOSE_FILE, 'exec', '-T', 'rid-node', '/rid-node', 'doctor'],
+  info(compose(['exec', '-T', 'den-node', '/den-node', 'status']).trimEnd().replace(/^/gm, '  '));
+  const doctor = spawnSync('docker', ['compose', '-f', COMPOSE_FILE, 'exec', '-T', 'den-node', '/den-node', 'doctor'],
     { cwd: here, encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   info(`${doctor.stdout}`.trimEnd().replace(/^/gm, '  '));
   expect(doctor.status === 0, `doctor exited ${doctor.status}`);
@@ -756,8 +756,8 @@ async function main() {
   }
 
   // Cleanup is opt-in: by default the test is left as it finished (node online, version
-  // published, subscription active). RID_E2E_CLEANUP=1 revokes and decommissions.
-  if (process.env.RID_E2E_CLEANUP === '1') {
+  // published, subscription active). DEN_E2E_CLEANUP=1 revokes and decommissions.
+  if (process.env.DEN_E2E_CLEANUP === '1') {
     step('Limpieza', 'lucia.datos / elena.admin');
     await lucia.call('POST', `/entities/${salud}/access-requests/${subscription.id}/revoke`, { comment: 'Fin de la prueba del kit.' });
     await elena.call('POST', `/entities/${salud}/nodes/${nodeId}/decommission`, { reason: 'Fin de la prueba del kit.' });

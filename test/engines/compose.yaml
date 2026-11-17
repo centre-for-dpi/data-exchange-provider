@@ -1,17 +1,17 @@
 # Integration databases for the instant APIs (make test-engines). Synthetic data only.
 # Passwords come from an env file outside the repo (see docs/DEVELOPMENT.md):
-#   docker compose -f test/engines/compose.yaml --env-file "$RID_IT_ENV" up -d --wait
+#   docker compose -f test/engines/compose.yaml --env-file "$DEN_IT_ENV" up -d --wait
 # The engine images are test infrastructure, never shipped in the kit.
-name: rid-engines
+name: den-engines
 
 services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      POSTGRES_PASSWORD: ${DEN_IT_ADMIN_PASSWORD:?}
       POSTGRES_DB: entidad
-      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
-      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+      DEN_READER_PASSWORD: ${DEN_IT_READER_PASSWORD:?}
+      DEN_WRITER_PASSWORD: ${DEN_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:55432:5432"]
     volumes: ["./postgres:/docker-entrypoint-initdb.d:ro", "./.certs:/certs:ro"] # .certs: gencerts
     healthcheck:
@@ -22,9 +22,9 @@ services:
   mysql:
     image: mysql:8.4
     environment:
-      MYSQL_ROOT_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
-      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
-      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+      MYSQL_ROOT_PASSWORD: ${DEN_IT_ADMIN_PASSWORD:?}
+      DEN_READER_PASSWORD: ${DEN_IT_READER_PASSWORD:?}
+      DEN_WRITER_PASSWORD: ${DEN_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:53306:3306"]
     volumes: ["./mysql:/docker-entrypoint-initdb.d:ro"]
     healthcheck:
@@ -37,9 +37,9 @@ services:
     image: mcr.microsoft.com/mssql/server:2019-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
-      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
-      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+      MSSQL_SA_PASSWORD: ${DEN_IT_ADMIN_PASSWORD:?}
+      DEN_READER_PASSWORD: ${DEN_IT_READER_PASSWORD:?}
+      DEN_WRITER_PASSWORD: ${DEN_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:51433:1433"]
     volumes: ["./sqlserver:/init:ro"]
     # The image has no init hook: start the server, seed it, then mark it seeded for the healthcheck.
@@ -52,9 +52,9 @@ services:
   oracle:
     image: gvenzl/oracle-free:23-slim-faststart
     environment:
-      ORACLE_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
-      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
-      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+      ORACLE_PASSWORD: ${DEN_IT_ADMIN_PASSWORD:?}
+      DEN_READER_PASSWORD: ${DEN_IT_READER_PASSWORD:?}
+      DEN_WRITER_PASSWORD: ${DEN_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:51521:1521"]
     volumes: ["./oracle:/container-entrypoint-initdb.d:ro"]
     healthcheck:
@@ -67,10 +67,10 @@ services:
     profiles: [legacy]
     image: gvenzl/oracle-xe:21-slim-faststart
     environment:
-      ORACLE_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
-      RID_ORACLE_PDB: XEPDB1
-      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
-      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+      ORACLE_PASSWORD: ${DEN_IT_ADMIN_PASSWORD:?}
+      DEN_ORACLE_PDB: XEPDB1
+      DEN_READER_PASSWORD: ${DEN_IT_READER_PASSWORD:?}
+      DEN_WRITER_PASSWORD: ${DEN_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:51523:1521"]
     volumes: ["./oracle:/container-entrypoint-initdb.d:ro"]
     healthcheck:
@@ -83,9 +83,9 @@ services:
     image: gvenzl/oracle-xe:11-slim
     shm_size: 1g
     environment:
-      ORACLE_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
-      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
-      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+      ORACLE_PASSWORD: ${DEN_IT_ADMIN_PASSWORD:?}
+      DEN_READER_PASSWORD: ${DEN_IT_READER_PASSWORD:?}
+      DEN_WRITER_PASSWORD: ${DEN_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:51522:1521"]
     volumes: ["./oracle11:/container-entrypoint-initdb.d:ro", "./oracle/seed.ora:/seed/seed.ora:ro"]
     healthcheck:

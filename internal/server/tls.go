@@ -18,7 +18,7 @@ import (
 
 // Identity is who the node is and whom it accepts.
 type Identity struct {
-	NodeName          string // rid-node-<nodeId>: SNI, Host and the node certificate's DNS name
+	NodeName          string // den-node-<nodeId>: SNI, Host and the node certificate's DNS name
 	GatewayClientName string // the only client certificate name accepted (CN)
 	Roots             *x509.CertPool
 	Certificate       func() *tls.Certificate // the live node certificate (swapped on renewal)

@@ -155,7 +155,7 @@
         "tags": [
           "afiliados"
         ],
-        "x-rid-data-subject": {
+        "x-den-data-subject": {
           "documentType": "CC",
           "in": "path",
           "name": "numero_documento"
@@ -237,7 +237,7 @@
         "tags": [
           "historial"
         ],
-        "x-rid-data-subject": "none"
+        "x-den-data-subject": "none"
       }
     }
   }

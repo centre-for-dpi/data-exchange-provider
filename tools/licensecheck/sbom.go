@@ -52,7 +52,7 @@ func cyclonedx(name, version, variant string, mods []module) ([]byte, error) {
 		"version":     1,
 		"metadata": map[string]any{
 			"component":  map[string]any{"type": "application", "name": name, "version": version},
-			"properties": []map[string]string{{"name": "rid:variant", "value": variant}},
+			"properties": []map[string]string{{"name": "den:variant", "value": variant}},
 		},
 		"components": components,
 	}

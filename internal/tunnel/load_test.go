@@ -18,14 +18,14 @@ import (
 
 // TestTunnelLoad pushes concurrent HTTP traffic from the hub through the userspace WireGuard
 // tunnel to a server on the node: small answers (a lookup) and 256 KiB ones (a document). Every
-// request must succeed; it reports requests per second, latency and throughput. RID_LOAD_SECONDS
+// request must succeed; it reports requests per second, latency and throughput. DEN_LOAD_SECONDS
 // makes it longer (default 3 s).
 func TestTunnelLoad(t *testing.T) {
 	if testing.Short() {
 		t.Skip("load test")
 	}
 	seconds := 3
-	if s, err := strconv.Atoi(os.Getenv("RID_LOAD_SECONDS")); err == nil && s > 0 {
+	if s, err := strconv.Atoi(os.Getenv("DEN_LOAD_SECONDS")); err == nil && s > 0 {
 		seconds = s
 	}
 	node, dial := upNode(t)

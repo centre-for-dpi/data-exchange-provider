@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>RID provider guide</title>
+<title>DEN provider guide</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -474,7 +474,7 @@ details.faq[open] summary { color: var(--gov); }
           <div><h4>Other connections</h4><span class="tech">without a node</span></div>
           <ul class="ticks">
             <li><b>X-Road:</b> if the entity already publishes on X-Road, the gateway reaches it through the operator's Security Server.</li>
-            <li><b>Directly exposed API:</b> an exception agreed with the operator. It requires HTTPS with a public certificate, inbound traffic from the gateway's IP and, preferably, mTLS with <code>CN=rid-gateway.&lt;slug&gt;</code>.</li>
+            <li><b>Directly exposed API:</b> an exception agreed with the operator. It requires HTTPS with a public certificate, inbound traffic from the gateway's IP and, preferably, mTLS with <code>CN=den-gateway.&lt;slug&gt;</code>.</li>
           </ul>
         </article>
       </div>
@@ -505,7 +505,7 @@ details.faq[open] summary { color: var(--gov); }
         <table class="t">
           <thead><tr><th>What</th><th>Detail</th></tr></thead>
           <tbody>
-            <tr><td>OpenAPI 3 contract</td><td class="wrap">The portal checks it when the version is registered: an <code>operationId</code> on every operation, with no duplicates; at least one success response; only local <code>$ref</code>; in APIs with personal or sensitive data, each operation declares its data subject (<code>x-rid-data-subject</code>) or <code>none</code>.</td></tr>
+            <tr><td>OpenAPI 3 contract</td><td class="wrap">The portal checks it when the version is registered: an <code>operationId</code> on every operation, with no duplicates; at least one success response; only local <code>$ref</code>; in APIs with personal or sensitive data, each operation declares its data subject (<code>x-den-data-subject</code>) or <code>none</code>.</td></tr>
             <tr><td>Identifiers</td><td class="wrap"><b>Never in the query string.</b> Document numbers go in the path (<code>/personas/{documento}</code>) or in the body of a POST, not in <code>?documento=…</code>.</td></tr>
             <tr><td>Own API</td><td class="wrap">The API's internal URL and, if it requires one, its credential: a header, a username and password, or a client certificate.</td></tr>
             <tr><td>Instant API</td><td class="wrap">One <b>view</b> per query, with only the columns that will be shared, and a <b>read-only user</b> with <code>SELECT</code> on those views and nothing else. The node generates the OpenAPI. The commands for each engine are in <a href="../INSTANT-APIS.md"><code>docs/INSTANT-APIS.md</code></a>.</td></tr>
@@ -539,7 +539,7 @@ details.faq[open] summary { color: var(--gov); }
       <p>It checks DNS, outbound HTTPS to the portal and the gateway, and that the gateway's certificate verifies against the network's root.</p>
       <div class="callout warn">
         <b>The tunnel cannot be tested yet</b>
-        <p>The script does not test UDP 51820 without a node. The node itself checks it after it is installed, with <code>sudo /opt/rid-node/install.sh doctor</code>.</p>
+        <p>The script does not test UDP 51820 without a node. The node itself checks it after it is installed, with <code>sudo /opt/den-node/install.sh doctor</code>.</p>
       </div>
     </section>
 
@@ -558,12 +558,12 @@ details.faq[open] summary { color: var(--gov); }
       <ol class="steps">
         <li><span>The <code>entity_admin</code> goes to <b>My entity → Kit nodes</b>, registers the node and copies the <b>enrollment token</b>. It is shown only once, works for a single node and expires in <b>72 hours</b>. They pass it to the infrastructure team through a secure channel.</span></li>
         <li><span>The infrastructure team <b>verifies the bundle</b> against the checksum published by the operator and installs it. The installer asks for the mode (<code>canal</code> or <code>completo</code>), the proxy, the portal URL and the token.
-          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>sha256sum rid-node-kit-&lt;version&gt;.tar.gz
-tar -xzf rid-node-kit-&lt;version&gt;.tar.gz
-cd rid-node-kit-&lt;version&gt;
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>sha256sum den-node-kit-&lt;version&gt;.tar.gz
+tar -xzf den-node-kit-&lt;version&gt;.tar.gz
+cd den-node-kit-&lt;version&gt;
 sudo ./install.sh</code></pre></div></span></li>
-        <li><span>Add the service, and its sandbox if there is one. With an <b>own API</b> (<code>proxy</code>) it asks for the name, the <b>path on the node</b> (for example <code>/certificados</code>), the internal URL, the credential and the OpenAPI. With an <b>instant API</b> (<code>instant</code>) it asks for the database connection with the read-only user, shows the views it can read, asks for the view and the key column, and generates the OpenAPI in <code>/opt/rid-node/config/services/&lt;name&gt;.openapi.json</code>.
-          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>sudo /opt/rid-node/install.sh service</code></pre></div></span></li>
+        <li><span>Add the service, and its sandbox if there is one. With an <b>own API</b> (<code>proxy</code>) it asks for the name, the <b>path on the node</b> (for example <code>/certificados</code>), the internal URL, the credential and the OpenAPI. With an <b>instant API</b> (<code>instant</code>) it asks for the database connection with the read-only user, shows the views it can read, asks for the view and the key column, and generates the OpenAPI in <code>/opt/den-node/config/services/&lt;name&gt;.openapi.json</code>.
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>sudo /opt/den-node/install.sh service</code></pre></div></span></li>
         <li><span>In the portal, the node shows as <b>Online</b>.</span></li>
       </ol>
       <div class="callout info">
@@ -602,17 +602,17 @@ sudo ./install.sh</code></pre></div></span></li>
         <table class="t">
           <thead><tr><th>Header</th><th>Content</th></tr></thead>
           <tbody>
-            <tr><td><code>X-RID-Consumer-Entity</code><br><code>X-RID-Consumer-App</code></td><td class="wrap">Consumer entity and application</td></tr>
-            <tr><td><code>X-RID-Subscription</code></td><td class="wrap">The authorization under which the query was made</td></tr>
-            <tr><td><code>X-RID-Purpose</code></td><td class="wrap">Declared purpose</td></tr>
-            <tr><td><code>X-RID-Operation</code></td><td class="wrap">Contract operation (<code>operationId</code>)</td></tr>
-            <tr><td><code>X-RID-End-User-Hash</code></td><td class="wrap">Hash of the official making the query, if the API requires it</td></tr>
-            <tr><td><code>X-RID-Subject-Ref</code></td><td class="wrap">Pseudonym of the data subject, if the operation declares one</td></tr>
+            <tr><td><code>X-DEN-Consumer-Entity</code><br><code>X-DEN-Consumer-App</code></td><td class="wrap">Consumer entity and application</td></tr>
+            <tr><td><code>X-DEN-Subscription</code></td><td class="wrap">The authorization under which the query was made</td></tr>
+            <tr><td><code>X-DEN-Purpose</code></td><td class="wrap">Declared purpose</td></tr>
+            <tr><td><code>X-DEN-Operation</code></td><td class="wrap">Contract operation (<code>operationId</code>)</td></tr>
+            <tr><td><code>X-DEN-End-User-Hash</code></td><td class="wrap">Hash of the official making the query, if the API requires it</td></tr>
+            <tr><td><code>X-DEN-Subject-Ref</code></td><td class="wrap">Pseudonym of the data subject, if the operation declares one</td></tr>
             <tr><td><code>X-Request-Id</code></td><td class="wrap">Correlation identifier, the same as in the network's log</td></tr>
           </tbody>
         </table>
       </div>
-      <p>Later on, the gateway will sign each call in an <code>X-RID-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway.</p>
+      <p>Later on, the gateway will sign each call in an <code>X-DEN-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway.</p>
     </section>
 
     <section id="recomendaciones">
@@ -623,7 +623,7 @@ sudo ./install.sh</code></pre></div></span></li>
         <div><b>No content in the logs</b><span>No request or response bodies. Paths and query strings masked: they can contain identification numbers.</span></div>
         <div><b>Read-only</b><span>The API reads the data with a read-only user.</span></div>
         <div><b>Only through the node</b><span>The API is not exposed outside the internal network: the node is its only door to the network.</span></div>
-        <div><b>Keep traceability</b><span>Logging <code>X-Request-Id</code>, <code>X-RID-Consumer-Entity</code> and <code>X-RID-Purpose</code> with each query lets you answer an audit.</span></div>
+        <div><b>Keep traceability</b><span>Logging <code>X-Request-Id</code>, <code>X-DEN-Consumer-Entity</code> and <code>X-DEN-Purpose</code> with each query lets you answer an audit.</span></div>
       </div>
     </section>
 
@@ -640,10 +640,10 @@ sudo ./install.sh</code></pre></div></span></li>
     <section id="operacion">
       <h2><span class="num">13</span>Operating the node</h2>
       <div class="cmds">
-        <div class="cmd"><code>sudo /opt/rid-node/install.sh status</code><button class="copy" type="button">Copy</button><span>Status: portal, tunnel, certificate, health of each service and warnings.</span></div>
-        <div class="cmd"><code>sudo /opt/rid-node/install.sh doctor</code><button class="copy" type="button">Copy</button><span>Checks the configuration, secrets, DNS, portal, clock, internal APIs and tunnel.</span></div>
-        <div class="cmd"><code>sudo /opt/rid-node/install.sh logs</code><button class="copy" type="button">Copy</button><span>The node's latest logs (metadata only). With <code>-f</code> it follows them live.</span></div>
-        <div class="cmd"><code>sudo /opt/rid-node/install.sh backup</code><button class="copy" type="button">Copy</button><span>Backup in <code>/opt/rid-node/backups/</code>, with the node's keys.</span></div>
+        <div class="cmd"><code>sudo /opt/den-node/install.sh status</code><button class="copy" type="button">Copy</button><span>Status: portal, tunnel, certificate, health of each service and warnings.</span></div>
+        <div class="cmd"><code>sudo /opt/den-node/install.sh doctor</code><button class="copy" type="button">Copy</button><span>Checks the configuration, secrets, DNS, portal, clock, internal APIs and tunnel.</span></div>
+        <div class="cmd"><code>sudo /opt/den-node/install.sh logs</code><button class="copy" type="button">Copy</button><span>The node's latest logs (metadata only). With <code>-f</code> it follows them live.</span></div>
+        <div class="cmd"><code>sudo /opt/den-node/install.sh backup</code><button class="copy" type="button">Copy</button><span>Backup in <code>/opt/den-node/backups/</code>, with the node's keys.</span></div>
       </div>
       <p>To report a problem to the operator, attach the output of <code>status</code> and <code>doctor</code>: it contains no secrets and no personal data.</p>
     </section>
@@ -667,8 +667,8 @@ sudo ./install.sh</code></pre></div></span></li>
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function setBig(on) { root.classList.toggle('big', on); big.setAttribute('aria-pressed', on ? 'true' : 'false'); }
-  setBig(load('ridp-big') === '1');
-  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('ridp-big', on ? '1' : '0'); });
+  setBig(load('denp-big') === '1');
+  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('denp-big', on ? '1' : '0'); });
 
   document.querySelectorAll('.copy').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -681,8 +681,8 @@ sudo ./install.sh</code></pre></div></span></li>
   });
 
   document.querySelectorAll('#pre input').forEach(function (box) {
-    box.checked = load('ridp-' + box.id) === '1';
-    box.addEventListener('change', function () { store('ridp-' + box.id, box.checked ? '1' : '0'); });
+    box.checked = load('denp-' + box.id) === '1';
+    box.addEventListener('change', function () { store('denp-' + box.id, box.checked ? '1' : '0'); });
   });
 
   var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));

@@ -1,5 +1,5 @@
 # The node image: one static binary on an empty base, non-root, no shell.
-#   docker build -f deploy/Dockerfile --build-arg VARIANT=canal -t rid-node:<version>-canal .
+#   docker build -f deploy/Dockerfile --build-arg VARIANT=canal -t den-node:<version>-canal .
 # VARIANT=completo (proxy + instant services) | canal (secure channel only, no database drivers).
 ARG GO_IMAGE=golang:1.27.4-alpine@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280
 
@@ -18,15 +18,15 @@ ARG TARGETARCH=amd64
 RUN case "$VARIANT" in completo) tags="" ;; canal) tags="canal" ;; *) echo "VARIANT must be completo or canal" >&2; exit 1 ;; esac \
  && CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -tags "$tags" \
       -ldflags "-s -w -X github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo.Version=${VERSION}" \
-      -o /out/rid-node ./cmd/rid-node
+      -o /out/den-node ./cmd/den-node
 
 FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --chown=65532:65532 deploy/rootfs/ /
-COPY --from=build /out/rid-node /rid-node
+COPY --from=build /out/den-node /den-node
 COPY LICENSE NOTICE /licenses/
 LABEL org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.vendor="Centre for Digital Public Infrastructure (CDPI)"
 USER 65532:65532
-ENV RID_STATE_DIR=/var/lib/rid-node RID_CONFIG=/etc/rid-node/node.yaml
-ENTRYPOINT ["/rid-node", "run"]
+ENV DEN_STATE_DIR=/var/lib/den-node DEN_CONFIG=/etc/den-node/node.yaml
+ENTRYPOINT ["/den-node", "run"]

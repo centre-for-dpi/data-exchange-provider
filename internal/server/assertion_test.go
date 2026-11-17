@@ -38,7 +38,7 @@ func assertionHandler(t *testing.T, result string, require bool) (http.Handler, 
 func TestAssertionVerifyModeLogs(t *testing.T) {
 	h, logs, seen, _ := assertionHandler(t, "invalid: uri", false)
 	req := httptest.NewRequest(http.MethodGet, "https://"+nodeName+"/salud/afiliados/1000000001?x=1", nil)
-	req.Header.Set("X-RID-Assertion", "a.b.c")
+	req.Header.Set("X-DEN-Assertion", "a.b.c")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != 200 || seen.uri != "/salud/afiliados/1000000001?x=1" || seen.header != "a.b.c" || seen.method != "GET" {
@@ -69,7 +69,7 @@ func TestAssertionSeesAndRestoresBody(t *testing.T) {
 	h, _, seen, got := assertionHandler(t, "verified", false)
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "https://"+nodeName+"/salud/v", strings.NewReader(`{"a":1}`))
-	req.Header.Set("X-RID-Assertion", "a.b.c")
+	req.Header.Set("X-DEN-Assertion", "a.b.c")
 	h.ServeHTTP(rec, req)
 	if string(seen.body) != `{"a":1}` || string(*got) != `{"a":1}` || rec.Code != 200 {
 		t.Fatalf("checked %q, served %q, %d", seen.body, *got, rec.Code)
@@ -107,7 +107,7 @@ func TestVerifyModeServesBodiesTooLargeToVerify(t *testing.T) {
 	h, logs, got := bodyRoute(t, false, 1024, &calls)
 	body := strings.Repeat("y", 4096)
 	req := httptest.NewRequest(http.MethodPost, "https://"+nodeName+"/docs/v", strings.NewReader(body))
-	req.Header.Set("X-RID-Assertion", "a.b.c")
+	req.Header.Set("X-DEN-Assertion", "a.b.c")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != 200 || string(*got) != body || !strings.Contains(logs.String(), `"assertion":"invalid: body too large to verify"`) {
@@ -116,7 +116,7 @@ func TestVerifyModeServesBodiesTooLargeToVerify(t *testing.T) {
 	calls = 0
 	h, _, got = bodyRoute(t, true, 1024, &calls)
 	req = httptest.NewRequest(http.MethodPost, "https://"+nodeName+"/docs/v", strings.NewReader(body))
-	req.Header.Set("X-RID-Assertion", "a.b.c")
+	req.Header.Set("X-DEN-Assertion", "a.b.c")
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 	if rec.Code != http.StatusRequestEntityTooLarge || len(*got) != 0 {

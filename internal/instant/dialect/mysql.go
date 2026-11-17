@@ -62,7 +62,7 @@ func registerCA(host, caFile string) (string, error) {
 		return "", i18n.Errorf("%s contains no PEM certificates", caFile)
 	}
 	sum := sha256.Sum256(append([]byte(host+"\x00"), pem...))
-	name := "rid-" + hex.EncodeToString(sum[:8])
+	name := "den-" + hex.EncodeToString(sum[:8])
 	if err := mysql.RegisterTLSConfig(name, &tls.Config{RootCAs: pool, ServerName: host, MinVersion: tls.VersionTLS12}); err != nil {
 		return "", err
 	}

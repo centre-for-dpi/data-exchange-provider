@@ -1,8 +1,8 @@
 package i18n
 
-// The usage of rid-node (cmd/rid-node/main.go), in both languages.
+// The usage of den-node (cmd/den-node/main.go), in both languages.
 const (
-	usageEN = `usage: rid-node <command>
+	usageEN = `usage: den-node <command>
 
 commands:
   run              starts the node (the container's entry point)
@@ -19,10 +19,10 @@ Instant APIs (full mode):
                                        adds a resource with every column that can be exposed
   openapi <service>                    prints the generated OpenAPI
 
-variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
-           RID_TOKEN_FILE (/run/secrets/enrollment_token), RID_HEARTBEAT_SECONDS (development only)
+variables: DEN_CONFIG (/etc/den-node/node.yaml), DEN_STATE_DIR (/var/lib/den-node),
+           DEN_TOKEN_FILE (/run/secrets/enrollment_token), DEN_HEARTBEAT_SECONDS (development only)
 `
-	usageES = `uso: rid-node <comando>
+	usageES = `uso: den-node <comando>
 
 comandos:
   run              arranca el nodo (punto de entrada del contenedor)
@@ -39,8 +39,8 @@ APIs instantáneas (modo completo):
                                        agrega un recurso con todas las columnas exponibles
   openapi <servicio>                   imprime el OpenAPI generado
 
-variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
-           RID_TOKEN_FILE (/run/secrets/enrollment_token), RID_HEARTBEAT_SECONDS (solo desarrollo)
+variables: DEN_CONFIG (/etc/den-node/node.yaml), DEN_STATE_DIR (/var/lib/den-node),
+           DEN_TOKEN_FILE (/run/secrets/enrollment_token), DEN_HEARTBEAT_SECONDS (solo desarrollo)
 `
 )
 
@@ -186,7 +186,7 @@ var es = map[string]string{
 	"invalid service %s:\n%w":                                                                           "servicio %s inválido:\n%w",
 	"cannot read the secret %s: %w":                                                                     "no se pudo leer el secreto %s: %w",
 	"the secret %s is empty":                                                                            "el secreto %s está vacío",
-	"rid-node %s (%s), node contract v%s\n":                                                             "rid-node %s (%s), contrato de nodos v%s\n",
+	"den-node %s (%s), node contract v%s\n":                                                             "den-node %s (%s), contrato de nodos v%s\n",
 	"✘ service %q: %v\n":                                                                                "✘ servicio %q: %v\n",
 	"✔ valid configuration: %d services\n":                                                              "✔ configuración válida: %d servicios\n",
 	"the instant APIs are not available in canal mode: the instant APIs come in the full image (install.sh mode completo)":                 "las APIs instantáneas no está disponible en modo canal: las APIs instantáneas vienen en la imagen completa (install.sh modo completo)",
@@ -272,15 +272,15 @@ var es = map[string]string{
 	"prints the resulting file instead of writing it (install.sh)":                "imprime el archivo resultante en vez de escribirlo (install.sh)",
 	"✘ --source and --key are missing":                                            "✘ faltan --source y --key",
 	"✘ the service already has a resource %q: use --resource with another name\n": "✘ el servicio ya tiene un recurso %q: usa --resource con otro nombre\n",
-	"Columns skipped by rid-node scaffold:\n- %s":                                 "Columnas omitidas por rid-node scaffold:\n- %s",
+	"Columns skipped by den-node scaffold:\n- %s":                                 "Columnas omitidas por den-node scaffold:\n- %s",
 	"✘ could not write the resource: %v\n":                                        "✘ no se pudo escribir el recurso: %v\n",
 	"✘ the resource is not valid:\n%v\n":                                          "✘ el recurso no es válido:\n%v\n",
 	"✔ resource %q added: GET %s/%s/{%s} (%d columns)\n":                          "✔ recurso %q agregado: GET %s/%s/{%s} (%d columnas)\n",
 	"⚠ column skipped: %s\n":                                                      "⚠ columna omitida: %s\n",
 	"the file is not a YAML map":                                                  "el archivo no es un mapa YAML",
-	"usage: rid-node openapi <service>":                                           "uso: rid-node openapi <servicio>",
+	"usage: den-node openapi <service>":                                           "uso: den-node openapi <servicio>",
 	"✘ service %q is not instant: the entity writes its OpenAPI\n":                "✘ el servicio %q no es instant: su OpenAPI lo escribe la entidad\n",
 	"✘ there is no service %q\n":                                                  "✘ no hay un servicio %q\n",
-	// cmd/rid-node usage
+	// cmd/den-node usage
 	usageEN: usageES,
 }

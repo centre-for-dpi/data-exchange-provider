@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>APIs instantáneas RID</title>
+<title>APIs instantáneas DEN</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -393,32 +393,32 @@ details.faq[open] summary { color: var(--gov); }
       <div class="comps">
         <article class="comp e">
           <div><h4>PostgreSQL</h4></div>
-          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE ROLE rid_reader LOGIN PASSWORD '&lt;contraseña&gt;';
-GRANT CONNECT ON DATABASE entidad TO rid_reader;
-GRANT USAGE ON SCHEMA salud TO rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE ROLE den_reader LOGIN PASSWORD '&lt;contraseña&gt;';
+GRANT CONNECT ON DATABASE entidad TO den_reader;
+GRANT USAGE ON SCHEMA salud TO den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;</code></pre></div>
         </article>
         <article class="comp e">
           <div><h4>SQL Server</h4></div>
-          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE LOGIN rid_reader WITH PASSWORD = '&lt;contraseña&gt;';
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE LOGIN den_reader WITH PASSWORD = '&lt;contraseña&gt;';
 USE entidad;
-CREATE USER rid_reader FOR LOGIN rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+CREATE USER den_reader FOR LOGIN den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;</code></pre></div>
         </article>
         <article class="comp e">
           <div><h4>MySQL</h4><span class="tech">el "esquema" es la base de datos</span></div>
-          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE USER 'rid_reader'@'&lt;IP del nodo&gt;' IDENTIFIED BY '&lt;contraseña&gt;';
-GRANT SELECT ON salud.v_afiliados TO 'rid_reader'@'&lt;IP del nodo&gt;';</code></pre></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE USER 'den_reader'@'&lt;IP del nodo&gt;' IDENTIFIED BY '&lt;contraseña&gt;';
+GRANT SELECT ON salud.v_afiliados TO 'den_reader'@'&lt;IP del nodo&gt;';</code></pre></div>
         </article>
         <article class="comp e">
           <div><h4>Oracle</h4><span class="tech">en la PDB; la "base" es el servicio (p. ej. ORCLPDB1)</span></div>
-          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE USER rid_reader IDENTIFIED BY "&lt;contraseña&gt;";
-GRANT CREATE SESSION TO rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE USER den_reader IDENTIFIED BY "&lt;contraseña&gt;";
+GRANT CREATE SESSION TO den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;</code></pre></div>
         </article>
       </div>
       <ul class="ticks">
-        <li>La contraseña no se escribe en ningún archivo de configuración: el instalador la pide sin mostrarla y la guarda en <code>/opt/rid-node/secrets/&lt;servicio&gt;_db_password</code>.</li>
+        <li>La contraseña no se escribe en ningún archivo de configuración: el instalador la pide sin mostrarla y la guarda en <code>/opt/den-node/secrets/&lt;servicio&gt;_db_password</code>.</li>
         <li><code>doctor</code> comprueba que el usuario <b>no pueda escribir</b> en las vistas que se exponen. Si puede, lo marca con ✘.</li>
       </ul>
 
@@ -446,15 +446,15 @@ GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
       <h2><span class="num">3</span>Modo del nodo</h2>
       <p>Las APIs instantáneas necesitan el nodo en <b>modo completo</b>. Si se instaló en modo canal, se cambia sin perder la identidad ni los servicios:</p>
       <div class="cmds">
-        <div class="cmd"><code>sudo /opt/rid-node/install.sh modo completo</code><button class="copy" type="button">Copiar</button><span>Cambia a la imagen con las APIs instantáneas y los drivers.</span></div>
-        <div class="cmd"><code>sudo /opt/rid-node/install.sh servicio</code><button class="copy" type="button">Copiar</button><span>Tipo <code>instant</code>: muestra las vistas que el usuario puede leer, crea el recurso y genera el OpenAPI en <code>/opt/rid-node/config/services/&lt;servicio&gt;.openapi.json</code>.</span></div>
+        <div class="cmd"><code>sudo /opt/den-node/install.sh modo completo</code><button class="copy" type="button">Copiar</button><span>Cambia a la imagen con las APIs instantáneas y los drivers.</span></div>
+        <div class="cmd"><code>sudo /opt/den-node/install.sh servicio</code><button class="copy" type="button">Copiar</button><span>Tipo <code>instant</code>: muestra las vistas que el usuario puede leer, crea el recurso y genera el OpenAPI en <code>/opt/den-node/config/services/&lt;servicio&gt;.openapi.json</code>.</span></div>
       </div>
     </section>
 
     <section id="archivo">
       <div class="part">Configuración</div>
       <h2><span class="num">4</span>El archivo del servicio</h2>
-      <p>Cada servicio vive en <code>/opt/rid-node/config/services/&lt;servicio&gt;.yaml</code>. El instalador lo escribe; se puede editar después (sección 8).</p>
+      <p>Cada servicio vive en <code>/opt/den-node/config/services/&lt;servicio&gt;.yaml</code>. El instalador lo escribe; se puede editar después (sección 8).</p>
       <div class="code"><button class="copy" type="button">Copiar</button><pre><code>name: afiliacion                       # nombre del servicio: minúsculas, números y guiones
 path: /afiliacion                      # "Ruta del servicio en el nodo" en el portal
 type: instant
@@ -466,7 +466,7 @@ database:
   host: bd.interna.entidad
   port: 5432
   name: entidad                        # la base; en Oracle, el nombre del servicio
-  user: rid_reader
+  user: den_reader
   passwordFile: /run/secrets/afiliacion_db_password
   tls: require                         # disable | require | verify
   # caFile: /run/secrets/afiliacion_db_ca.pem   # solo con verify (no en Oracle)
@@ -591,14 +591,14 @@ resources:
     <section id="cambiar">
       <div class="part">Operación</div>
       <h2><span class="num">8</span>Cambiar un servicio</h2>
-      <p>Los comandos del nodo se ejecutan dentro del contenedor, desde <code>/opt/rid-node</code>. Dentro del contenedor, la configuración está en <code>/etc/rid-node/services/</code>.</p>
-      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node &lt;comando&gt;</code></pre></div>
+      <p>Los comandos del nodo se ejecutan dentro del contenedor, desde <code>/opt/den-node</code>. Dentro del contenedor, la configuración está en <code>/etc/den-node/services/</code>.</p>
+      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/den-node
+sudo docker compose exec den-node /den-node &lt;comando&gt;</code></pre></div>
       <div class="tablewrap">
         <table class="t">
           <thead><tr><th>Comando</th><th>Para qué</th></tr></thead>
           <tbody>
-            <tr><td class="wrap"><code>catalog --service-file /etc/rid-node/services/&lt;servicio&gt;.yaml</code></td><td class="wrap">Las vistas y tablas que el usuario puede leer, con sus columnas y si se pueden publicar</td></tr>
+            <tr><td class="wrap"><code>catalog --service-file /etc/den-node/services/&lt;servicio&gt;.yaml</code></td><td class="wrap">Las vistas y tablas que el usuario puede leer, con sus columnas y si se pueden publicar</td></tr>
             <tr><td class="wrap"><code>scaffold --print --service-file ... --source esquema.vista --key columna [--resource nombre] [--entity Nombre] [--subject CC] [--many]</code></td><td class="wrap">Imprime el archivo del servicio con un recurso nuevo, que trae todas las columnas que se pueden publicar</td></tr>
             <tr><td><code>validate</code></td><td class="wrap">Valida todos los servicios contra sus bases</td></tr>
             <tr><td><code>openapi &lt;servicio&gt;</code></td><td class="wrap">Imprime el OpenAPI que se sube al portal</td></tr>
@@ -611,16 +611,16 @@ sudo docker compose exec rid-node /rid-node &lt;comando&gt;</code></pre></div>
 
       <h3>Agregar un recurso a un servicio existente</h3>
       <p>Otra vista sobre la misma base:</p>
-      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>sudo /opt/rid-node/install.sh servicio recurso afiliacion</code></pre></div>
+      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>sudo /opt/den-node/install.sh servicio recurso afiliacion</code></pre></div>
       <p>Muestra las vistas que el usuario puede leer, pide la vista y su clave, agrega el recurso, valida, regenera el OpenAPI y reinicia el nodo. Si algo falla, deja el servicio como estaba. El OpenAPI cambia, así que hay que publicar una versión nueva en el portal.</p>
 
       <h3>Después de cualquier cambio</h3>
       <ol class="steps">
         <li><span>Valida, regenera el OpenAPI y reinicia:
-          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node validate
-sudo docker compose exec rid-node /rid-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json &gt;/dev/null
-sudo docker compose restart rid-node</code></pre></div></span></li>
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/den-node
+sudo docker compose exec den-node /den-node validate
+sudo docker compose exec den-node /den-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json &gt;/dev/null
+sudo docker compose restart den-node</code></pre></div></span></li>
         <li><span><b>Si el OpenAPI cambió, publica una versión nueva en el portal.</b> El nodo envía la huella del OpenAPI que sirve en cada heartbeat, para que el portal sepa qué contrato está detrás. Un cambio incompatible (quitar una columna, cambiar su tipo, cambiar la clave) exige una versión mayor nueva.</span></li>
       </ol>
       <div class="callout info">
@@ -678,8 +678,8 @@ sudo docker compose restart rid-node</code></pre></div></span></li>
   function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function setBig(on) { root.classList.toggle('big', on); big.setAttribute('aria-pressed', on ? 'true' : 'false'); }
-  setBig(load('ridi-big') === '1');
-  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('ridi-big', on ? '1' : '0'); });
+  setBig(load('deni-big') === '1');
+  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('deni-big', on ? '1' : '0'); });
 
   document.querySelectorAll('.copy').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -692,8 +692,8 @@ sudo docker compose restart rid-node</code></pre></div></span></li>
   });
 
   document.querySelectorAll('#pre input').forEach(function (box) {
-    box.checked = load('ridi-' + box.id) === '1';
-    box.addEventListener('change', function () { store('ridi-' + box.id, box.checked ? '1' : '0'); });
+    box.checked = load('deni-' + box.id) === '1';
+    box.addEventListener('change', function () { store('deni-' + box.id, box.checked ? '1' : '0'); });
   });
 
   var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));

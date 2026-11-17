@@ -12,9 +12,9 @@ import (
 
 func sample() *State {
 	return &State{
-		NodeID: "01a1e5a6-9381-738c-a707-d6e29330ea26", NodeName: "rid-node-01a1e5a6-9381-738c-a707-d6e29330ea26",
+		NodeID: "01a1e5a6-9381-738c-a707-d6e29330ea26", NodeName: "den-node-01a1e5a6-9381-738c-a707-d6e29330ea26",
 		Certificate: "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n", CertificateNotAfter: "2027-02-14T18:37:54Z",
-		CACertificate: "ca", ControlURL: "https://localhost:9443", GatewayClientName: "rid-gateway.salud",
+		CACertificate: "ca", ControlURL: "https://localhost:9443", GatewayClientName: "den-gateway.salud",
 		HeartbeatIntervalSeconds: 60,
 		WireGuard: WireGuard{Address: "10.77.0.19/32", HubPublicKey: "hub", HubEndpoint: "wg-hub:51820",
 			HubAddress: "10.77.0.1", AllowedIPs: []string{"10.77.0.1/32"}, PersistentKeepaliveSeconds: 25},

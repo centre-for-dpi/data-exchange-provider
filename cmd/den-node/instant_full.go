@@ -288,7 +288,7 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 	}
 	comment := ""
 	if len(skipped) > 0 {
-		comment = i18n.Sprintf("Columns skipped by rid-node scaffold:\n- %s", strings.Join(skipped, "\n- "))
+		comment = i18n.Sprintf("Columns skipped by den-node scaffold:\n- %s", strings.Join(skipped, "\n- "))
 	}
 	updated, err := appendResource(raw, r, comment)
 	if err != nil {
@@ -371,7 +371,7 @@ func appendResource(raw []byte, r config.Resource, comment string) ([]byte, erro
 
 func openapiCmd(ctx context.Context, args []string, configPath string, out io.Writer) int {
 	if len(args) != 1 {
-		i18n.Fprintln(out, "usage: rid-node openapi <service>")
+		i18n.Fprintln(out, "usage: den-node openapi <service>")
 		return 2
 	}
 	cfg, err := config.Load(configPath)

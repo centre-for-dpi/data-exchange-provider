@@ -1,11 +1,11 @@
-# The provider node, as the installer sets it up in /opt/rid-node (ADR-0002, ARCHITECTURE §4).
+# The provider node, as the installer sets it up in /opt/den-node (ADR-0002, ARCHITECTURE §4).
 # Outbound only: no published ports. Secrets are files under ./secrets (root:65532 0750, each
 # file 65532:65532 0400), never environment variables.
-name: rid-node
+name: den-node
 
 services:
-  rid-node:
-    image: ${RID_NODE_IMAGE:-rid-node}:${RID_NODE_VERSION:?}${RID_NODE_TAG_SUFFIX:-}
+  den-node:
+    image: ${DEN_NODE_IMAGE:-den-node}:${DEN_NODE_VERSION:?}${DEN_NODE_TAG_SUFFIX:-}
     restart: unless-stopped
     mem_limit: 256m # the node uses about 10 MiB; a ceiling protects shared servers
     pids_limit: 128
@@ -15,14 +15,14 @@ services:
     environment:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-}
-      RID_LANG: ${RID_LANG:-en} # the language of the node's CLI, errors and OpenAPI texts: en or es
+      DEN_LANG: ${DEN_LANG:-en} # the language of the node's CLI, errors and OpenAPI texts: en or es
     volumes:
-      - rid-node-state:/var/lib/rid-node
-      - ./config:/etc/rid-node:ro
+      - den-node-state:/var/lib/den-node
+      - ./config:/etc/den-node:ro
       - ./secrets:/run/secrets:ro
     logging:
       driver: json-file
       options: { max-size: 10m, max-file: '5' }
 
 volumes:
-  rid-node-state: {}
+  den-node-state: {}

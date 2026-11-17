@@ -40,7 +40,7 @@ func sharedTitle(title string) string {
 }
 
 // OpenAPI generates the service's OpenAPI 3.1 document: deterministic (sorted keys, indented),
-// with one GET by key per resource, operationId get<Entity> and x-rid-data-subject.
+// with one GET by key per resource, operationId get<Entity> and x-den-data-subject.
 func OpenAPI(svc config.Service, rs []Compiled) ([]byte, error) {
 	schemas := map[string]any{
 		"Problem": map[string]any{
@@ -102,7 +102,7 @@ func OpenAPI(svc config.Service, rs []Compiled) ([]byte, error) {
 			"summary":            i18n.Sprintf("Get %s by %s", strings.ToLower(r.Entity), r.Key.Column),
 			"tags":               []string{r.Name},
 			"parameters":         []any{param},
-			"x-rid-data-subject": subject,
+			"x-den-data-subject": subject,
 			"responses": map[string]any{
 				"200": map[string]any{"description": ok, "content": map[string]any{"application/json": map[string]any{"schema": body}}},
 				"400": problem(i18n.T(titleInvalidKey + ", or the URL has parameters")),

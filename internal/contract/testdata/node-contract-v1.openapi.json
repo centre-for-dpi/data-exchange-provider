@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "RID portal: contract with the instant-APIs kit",
+    "title": "DEN portal: contract with the instant-APIs kit",
     "version": "1",
-    "description": "API of the RID portal. Errors use RFC 9457 problem details (application/problem+json)."
+    "description": "API of the DEN portal. Errors use RFC 9457 problem details (application/problem+json)."
   },
   "servers": [
     {
@@ -470,7 +470,7 @@
       "post": {
         "operationId": "enrollNode",
         "summary": "Enroll a kit node with its single-use token",
-        "description": "The kit sends its token, a CSR (CN=rid-node, no other names) and its WireGuard public key. It receives its certificate (DNS name rid-node-<nodeId>), the network root, its tunnel configuration and where the control channel is. The token stops working.",
+        "description": "The kit sends its token, a CSR (CN=den-node, no other names) and its WireGuard public key. It receives its certificate (DNS name den-node-<nodeId>), the network root, its tunnel configuration and where the control channel is. The token stops working.",
         "tags": [
           "node contract"
         ],
@@ -681,11 +681,11 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Access token of the national digital identity, issued to an authorized citizen app (the Carpeta Ciudadana). Development: realm rid-citizens."
+        "description": "Access token of the national digital identity, issued to an authorized citizen app (the Carpeta Ciudadana). Development: realm den-citizens."
       },
       "nodeMutualTls": {
         "type": "mutualTLS",
-        "description": "Control channel of kit nodes (ARCHITECTURE.md §10): TLS with the node certificate issued at enrollment, at the gateway (RID_NODE_CONTROL_URL), which passes the verified thumbprint to the portal."
+        "description": "Control channel of kit nodes (ARCHITECTURE.md §10): TLS with the node certificate issued at enrollment, at the gateway (DEN_NODE_CONTROL_URL), which passes the verified thumbprint to the portal."
       }
     },
     "schemas": {

@@ -1,4 +1,4 @@
-# Instant API kit — RID
+# Instant API kit — DEN
 
 > Versión en español: [docs/es/README.md](docs/es/README.md)
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Installer of the data exchange network's provider node (rid-node) on Ubuntu Server LTS with
-# Docker Engine (ADR-0002, docs/INSTALL.md). Everything lives in /opt/rid-node; after the
-# first run the script is also at /opt/rid-node/install.sh for day-to-day operation.
-# Non-interactive runs (tests, automation): RID_INSTALL_YES=1, RID_INSTALL_MODE, RID_INSTALL_PORTAL,
-# RID_INSTALL_TOKEN, RID_INSTALL_PROXY and, for `service`, RID_INSTALL_SERVICE_*.
-# Messages are in English by default; RID_LANG=es switches them (and the node's) to Spanish
+# Installer of the data exchange network's provider node (den-node) on Ubuntu Server LTS with
+# Docker Engine (ADR-0002, docs/INSTALL.md). Everything lives in /opt/den-node; after the
+# first run the script is also at /opt/den-node/install.sh for day-to-day operation.
+# Non-interactive runs (tests, automation): DEN_INSTALL_YES=1, DEN_INSTALL_MODE, DEN_INSTALL_PORTAL,
+# DEN_INSTALL_TOKEN, DEN_INSTALL_PROXY and, for `service`, DEN_INSTALL_SERVICE_*.
+# Messages are in English by default; DEN_LANG=es switches them (and the node's) to Spanish
 # (ADR-0004). Each message is written in English and MSG_ES holds its Spanish; test/install/unit.sh
 # checks that every message has its translation.
 set -euo pipefail
@@ -26,7 +26,7 @@ USAGE_EN="Usage: sudo ./install.sh [command]
   reenroll                backs up, forgets the identity and enrolls with a new token
   stop | start            stops or starts the node
 
-Language: RID_LANG=en (default) or es, for example: sudo RID_LANG=es ./install.sh"
+Language: DEN_LANG=en (default) or es, for example: sudo DEN_LANG=es ./install.sh"
 
 USAGE_ES="Uso: sudo ./install.sh [comando]
 
@@ -45,20 +45,20 @@ USAGE_ES="Uso: sudo ./install.sh [comando]
   reenrolar              respalda, olvida la identidad y enrola con un token nuevo
   stop | start           detiene o arranca el nodo
 
-Idioma: RID_LANG=en (por defecto) o es, p. ej.: sudo RID_LANG=es ./install.sh"
+Idioma: DEN_LANG=en (por defecto) o es, p. ej.: sudo DEN_LANG=es ./install.sh"
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-HOME_DIR="${RID_NODE_HOME:-/opt/rid-node}"
+HOME_DIR="${DEN_NODE_HOME:-/opt/den-node}"
 ENV_FILE="$HOME_DIR/.env"
-STATE_VOLUME="rid-node_rid-node-state"
+STATE_VOLUME="den-node_den-node-state"
 NODE_UID=65532
-KIT_VERSION="$(cat "$KIT_DIR/VERSION" 2>/dev/null || echo "${RID_INSTALL_VERSION:-0.1.0-dev}")"
+KIT_VERSION="$(cat "$KIT_DIR/VERSION" 2>/dev/null || echo "${DEN_INSTALL_VERSION:-0.1.0-dev}")"
 
 # --- language -----------------------------------------------------------------------------------
 # English message (as written in the calls below) → Spanish. Same %s, in the same order.
 declare -gA MSG_ES=(
   ["Missing answer: %s"]="Falta la respuesta: %s"
-  ["RID_LANG=%s is not supported (en or es): using English"]="RID_LANG=%s no está soportado (en o es): se usa inglés"
+  ["DEN_LANG=%s is not supported (en or es): using English"]="DEN_LANG=%s no está soportado (en o es): se usa inglés"
   ["Run as root (sudo)"]="Ejecuta como root (sudo)"
   ["No node is installed in %s. Run: sudo ./install.sh"]="No hay un nodo instalado en %s. Ejecuta: sudo ./install.sh"
   ["Server"]="Servidor"
@@ -71,7 +71,7 @@ declare -gA MSG_ES=(
   ["Clock synchronized (NTP)"]="Hora sincronizada (NTP)"
   ["Could not confirm that the clock is synchronized: certificates fail when the clock is off (timedatectl set-ntp true)"]="No se pudo confirmar que la hora esté sincronizada: los certificados fallan con el reloj desfasado (timedatectl set-ntp true)"
   ["Docker"]="Docker"
-  ["Docker is installed as a snap (%s): the snap cannot mount /opt/rid-node. Remove it (snap remove docker) and install Docker Engine: https://docs.docker.com/engine/install/ubuntu/"]="Docker está instalado como snap (%s): el snap no puede montar /opt/rid-node. Quítalo (snap remove docker) e instala Docker Engine: https://docs.docker.com/engine/install/ubuntu/"
+  ["Docker is installed as a snap (%s): the snap cannot mount /opt/den-node. Remove it (snap remove docker) and install Docker Engine: https://docs.docker.com/engine/install/ubuntu/"]="Docker está instalado como snap (%s): el snap no puede montar /opt/den-node. Quítalo (snap remove docker) e instala Docker Engine: https://docs.docker.com/engine/install/ubuntu/"
   ["Docker is installed but its service does not respond"]="Docker está instalado pero su servicio no responde"
   ["Start the Docker service (systemctl start docker)?"]="¿Arrancar el servicio de Docker (systemctl start docker)?"
   ["The node needs the Docker service"]="El nodo necesita el servicio de Docker"
@@ -211,8 +211,8 @@ declare -gA MSG_ES=(
   ["Could not copy the node's state: the backup does not include its identity"]="No se pudo copiar el estado del nodo: el respaldo no incluye su identidad"
   ["Backup: %s"]="Respaldo: %s"
   ["It contains the node's keys: copy it off this server and keep it as a secret."]="Contiene las claves del nodo: cópialo fuera de este servidor y guárdalo como un secreto."
-  ["Old backups deleted: the %s most recent are kept (RID_BACKUPS_KEEP)"]="Respaldos antiguos borrados: se conservan los %s más recientes (RID_BACKUPS_KEEP)"
-  ["Give the backup: sudo %s/install.sh restore %s/backups/rid-node-<date>.tar.gz"]="Indica el respaldo: sudo %s/install.sh restaurar %s/backups/rid-node-<fecha>.tar.gz"
+  ["Old backups deleted: the %s most recent are kept (DEN_BACKUPS_KEEP)"]="Respaldos antiguos borrados: se conservan los %s más recientes (DEN_BACKUPS_KEEP)"
+  ["Give the backup: sudo %s/install.sh restore %s/backups/den-node-<date>.tar.gz"]="Indica el respaldo: sudo %s/install.sh restaurar %s/backups/den-node-<fecha>.tar.gz"
   ["The backup does not contain the node's state (state/state.json)"]="El respaldo no contiene el estado del nodo (state/state.json)"
   ["Restore %s"]="Restaurar %s"
   ["The node's current identity, configuration and secrets are replaced"]="Se reemplazan la identidad, la configuración y los secretos actuales del nodo"
@@ -230,13 +230,13 @@ declare -gA MSG_ES=(
 )
 
 UI_LANG=en
-# set_lang: RID_LANG chooses (en or es, with or without a region such as es_CO). Without it, the
-# one the installation was made with; an installation from before RID_LANG (a .env without it)
+# set_lang: DEN_LANG chooses (en or es, with or without a region such as es_CO). Without it, the
+# one the installation was made with; an installation from before DEN_LANG (a .env without it)
 # was in Spanish and stays so.
 set_lang() {
-  local l=${RID_LANG:-}
+  local l=${DEN_LANG:-}
   if [[ -z $l && -r $ENV_FILE ]]; then
-    l=$(env_get RID_LANG)
+    l=$(env_get DEN_LANG)
     [[ -n $l ]] || l=es
   fi
   l=${l,,}
@@ -244,7 +244,7 @@ set_lang() {
   case "$l" in
     es) UI_LANG=es ;;
     en | "") UI_LANG=en ;;
-    *) UI_LANG=en; warn "RID_LANG=%s is not supported (en or es): using English" "$RID_LANG" ;;
+    *) UI_LANG=en; warn "DEN_LANG=%s is not supported (en or es): using English" "$DEN_LANG" ;;
   esac
 }
 # _t FORMAT [ARGS...]: the message in the chosen language, printf-formatted. The callers below
@@ -309,18 +309,18 @@ read_token() {
   __all=$(printf '%s' "$__all" | tr -d '[:space:]')
   printf -v "$__var" '%s' "$__all"
 }
-# yes_no DEFAULT(s|n) "question" [ARGS...] → status 0 for yes (y, s); RID_INSTALL_YES=1 answers yes
+# yes_no DEFAULT(s|n) "question" [ARGS...] → status 0 for yes (y, s); DEN_INSTALL_YES=1 answers yes
 yes_no() {
   local __def=$1 __q __ans="" __hint
   shift
   __q=$(_t "$@")
-  [[ ${RID_INSTALL_YES:-} == 1 ]] && return 0
+  [[ ${DEN_INSTALL_YES:-} == 1 ]] && return 0
   if [[ $__def == s ]]; then __hint=$(w Y/n S/n); else __hint=$(w y/N s/N); fi
   IFS= read -r -p "  $__q [$__hint]: " __ans || true
   __ans=${__ans:-$__def}
   [[ $__ans =~ ^[sSyY] ]]
 }
-# is_yes VALUE: s, si, y, yes (the answers of RID_INSTALL_SERVICE_PLAIN_HTTP and _MANY)
+# is_yes VALUE: s, si, y, yes (the answers of DEN_INSTALL_SERVICE_PLAIN_HTTP and _MANY)
 is_yes() { [[ ${1:-} =~ ^[sSyY] ]]; }
 # yq VALUE: a single-quoted YAML scalar
 yq() { local v=${1//\'/\'\'}; printf "'%s'" "$v"; }
@@ -338,12 +338,12 @@ env_set() {
 dc() { docker compose --project-directory "$HOME_DIR" -f "$HOME_DIR/compose.yaml" --env-file "$ENV_FILE" "$@"; }
 require_root() { [[ $EUID -eq 0 ]] || fail "Run as root (sudo)"; }
 require_install() { [[ -f $ENV_FILE && -f $HOME_DIR/compose.yaml ]] || fail "No node is installed in %s. Run: sudo ./install.sh" "$HOME_DIR"; }
-running() { [[ -n $(dc ps -q --status running rid-node 2>/dev/null) ]]; }
+running() { [[ -n $(dc ps -q --status running den-node 2>/dev/null) ]]; }
 node() { # the node's CLI, in the installer's language: in the running container, or in a throwaway one
   if running; then
-    dc exec -T -e RID_LANG="$UI_LANG" rid-node /rid-node "$@"
+    dc exec -T -e DEN_LANG="$UI_LANG" den-node /den-node "$@"
   else
-    dc run --rm --no-deps -T -e RID_LANG="$UI_LANG" --entrypoint /rid-node rid-node "$@"
+    dc run --rm --no-deps -T -e DEN_LANG="$UI_LANG" --entrypoint /den-node den-node "$@"
   fi
 }
 node_status_json() { node status --json 2>/dev/null || true; }
@@ -383,7 +383,7 @@ ensure_docker() {
   step "Docker"
   local dp
   if dp=$(docker_path); then
-    [[ $dp == /snap/* ]] && fail "Docker is installed as a snap (%s): the snap cannot mount /opt/rid-node. Remove it (snap remove docker) and install Docker Engine: https://docs.docker.com/engine/install/ubuntu/" "$dp"
+    [[ $dp == /snap/* ]] && fail "Docker is installed as a snap (%s): the snap cannot mount /opt/den-node. Remove it (snap remove docker) and install Docker Engine: https://docs.docker.com/engine/install/ubuntu/" "$dp"
     if ! docker info >/dev/null 2>&1; then
       warn "Docker is installed but its service does not respond"
       yes_no s "Start the Docker service (systemctl start docker)?" || fail "The node needs the Docker service"
@@ -437,21 +437,21 @@ prepare_home() {
       umask 077
       {
         echo "# Written by install.sh. No secrets here."
-        echo "RID_NODE_IMAGE=rid-node"
-        echo "RID_NODE_VERSION=$KIT_VERSION"
-        echo "RID_NODE_TAG_SUFFIX=-canal"
-        echo "RID_LANG=$UI_LANG"
+        echo "DEN_NODE_IMAGE=den-node"
+        echo "DEN_NODE_VERSION=$KIT_VERSION"
+        echo "DEN_NODE_TAG_SUFFIX=-canal"
+        echo "DEN_LANG=$UI_LANG"
         echo "HTTPS_PROXY="
         echo "NO_PROXY="
       } >"$ENV_FILE"
     )
   fi
   chmod 0600 "$ENV_FILE"
-  env_set RID_LANG "$UI_LANG"
+  env_set DEN_LANG "$UI_LANG"
   ok "compose.yaml, .env, config/, secrets/ (read only by the node) and backups/"
 }
 
-# The script and compose.yaml stay in /opt/rid-node, so operating the node never depends on the
+# The script and compose.yaml stay in /opt/den-node, so operating the node never depends on the
 # extracted kit folder.
 refresh_kit_files() {
   [[ $KIT_DIR == "$HOME_DIR" ]] && return 0
@@ -462,9 +462,9 @@ refresh_kit_files() {
 }
 
 choose_mode() {
-  local mode=${RID_INSTALL_MODE:-}
-  if [[ -z $mode && ${1:-} != ask && -n $(env_get RID_NODE_VERSION) && -f $HOME_DIR/config/node.yaml ]]; then
-    [[ $(env_get RID_NODE_TAG_SUFFIX) == -canal ]] && mode=canal || mode=completo
+  local mode=${DEN_INSTALL_MODE:-}
+  if [[ -z $mode && ${1:-} != ask && -n $(env_get DEN_NODE_VERSION) && -f $HOME_DIR/config/node.yaml ]]; then
+    [[ $(env_get DEN_NODE_TAG_SUFFIX) == -canal ]] && mode=canal || mode=completo
     ok "Mode %s (existing installation)" "$mode"
     return
   fi
@@ -475,17 +475,17 @@ choose_mode() {
     ask mode "Mode? (canal or completo)" canal
   fi
   case "$mode" in
-    canal) env_set RID_NODE_TAG_SUFFIX -canal ;;
-    completo) env_set RID_NODE_TAG_SUFFIX "" ;;
+    canal) env_set DEN_NODE_TAG_SUFFIX -canal ;;
+    completo) env_set DEN_NODE_TAG_SUFFIX "" ;;
     *) fail "Unknown mode \"%s\": canal or completo" "$mode" ;;
   esac
   ok "Mode %s" "$mode"
 }
 
 configure_proxy() {
-  [[ -n $(env_get HTTPS_PROXY) && -z ${RID_INSTALL_PROXY:-} ]] && { ok "Corporate proxy: %s" "$(env_get HTTPS_PROXY)"; return; }
-  local proxy=${RID_INSTALL_PROXY:-}
-  if [[ -z $proxy && ${RID_INSTALL_YES:-} != 1 ]]; then
+  [[ -n $(env_get HTTPS_PROXY) && -z ${DEN_INSTALL_PROXY:-} ]] && { ok "Corporate proxy: %s" "$(env_get HTTPS_PROXY)"; return; }
+  local proxy=${DEN_INSTALL_PROXY:-}
+  if [[ -z $proxy && ${DEN_INSTALL_YES:-} != 1 ]]; then
     ask proxy "Does outbound internet traffic go through a proxy? URL (http://proxy:port) or \"no\"" no
   fi
   [[ -z $proxy || $proxy == no ]] && return 0
@@ -516,11 +516,11 @@ configure_identity() {
     ok "The node is already enrolled as %s: no token needed" "$NODE_NAME"
     return
   fi
-  local current="" portal=${RID_INSTALL_PORTAL:+$(normalize_portal "$RID_INSTALL_PORTAL")}
+  local current="" portal=${DEN_INSTALL_PORTAL:+$(normalize_portal "$DEN_INSTALL_PORTAL")}
   [[ -f $HOME_DIR/config/node.yaml ]] && current=$(sed -n "s/^portal: *'\{0,1\}\([^']*\)'\{0,1\}$/\1/p" "$HOME_DIR/config/node.yaml")
   step "Network portal"
   if [[ -n $current && -z $portal ]]; then
-    if [[ ${RID_INSTALL_YES:-} == 1 ]] || yes_no s "Is the portal URL %s?" "$current"; then portal=$current; fi
+    if [[ ${DEN_INSTALL_YES:-} == 1 ]] || yes_no s "Is the portal URL %s?" "$current"; then portal=$current; fi
   fi
   if [[ -z $portal ]]; then
     ask portal "Portal URL (given by the network operator, e.g. https://portal.network.example)"
@@ -537,8 +537,8 @@ configure_identity() {
 
   step "Enrollment token"
   info "The entity's administrator issues it in the portal: My entity → Kit nodes. It is single-use and expires in 72 h."
-  local token=${RID_INSTALL_TOKEN:-}
-  if [[ -z $token && -s $HOME_DIR/secrets/enrollment_token && ${RID_INSTALL_YES:-} == 1 ]]; then
+  local token=${DEN_INSTALL_TOKEN:-}
+  if [[ -z $token && -s $HOME_DIR/secrets/enrollment_token && ${DEN_INSTALL_YES:-} == 1 ]]; then
     ok "Using the token already saved"
     return
   fi
@@ -553,8 +553,8 @@ configure_identity() {
 # load_image <version> <tag suffix>: loads (from the kit) or pulls the image; never touches .env
 load_image() {
   local version=$1 suffix=$2 ref tar
-  ref="$(env_get RID_NODE_IMAGE):$version$suffix"
-  tar="$KIT_DIR/images/rid-node-$version$suffix-$(image_arch).tar"
+  ref="$(env_get DEN_NODE_IMAGE):$version$suffix"
+  tar="$KIT_DIR/images/den-node-$version$suffix-$(image_arch).tar"
   if [[ -f $tar ]]; then
     if [[ -f $KIT_DIR/SHA256SUMS ]]; then
       (cd "$KIT_DIR" && sha256sum -c --ignore-missing --quiet SHA256SUMS) || fail "The bundle is damaged (SHA256SUMS does not match)"
@@ -571,12 +571,12 @@ load_image() {
 }
 
 # load_variants <version>: also loads the other variant from the kit, so `mode` works later
-# from /opt/rid-node without the kit or a registry.
+# from /opt/den-node without the kit or a registry.
 load_variants() {
   local version=$1 s tar
   for s in -canal ""; do
-    tar="$KIT_DIR/images/rid-node-$version$s-$(image_arch).tar"
-    [[ -f $tar && $s != "$(env_get RID_NODE_TAG_SUFFIX)" ]] && docker load -q -i "$tar" >/dev/null 2>&1 || true
+    tar="$KIT_DIR/images/den-node-$version$s-$(image_arch).tar"
+    [[ -f $tar && $s != "$(env_get DEN_NODE_TAG_SUFFIX)" ]] && docker load -q -i "$tar" >/dev/null 2>&1 || true
   done
   return 0
 }
@@ -618,8 +618,8 @@ cmd_install() {
   choose_mode
   configure_proxy
   step "Image"
-  load_image "$(env_get RID_NODE_VERSION)" "$(env_get RID_NODE_TAG_SUFFIX)"
-  load_variants "$(env_get RID_NODE_VERSION)"
+  load_image "$(env_get DEN_NODE_VERSION)" "$(env_get DEN_NODE_TAG_SUFFIX)"
+  load_variants "$(env_get DEN_NODE_VERSION)"
   configure_identity
   start_node || exit 1
   step "Done"
@@ -633,8 +633,8 @@ cmd_install() {
 
 cmd_status() { require_install; node status; }
 cmd_doctor() { require_install; node doctor; }
-cmd_logs() { require_install; dc logs --tail 200 "$@" rid-node; }
-cmd_stop() { require_install; dc stop rid-node; ok "Node stopped (its state is kept)"; }
+cmd_logs() { require_install; dc logs --tail 200 "$@" den-node; }
+cmd_stop() { require_install; dc stop den-node; ok "Node stopped (its state is kept)"; }
 cmd_start() { require_install; start_node; }
 
 # portal_summary PATH [SHA]: what the publisher fills in the portal for a proxy service.
@@ -645,7 +645,7 @@ portal_summary() {
   say "    Service path on the node:     %s" "$1"
 }
 
-# service: RID_INSTALL_SERVICE_TYPE (proxy|instant), _NAME, _PATH and, for proxy, _UPSTREAM,
+# service: DEN_INSTALL_SERVICE_TYPE (proxy|instant), _NAME, _PATH and, for proxy, _UPSTREAM,
 # _PLAIN_HTTP (y/n), _CREDENTIAL (none|header|basic|certificate, or ninguna|cabecera|basic|certificado),
 # _HEADER, _SECRET, _USER, _CERT, _KEY, _OPENAPI ("-" omits). For instant, see service_instant.
 CREATED=()
@@ -657,18 +657,18 @@ cmd_service() {
     resource | recurso) cmd_service_resource "${2:-}"; return ;;
   esac
   step "New service"
-  local type=${RID_INSTALL_SERVICE_TYPE:-}
+  local type=${DEN_INSTALL_SERVICE_TYPE:-}
   say "  proxy    the entity's own API: the node gives it the secure channel"
   say "  instant  an instant API: GET by key over a database view (completo mode)"
   ask type "Type? (proxy or instant)" proxy
   [[ $type == proxy || $type == instant ]] || fail "Unknown type \"%s\": proxy or instant" "$type"
-  if [[ $type == instant && $(env_get RID_NODE_TAG_SUFFIX) == -canal ]]; then
+  if [[ $type == instant && $(env_get DEN_NODE_TAG_SUFFIX) == -canal ]]; then
     fail "Instant APIs need completo mode: sudo %s/install.sh mode completo" "$HOME_DIR"
   fi
-  local name=${RID_INSTALL_SERVICE_NAME:-} path=${RID_INSTALL_SERVICE_PATH:-} upstream=${RID_INSTALL_SERVICE_UPSTREAM:-}
-  local cred=${RID_INSTALL_SERVICE_CREDENTIAL:-} header=${RID_INSTALL_SERVICE_HEADER:-} secret=${RID_INSTALL_SERVICE_SECRET:-}
-  local user=${RID_INSTALL_SERVICE_USER:-} cert=${RID_INSTALL_SERVICE_CERT:-} key=${RID_INSTALL_SERVICE_KEY:-}
-  local openapi=${RID_INSTALL_SERVICE_OPENAPI:-} plain=${RID_INSTALL_SERVICE_PLAIN_HTTP:-}
+  local name=${DEN_INSTALL_SERVICE_NAME:-} path=${DEN_INSTALL_SERVICE_PATH:-} upstream=${DEN_INSTALL_SERVICE_UPSTREAM:-}
+  local cred=${DEN_INSTALL_SERVICE_CREDENTIAL:-} header=${DEN_INSTALL_SERVICE_HEADER:-} secret=${DEN_INSTALL_SERVICE_SECRET:-}
+  local user=${DEN_INSTALL_SERVICE_USER:-} cert=${DEN_INSTALL_SERVICE_CERT:-} key=${DEN_INSTALL_SERVICE_KEY:-}
+  local openapi=${DEN_INSTALL_SERVICE_OPENAPI:-} plain=${DEN_INSTALL_SERVICE_PLAIN_HTTP:-}
   ask name "Service name (lowercase letters, digits and hyphens, e.g. certificates)"
   [[ $name =~ ^[a-z0-9][a-z0-9-]{0,79}$ ]] || fail "Invalid name \"%s\": use lowercase letters, digits and hyphens" "$name"
   local file="$HOME_DIR/config/services/$name.yaml"
@@ -724,7 +724,7 @@ cmd_service() {
     [[ $ext =~ ^(yaml|yml|json)$ ]] || fail "The OpenAPI must be .yaml, .yml or .json"
     local dest="$HOME_DIR/config/services/$name.openapi.$ext"
     install -m 0644 "$openapi" "$dest"; CREATED+=("$dest")
-    yaml+="openapi: /etc/rid-node/services/$name.openapi.$ext"$'\n'
+    yaml+="openapi: /etc/den-node/services/$name.openapi.$ext"$'\n'
     sha=$(sha256sum "$dest" | cut -d' ' -f1)
   fi
   printf '%s' "$yaml" >"$file"
@@ -732,7 +732,7 @@ cmd_service() {
   node validate || fail "The service configuration is not valid; no change was applied"
   trap - EXIT
   CREATED=()
-  dc up -d --force-recreate rid-node >/dev/null
+  dc up -d --force-recreate den-node >/dev/null
   wait_online || warn "The node did not confirm it is online; check sudo %s/install.sh doctor" "$HOME_DIR"
   step "Service %s ready" "$name"
   portal_summary "$path"
@@ -740,7 +740,7 @@ cmd_service() {
   return 0
 }
 
-# service_instant NAME PATH FILE: RID_INSTALL_SERVICE_ENGINE (sqlserver|postgres|mysql|oracle),
+# service_instant NAME PATH FILE: DEN_INSTALL_SERVICE_ENGINE (sqlserver|postgres|mysql|oracle),
 # _DB_HOST, _DB_PORT, _DB_NAME, _DB_USER, _DB_PASSWORD, _DB_TLS (require|verify|disable), _DB_CA
 # (verify, not Oracle; "-": the system's roots), _SOURCE (schema.view), _KEY, _SUBJECT (document
 # type, or none/ninguno), _MANY (y/n), _RESOURCE and _ENTITY ("-": derived from the view). The
@@ -748,9 +748,9 @@ cmd_service() {
 # this run created.
 service_instant() {
   local name=$1 path=$2 file=$3
-  local engine=${RID_INSTALL_SERVICE_ENGINE:-} host=${RID_INSTALL_SERVICE_DB_HOST:-} port=${RID_INSTALL_SERVICE_DB_PORT:-}
-  local db=${RID_INSTALL_SERVICE_DB_NAME:-} user=${RID_INSTALL_SERVICE_DB_USER:-} password=${RID_INSTALL_SERVICE_DB_PASSWORD:-}
-  local tls=${RID_INSTALL_SERVICE_DB_TLS:-} ca=${RID_INSTALL_SERVICE_DB_CA:-}
+  local engine=${DEN_INSTALL_SERVICE_ENGINE:-} host=${DEN_INSTALL_SERVICE_DB_HOST:-} port=${DEN_INSTALL_SERVICE_DB_PORT:-}
+  local db=${DEN_INSTALL_SERVICE_DB_NAME:-} user=${DEN_INSTALL_SERVICE_DB_USER:-} password=${DEN_INSTALL_SERVICE_DB_PASSWORD:-}
+  local tls=${DEN_INSTALL_SERVICE_DB_TLS:-} ca=${DEN_INSTALL_SERVICE_DB_CA:-}
   step "Database"
   ask engine "Engine (sqlserver, postgres, mysql, oracle)"
   local default_port
@@ -800,7 +800,7 @@ service_instant() {
   instant_add_resource "$name" "$file"
   trap - EXIT
   CREATED=()
-  dc up -d --force-recreate rid-node >/dev/null
+  dc up -d --force-recreate den-node >/dev/null
   wait_online || warn "The node did not confirm it is online; check sudo %s/install.sh doctor" "$HOME_DIR"
   step "Service %s ready" "$name"
   instant_summary "$name" "$path" "$file"
@@ -808,14 +808,14 @@ service_instant() {
 }
 
 # instant_add_resource NAME FILE: shows what the database user can read, asks for the view, its
-# key and the rest (RID_INSTALL_SERVICE_SOURCE, _KEY, _SUBJECT, _MANY, _RESOURCE, _ENTITY), adds the
-# resource to FILE with rid-node scaffold --print, validates and regenerates the OpenAPI. Any
+# key and the rest (DEN_INSTALL_SERVICE_SOURCE, _KEY, _SUBJECT, _MANY, _RESOURCE, _ENTITY), adds the
+# resource to FILE with den-node scaffold --print, validates and regenerates the OpenAPI. Any
 # failure calls fail: the caller's EXIT trap undoes.
 instant_add_resource() {
   local name=$1 file=$2
-  local source=${RID_INSTALL_SERVICE_SOURCE:-} key=${RID_INSTALL_SERVICE_KEY:-} subject=${RID_INSTALL_SERVICE_SUBJECT:-}
-  local many=${RID_INSTALL_SERVICE_MANY:-} resource=${RID_INSTALL_SERVICE_RESOURCE:-} entity=${RID_INSTALL_SERVICE_ENTITY:-}
-  local cfile=/etc/rid-node/services/$name.yaml catalog
+  local source=${DEN_INSTALL_SERVICE_SOURCE:-} key=${DEN_INSTALL_SERVICE_KEY:-} subject=${DEN_INSTALL_SERVICE_SUBJECT:-}
+  local many=${DEN_INSTALL_SERVICE_MANY:-} resource=${DEN_INSTALL_SERVICE_RESOURCE:-} entity=${DEN_INSTALL_SERVICE_ENTITY:-}
+  local cfile=/etc/den-node/services/$name.yaml catalog
   if ! catalog=$(node catalog --service-file "$cfile" 2>&1); then
     printf '%s\n' "$catalog" >&2
     fail "Could not read the database catalog with that user; no change was applied"
@@ -873,7 +873,7 @@ cmd_service_resource() {
   local name=$1 file="$HOME_DIR/config/services/$1.yaml" openapi="$HOME_DIR/config/services/$1.openapi.json" path
   [[ $name =~ ^[a-z0-9][a-z0-9-]*$ && -f $file ]] || fail "Service \"%s\" does not exist" "$name"
   grep -q '^type: instant' "$file" || fail "Service \"%s\" is not instant: its resources are those of its own API" "$name"
-  [[ $(env_get RID_NODE_TAG_SUFFIX) != -canal ]] || fail "Instant APIs need completo mode: sudo %s/install.sh mode completo" "$HOME_DIR"
+  [[ $(env_get DEN_NODE_TAG_SUFFIX) != -canal ]] || fail "Instant APIs need completo mode: sudo %s/install.sh mode completo" "$HOME_DIR"
   path=$(sed -n "s/^path: '\(.*\)'$/\1/p; s/^path: \([^'].*\)$/\1/p" "$file" | head -n 1)
   step "New resource in service %s" "$name"
   RESTORE=("$file" "$openapi")
@@ -884,7 +884,7 @@ cmd_service_resource() {
   trap - EXIT
   rm -f "$file.before" "$openapi.before"
   RESTORE=()
-  dc up -d --force-recreate rid-node >/dev/null
+  dc up -d --force-recreate den-node >/dev/null
   wait_online || warn "The node did not confirm it is online; check sudo %s/install.sh doctor" "$HOME_DIR"
   step "Resource added to service %s" "$name"
   instant_summary "$name" "$path" "$file"
@@ -898,7 +898,7 @@ cmd_service_remove() {
   yes_no n "Remove service %s? The portal versions that use it will stop answering" "$name" || exit 1
   rm -f "$HOME_DIR/config/services/$name.yaml" "$HOME_DIR/config/services/$name.openapi."* "$HOME_DIR/secrets/${name}_"*
   node validate >/dev/null || fail "The configuration became invalid; check %s/config" "$HOME_DIR"
-  dc up -d --force-recreate rid-node >/dev/null
+  dc up -d --force-recreate den-node >/dev/null
   ok "Service %s removed" "$name"
 }
 
@@ -909,8 +909,8 @@ cmd_backup() {
   tmp=$(mktemp -d)
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" EXIT
-  out="$HOME_DIR/backups/rid-node-$ts.tar.gz"
-  if [[ -n $(dc ps -aq rid-node 2>/dev/null) ]] && dc cp rid-node:/var/lib/rid-node "$tmp/state" >/dev/null 2>&1; then
+  out="$HOME_DIR/backups/den-node-$ts.tar.gz"
+  if [[ -n $(dc ps -aq den-node 2>/dev/null) ]] && dc cp den-node:/var/lib/den-node "$tmp/state" >/dev/null 2>&1; then
     chown -R "$NODE_UID:$NODE_UID" "$tmp/state"
   else
     warn "Could not copy the node's state: the backup does not include its identity"
@@ -925,21 +925,21 @@ cmd_backup() {
   rotate_backups
 }
 
-# rotate_backups: keeps the newest RID_BACKUPS_KEEP (10) rid-node-*.tar.gz in backups/
+# rotate_backups: keeps the newest DEN_BACKUPS_KEEP (10) den-node-*.tar.gz in backups/
 rotate_backups() {
-  local keep=${RID_BACKUPS_KEEP:-10} old
+  local keep=${DEN_BACKUPS_KEEP:-10} old
   [[ $keep =~ ^[0-9]+$ && $keep -ge 1 ]] || keep=10
-  old=$(find "$HOME_DIR/backups" -maxdepth 1 -name 'rid-node-*.tar.gz' -printf '%T@ %p\n' 2>/dev/null |
+  old=$(find "$HOME_DIR/backups" -maxdepth 1 -name 'den-node-*.tar.gz' -printf '%T@ %p\n' 2>/dev/null |
     sort -rn | tail -n +$((keep + 1)) | cut -d' ' -f2-)
   [[ -z $old ]] && return 0
   printf '%s\n' "$old" | xargs -r rm -f
-  info "Old backups deleted: the %s most recent are kept (RID_BACKUPS_KEEP)" "$keep"
+  info "Old backups deleted: the %s most recent are kept (DEN_BACKUPS_KEEP)" "$keep"
 }
 
 cmd_restore() {
   require_install
   local file=${1:-}
-  [[ -f $file ]] || fail "Give the backup: sudo %s/install.sh restore %s/backups/rid-node-<date>.tar.gz" "$HOME_DIR" "$HOME_DIR"
+  [[ -f $file ]] || fail "Give the backup: sudo %s/install.sh restore %s/backups/den-node-<date>.tar.gz" "$HOME_DIR" "$HOME_DIR"
   local tmp
   tmp=$(mktemp -d)
   # shellcheck disable=SC2064
@@ -955,10 +955,10 @@ cmd_restore() {
   rm -rf "$HOME_DIR/config" && cp -a "$tmp/config" "$HOME_DIR/config"
   find "$HOME_DIR/secrets" -mindepth 1 -delete && cp -a "$tmp/secrets/." "$HOME_DIR/secrets/"
   cp -a "$tmp/.env" "$ENV_FILE" && chmod 0600 "$ENV_FILE"
-  load_image "$(env_get RID_NODE_VERSION)" "$(env_get RID_NODE_TAG_SUFFIX)"
+  load_image "$(env_get DEN_NODE_VERSION)" "$(env_get DEN_NODE_TAG_SUFFIX)"
   chown -R "$NODE_UID:$NODE_UID" "$tmp/state"
   chmod 0700 "$tmp/state"
-  dc run --rm --no-deps -T -e RID_LANG="$UI_LANG" -v "$tmp/state:/restore:ro" --entrypoint /rid-node rid-node import-state /restore ||
+  dc run --rm --no-deps -T -e DEN_LANG="$UI_LANG" -v "$tmp/state:/restore:ro" --entrypoint /den-node den-node import-state /restore ||
     fail "Could not restore the state"
   rm -rf "$tmp"
   trap - EXIT
@@ -969,16 +969,16 @@ cmd_restore() {
 cmd_update() {
   require_install
   local previous target suffix
-  previous=$(env_get RID_NODE_VERSION)
+  previous=$(env_get DEN_NODE_VERSION)
   target=${1:-$KIT_VERSION}
-  suffix=$(env_get RID_NODE_TAG_SUFFIX)
+  suffix=$(env_get DEN_NODE_TAG_SUFFIX)
   step "Update %s → %s" "$previous" "$target"
   load_image "$target" "$suffix" # first: a missing image leaves everything as it was
   load_variants "$target"
   cmd_backup
   refresh_kit_files
-  env_set RID_NODE_VERSION "$target"
-  env_set RID_LANG "$UI_LANG" # an installation from before RID_LANG keeps its Spanish
+  env_set DEN_NODE_VERSION "$target"
+  env_set DEN_LANG "$UI_LANG" # an installation from before DEN_LANG keeps its Spanish
   if ! start_node; then
     warn "Version %s did not come online. To go back: sudo %s/install.sh update %s (if the image is gone, from the folder of the %s bundle)" "$target" "$HOME_DIR" "$previous" "$previous"
     exit 1
@@ -988,11 +988,11 @@ cmd_update() {
 
 cmd_mode() {
   require_install
-  local mode=${1:-${RID_INSTALL_MODE:-}} suffix
+  local mode=${1:-${DEN_INSTALL_MODE:-}} suffix
   [[ -n $mode ]] || ask mode "Mode? (canal or completo)" canal
   case "$mode" in canal) suffix=-canal ;; completo) suffix="" ;; *) fail "Unknown mode \"%s\": canal or completo" "$mode" ;; esac
-  load_image "$(env_get RID_NODE_VERSION)" "$suffix"
-  RID_INSTALL_MODE=$mode choose_mode ask
+  load_image "$(env_get DEN_NODE_VERSION)" "$suffix"
+  DEN_INSTALL_MODE=$mode choose_mode ask
   start_node || exit 1
 }
 
@@ -1040,4 +1040,4 @@ main() {
 }
 
 # Sourced by test/install/unit.sh to test the functions without running anything.
-[[ -n ${RID_INSTALL_SOURCE_ONLY:-} ]] || main "$@"
+[[ -n ${DEN_INSTALL_SOURCE_ONLY:-} ]] || main "$@"

@@ -47,37 +47,37 @@ Un usuario propio para el nodo, con `SELECT` **sobre las vistas que se exponen y
 **PostgreSQL**
 
 ```sql
-CREATE ROLE rid_reader LOGIN PASSWORD '<contraseña>';
-GRANT CONNECT ON DATABASE entidad TO rid_reader;
-GRANT USAGE ON SCHEMA salud TO rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;
+CREATE ROLE den_reader LOGIN PASSWORD '<contraseña>';
+GRANT CONNECT ON DATABASE entidad TO den_reader;
+GRANT USAGE ON SCHEMA salud TO den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;
 ```
 
 **SQL Server**
 
 ```sql
-CREATE LOGIN rid_reader WITH PASSWORD = '<contraseña>';
+CREATE LOGIN den_reader WITH PASSWORD = '<contraseña>';
 USE entidad;
-CREATE USER rid_reader FOR LOGIN rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;
+CREATE USER den_reader FOR LOGIN den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;
 ```
 
 **MySQL** (el "esquema" es la base de datos)
 
 ```sql
-CREATE USER 'rid_reader'@'<IP del servidor del nodo>' IDENTIFIED BY '<contraseña>';
-GRANT SELECT ON salud.v_afiliados TO 'rid_reader'@'<IP del servidor del nodo>';
+CREATE USER 'den_reader'@'<IP del servidor del nodo>' IDENTIFIED BY '<contraseña>';
+GRANT SELECT ON salud.v_afiliados TO 'den_reader'@'<IP del servidor del nodo>';
 ```
 
 **Oracle** (en la PDB; en el nodo, la "base" es el nombre del servicio, por ejemplo `ORCLPDB1`)
 
 ```sql
-CREATE USER rid_reader IDENTIFIED BY "<contraseña>";
-GRANT CREATE SESSION TO rid_reader;
-GRANT SELECT ON salud.v_afiliados TO rid_reader;
+CREATE USER den_reader IDENTIFIED BY "<contraseña>";
+GRANT CREATE SESSION TO den_reader;
+GRANT SELECT ON salud.v_afiliados TO den_reader;
 ```
 
-La contraseña no se escribe en ningún archivo de configuración: el instalador la pide sin mostrarla y la guarda en `/opt/rid-node/secrets/<servicio>_db_password`.
+La contraseña no se escribe en ningún archivo de configuración: el instalador la pide sin mostrarla y la guarda en `/opt/den-node/secrets/<servicio>_db_password`.
 
 `doctor` comprueba que el usuario **no pueda escribir** en las vistas que se exponen. Si puede, lo marca con ✘.
 
@@ -98,14 +98,14 @@ El servidor del nodo debe poder conectarse a la base: `1433` (SQL Server), `5432
 Las APIs instantáneas necesitan el nodo en **modo completo**. Si se instaló en modo canal, se cambia sin perder la identidad ni los servicios:
 
 ```bash
-sudo /opt/rid-node/install.sh modo completo
+sudo /opt/den-node/install.sh modo completo
 ```
 
-Después, `sudo /opt/rid-node/install.sh servicio` y el tipo `instant`. El instalador muestra las vistas que el usuario puede leer, crea el recurso y genera el OpenAPI en `/opt/rid-node/config/services/<servicio>.openapi.json`.
+Después, `sudo /opt/den-node/install.sh servicio` y el tipo `instant`. El instalador muestra las vistas que el usuario puede leer, crea el recurso y genera el OpenAPI en `/opt/den-node/config/services/<servicio>.openapi.json`.
 
 ## 4. El archivo del servicio
 
-Cada servicio vive en `/opt/rid-node/config/services/<servicio>.yaml`. El instalador lo escribe; se puede editar después (sección 8).
+Cada servicio vive en `/opt/den-node/config/services/<servicio>.yaml`. El instalador lo escribe; se puede editar después (sección 8).
 
 ```yaml
 name: afiliacion                       # nombre del servicio: minúsculas, números y guiones
@@ -119,7 +119,7 @@ database:
   host: bd.interna.entidad
   port: 5432
   name: entidad                        # la base; en Oracle, el nombre del servicio
-  user: rid_reader
+  user: den_reader
   passwordFile: /run/secrets/afiliacion_db_password
   tls: require                         # disable | require | verify
   # caFile: /run/secrets/afiliacion_db_ca.pem   # solo con verify (no en Oracle)
@@ -218,16 +218,16 @@ Si la base se cae, el servicio contesta 503 y el portal lo ve con problemas. Cua
 
 ## 8. Cambiar un servicio
 
-Los comandos del nodo se ejecutan dentro del contenedor, desde `/opt/rid-node`. Dentro del contenedor, la configuración está en `/etc/rid-node/services/`:
+Los comandos del nodo se ejecutan dentro del contenedor, desde `/opt/den-node`. Dentro del contenedor, la configuración está en `/etc/den-node/services/`:
 
 ```bash
-cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node <comando>
+cd /opt/den-node
+sudo docker compose exec den-node /den-node <comando>
 ```
 
 | Comando | Para qué |
 | :-- | :-- |
-| `catalog --service-file /etc/rid-node/services/<servicio>.yaml` | Las vistas y tablas que el usuario puede leer, con sus columnas y si se pueden publicar |
+| `catalog --service-file /etc/den-node/services/<servicio>.yaml` | Las vistas y tablas que el usuario puede leer, con sus columnas y si se pueden publicar |
 | `scaffold --print --service-file ... --source esquema.vista --key columna [--resource nombre] [--entity Nombre] [--subject CC] [--many]` | Imprime el archivo del servicio con un recurso nuevo, que trae todas las columnas que se pueden publicar |
 | `validate` | Valida todos los servicios contra sus bases |
 | `openapi <servicio>` | Imprime el OpenAPI que se sube al portal |
@@ -237,7 +237,7 @@ sudo docker compose exec rid-node /rid-node <comando>
 **Agregar un recurso a un servicio existente** (otra vista sobre la misma base):
 
 ```bash
-sudo /opt/rid-node/install.sh servicio recurso afiliacion
+sudo /opt/den-node/install.sh servicio recurso afiliacion
 ```
 
 Muestra las vistas que el usuario puede leer, pide la vista y su clave, agrega el recurso, valida, regenera el OpenAPI y reinicia el nodo. Si algo falla, deja el servicio como estaba. El OpenAPI cambia, así que hay que publicar una versión nueva en el portal.
@@ -245,10 +245,10 @@ Muestra las vistas que el usuario puede leer, pide la vista y su clave, agrega e
 **Después de cualquier cambio**, valida, regenera el OpenAPI y reinicia:
 
 ```bash
-cd /opt/rid-node
-sudo docker compose exec rid-node /rid-node validate
-sudo docker compose exec rid-node /rid-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json >/dev/null
-sudo docker compose restart rid-node
+cd /opt/den-node
+sudo docker compose exec den-node /den-node validate
+sudo docker compose exec den-node /den-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json >/dev/null
+sudo docker compose restart den-node
 ```
 
 **Si cambia la vista en la base**, el servicio sigue sirviendo las columnas declaradas. Una columna nueva en la vista no se publica hasta que se agrega a `columns`. Si se quita de la vista una columna declarada, el servicio deja de servir y `doctor` dice cuál falta.

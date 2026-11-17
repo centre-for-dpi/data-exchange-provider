@@ -1,4 +1,4 @@
-# Kit de APIs instantáneas — RID
+# Kit de APIs instantáneas — DEN
 
 > English version (official): [README.md](../../README.md)
 

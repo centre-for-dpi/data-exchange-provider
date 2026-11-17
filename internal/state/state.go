@@ -59,7 +59,7 @@ const (
 	statusFile = "status.json"
 )
 
-// Store reads and writes the state directory (RID_STATE_DIR).
+// Store reads and writes the state directory (DEN_STATE_DIR).
 type Store struct{ Dir string }
 
 // Load returns ErrNoState when there is no state. Any other failure is an error the node must
@@ -88,7 +88,7 @@ func (s Store) Save(st *State) error {
 	return writeAtomic(filepath.Join(s.Dir, stateFile), b, 0o600)
 }
 
-// WriteStatus writes status.json (no secrets) for `rid-node status`.
+// WriteStatus writes status.json (no secrets) for `den-node status`.
 func (s Store) WriteStatus(v any) error {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

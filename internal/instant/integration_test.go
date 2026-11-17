@@ -1,7 +1,7 @@
 //go:build integration && !canal
 
 // Integration with the four engines of test/engines (make test-engines). It needs the users'
-// passwords in RID_IT_READER_PASSWORD and RID_IT_WRITER_PASSWORD; RID_IT_ENGINES narrows the
+// passwords in DEN_IT_READER_PASSWORD and DEN_IT_WRITER_PASSWORD; DEN_IT_ENGINES narrows the
 // engines (comma-separated).
 package instant_test
 
@@ -35,7 +35,7 @@ type engineIT struct {
 	port   int
 	name   string // database (MySQL: the schema; Oracle: the service)
 	tls    string
-	legacy bool // older versions (make test-engines-legacy): only when named in RID_IT_ENGINES
+	legacy bool // older versions (make test-engines-legacy): only when named in DEN_IT_ENGINES
 }
 
 var engines = []engineIT{
@@ -48,10 +48,10 @@ var engines = []engineIT{
 }
 
 func forEachEngine(t *testing.T, fn func(t *testing.T, e engineIT)) {
-	if os.Getenv("RID_IT_READER_PASSWORD") == "" || os.Getenv("RID_IT_WRITER_PASSWORD") == "" {
-		t.Skip("RID_IT_READER_PASSWORD and RID_IT_WRITER_PASSWORD are not set (make test-engines)")
+	if os.Getenv("DEN_IT_READER_PASSWORD") == "" || os.Getenv("DEN_IT_WRITER_PASSWORD") == "" {
+		t.Skip("DEN_IT_READER_PASSWORD and DEN_IT_WRITER_PASSWORD are not set (make test-engines)")
 	}
-	only := os.Getenv("RID_IT_ENGINES")
+	only := os.Getenv("DEN_IT_ENGINES")
 	for _, e := range engines {
 		named := slices.Contains(strings.Split(only, ","), e.label)
 		if (only != "" && !named) || (e.legacy && !named) {
@@ -90,7 +90,7 @@ func open(t *testing.T, e engineIT, user, password string, resources ...config.R
 }
 
 func reader(t *testing.T, e engineIT, resources ...config.Resource) *instant.Service {
-	return open(t, e, "rid_reader", os.Getenv("RID_IT_READER_PASSWORD"), resources...)
+	return open(t, e, "den_reader", os.Getenv("DEN_IT_READER_PASSWORD"), resources...)
 }
 
 func compile(t *testing.T, s *instant.Service) {
@@ -275,7 +275,7 @@ func TestTypesRoundTrip(t *testing.T) {
 func writerDB(t *testing.T, e engineIT) (*sql.DB, instant.Dialect) {
 	t.Helper()
 	d, _ := dialect.For(e.engine)
-	dsn, err := d.DSN(*database(t, e, "rid_writer", os.Getenv("RID_IT_WRITER_PASSWORD")), os.Getenv("RID_IT_WRITER_PASSWORD"))
+	dsn, err := d.DSN(*database(t, e, "den_writer", os.Getenv("DEN_IT_WRITER_PASSWORD")), os.Getenv("DEN_IT_WRITER_PASSWORD"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +328,7 @@ func TestWriteCheckFlagsWriter(t *testing.T) {
 		if w, err := r.WriteCheck(ctx); err != nil || len(w) != 0 {
 			t.Fatalf("the reader cannot write: %v %v", w, err)
 		}
-		w := open(t, e, "rid_writer", os.Getenv("RID_IT_WRITER_PASSWORD"), config.Resource{Name: "escritura", Entity: "Escritura",
+		w := open(t, e, "den_writer", os.Getenv("DEN_IT_WRITER_PASSWORD"), config.Resource{Name: "escritura", Entity: "Escritura",
 			Source: "salud.escritura", MaxRows: 100, Key: config.KeySpec{Column: "id"},
 			Columns: []config.ColumnSpec{{Name: "id"}, {Name: "nota"}}})
 		compile(t, w)
@@ -357,13 +357,13 @@ func TestCharKey(t *testing.T) {
 func TestWriteCheckFlagsIndirectWriters(t *testing.T) {
 	escritura := config.Resource{Name: "escritura", Entity: "Escritura", Source: "salud.escritura", MaxRows: 100,
 		Key: config.KeySpec{Column: "id"}, Columns: []config.ColumnSpec{{Name: "id"}, {Name: "nota"}}}
-	users := map[string][]string{"postgres": {"rid_column_writer"}, "mysql": {"rid_column_writer", "rid_role_writer"}}
+	users := map[string][]string{"postgres": {"den_column_writer"}, "mysql": {"den_column_writer", "den_role_writer"}}
 	forEachEngine(t, func(t *testing.T, e engineIT) {
 		if users[e.engine] == nil {
 			t.Skip("no indirect writer in this engine's seed")
 		}
 		for _, user := range users[e.engine] {
-			w := open(t, e, user, os.Getenv("RID_IT_WRITER_PASSWORD"), escritura)
+			w := open(t, e, user, os.Getenv("DEN_IT_WRITER_PASSWORD"), escritura)
 			compile(t, w)
 			got, err := w.WriteCheck(context.Background())
 			if err != nil || !slices.Equal(got, []string{"salud.escritura"}) {
@@ -531,7 +531,7 @@ func TestPostgresTLSVerify(t *testing.T) {
 			t.Fatal(err)
 		}
 		withTLS := func(tls, caFile string) error {
-			db := database(t, e, "rid_reader", os.Getenv("RID_IT_READER_PASSWORD"))
+			db := database(t, e, "den_reader", os.Getenv("DEN_IT_READER_PASSWORD"))
 			db.TLS, db.CAFile = tls, caFile
 			d, _ := dialect.For(e.engine)
 			s, err := instant.Open(config.Service{Name: "afiliacion", Path: "/salud", Type: "instant", Instant: config.InstantSpec{

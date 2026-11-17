@@ -22,7 +22,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/testpki"
 )
 
-const nodeName = "rid-node-test"
+const nodeName = "den-node-test"
 
 func secret(t *testing.T, value string) string {
 	t.Helper()
@@ -66,7 +66,7 @@ func echoUpstream(t *testing.T) (*httptest.Server, chan seen) {
 	ch := make(chan seen, 1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select { // keep the first request; never block the upstream on a test that ignores it
-		case ch <- seen{r.URL.Path, r.URL.RawQuery, r.Header.Get("Authorization"), r.Header.Get("X-Api-Key"), r.Header.Get("Cookie"), r.Header.Get("X-RID-Purpose"), r.Host}:
+		case ch <- seen{r.URL.Path, r.URL.RawQuery, r.Header.Get("Authorization"), r.Header.Get("X-Api-Key"), r.Header.Get("Cookie"), r.Header.Get("X-DEN-Purpose"), r.Host}:
 		default:
 		}
 		_, _ = io.WriteString(w, "ok")
@@ -101,16 +101,16 @@ func TestInjectsHeaderCredentialAndDropsInboundAuthorization(t *testing.T) {
 func TestBasicCredential(t *testing.T) {
 	up, ch := echoUpstream(t)
 	s := spec(up.URL)
-	s.Credential = &config.Credential{Basic: &config.Basic{User: "rid", PasswordFile: secret(t, "pw")}}
+	s.Credential = &config.Credential{Basic: &config.Basic{User: "den", PasswordFile: secret(t, "pw")}}
 	through(t, s, "GET", "/certificados/1", nil, nil)
-	if got := <-ch; got.Auth != "Basic cmlkOnB3" {
+	if got := <-ch; got.Auth != "Basic ZGVuOnB3" {
 		t.Fatalf("auth %q", got.Auth)
 	}
 }
 
-func TestForwardsRIDHeaders(t *testing.T) {
+func TestForwardsDENHeaders(t *testing.T) {
 	up, ch := echoUpstream(t)
-	through(t, spec(up.URL), "GET", "/certificados/1", nil, map[string]string{"X-RID-Purpose": "eligibility_check"})
+	through(t, spec(up.URL), "GET", "/certificados/1", nil, map[string]string{"X-DEN-Purpose": "eligibility_check"})
 	if got := <-ch; got.Purpose != "eligibility_check" {
 		t.Fatalf("purpose %q", got.Purpose)
 	}
@@ -154,7 +154,7 @@ func TestUpstreamCustomCA(t *testing.T) {
 
 func TestClientCertToUpstream(t *testing.T) {
 	up, pki, caFile := tlsUpstream(t, true)
-	cert := pki.CA.Issue("rid-nodo", nil, x509.ExtKeyUsageClientAuth)
+	cert := pki.CA.Issue("den-nodo", nil, x509.ExtKeyUsageClientAuth)
 	dir := t.TempDir()
 	certFile, keyFile := filepath.Join(dir, "c.pem"), filepath.Join(dir, "k.pem")
 	writePair(t, cert, certFile, keyFile)
@@ -162,7 +162,7 @@ func TestClientCertToUpstream(t *testing.T) {
 	s.CAFile = caFile
 	s.Credential = &config.Credential{ClientCert: certFile, ClientKey: keyFile}
 	w, _ := through(t, s, "GET", "/certificados/1", nil, nil)
-	if w.Code != 200 || w.Body.String() != "client=rid-nodo" {
+	if w.Code != 200 || w.Body.String() != "client=den-nodo" {
 		t.Fatalf("%d %s", w.Code, w.Body)
 	}
 }

@@ -164,7 +164,7 @@ func setAssertion(r *http.Request, result string) {
 type Options struct {
 	Metrics *Metrics // per-service counts (nil: none)
 	// Assertion checks the gateway's signed assertion of a call (nil: not checked). It receives
-	// the X-RID-Assertion header, the method, the URI as received (service path and query) and
+	// the X-DEN-Assertion header, the method, the URI as received (service path and query) and
 	// the body, and returns verified, absent or "invalid: <reason>".
 	Assertion func(ctx context.Context, header, method, uri string, body []byte) string
 	// RequireAssertion answers 401 to a call whose assertion is not verified.
@@ -177,7 +177,7 @@ const maxAssertionBody = 8 << 20
 // checkAssertion reads the body (restoring it for the service) and checks the call. It reports
 // whether the call may go on.
 func checkAssertion(w http.ResponseWriter, r *http.Request, o Options, limit int64) bool {
-	header := r.Header.Get("X-RID-Assertion")
+	header := r.Header.Get("X-DEN-Assertion")
 	if header == "" && !o.RequireAssertion {
 		setAssertion(r, "absent") // nothing to check: the body streams as it would without the check
 		return true

@@ -51,7 +51,7 @@ type KeySpec struct {
 	Description string `yaml:"description,omitempty"`
 }
 
-// SubjectSpec declares that the key identifies a person (x-rid-data-subject).
+// SubjectSpec declares that the key identifies a person (x-den-data-subject).
 type SubjectSpec struct {
 	DocumentType string `yaml:"documentType"`
 }

@@ -67,13 +67,13 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 		if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
 			client = r.TLS.PeerCertificates[0].Subject.CommonName
 		}
-		ridHeaders := []string{}
+		denHeaders := []string{}
 		for name := range r.Header {
-			if lower := strings.ToLower(name); strings.HasPrefix(lower, "x-rid-") {
-				ridHeaders = append(ridHeaders, lower)
+			if lower := strings.ToLower(name); strings.HasPrefix(lower, "x-den-") {
+				denHeaders = append(denHeaders, lower)
 			}
 		}
-		sort.Strings(ridHeaders)
+		sort.Strings(denHeaders)
 		logger.Info("access",
 			"request_id", requestID(r),
 			"method", r.Method,
@@ -81,7 +81,7 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 			"status", rec.status,
 			"ms", time.Since(start).Milliseconds(),
 			"client", client,
-			"rid_headers", ridHeaders,
+			"den_headers", denHeaders,
 			"query_present", r.URL.RawQuery != "",
 			"assertion", assertion, // verified | absent | invalid: <reason> | "" (not checked)
 		)

@@ -19,8 +19,8 @@ import (
 )
 
 func TestHeartbeatUsesClientCertAndServerName(t *testing.T) {
-	pki := testpki.New("rid-node-x", "rid-gateway.salud")
-	nodeCert := pki.CA.Issue("rid-node", []string{"rid-node-x"}, x509.ExtKeyUsageClientAuth)
+	pki := testpki.New("den-node-x", "den-gateway.salud")
+	nodeCert := pki.CA.Issue("den-node", []string{"den-node-x"}, x509.ExtKeyUsageClientAuth)
 	var gotPath, gotCN, gotSNI string
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath, gotCN, gotSNI = r.URL.Path, r.TLS.PeerCertificates[0].Subject.CommonName, r.TLS.ServerName
@@ -40,7 +40,7 @@ func TestHeartbeatUsesClientCertAndServerName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Status != "online" || gotPath != "/api/v1/nodes/abc/heartbeat" || gotCN != "rid-node" || gotSNI != "localhost" {
+	if res.Status != "online" || gotPath != "/api/v1/nodes/abc/heartbeat" || gotCN != "den-node" || gotSNI != "localhost" {
 		t.Fatalf("res=%+v path=%s cn=%s sni=%s", res, gotPath, gotCN, gotSNI)
 	}
 }
