@@ -53,6 +53,7 @@ type Controller struct {
 	RejectedEvery time.Duration // 5m
 	ProbeTimeout  time.Duration // 3s
 	Interval      time.Duration // non-zero: fixed heartbeat interval (development)
+	StatusEvery   time.Duration // 30s: health and status.json between heartbeats
 
 	failures   int
 	lastConfig time.Time
@@ -66,20 +67,47 @@ func NewController(st *state.State, store state.Store, control *contract.Control
 	return &Controller{
 		st: st, store: store, control: control, cert: cert, services: services, tunnel: tun, kit: kitVersion, log: log,
 		Now: time.Now, BackoffMin: 5 * time.Second, BackoffMax: 60 * time.Second,
-		ConfigEvery: 10 * time.Minute, RejectedEvery: 5 * time.Minute, ProbeTimeout: 3 * time.Second,
+		ConfigEvery: 10 * time.Minute, RejectedEvery: 5 * time.Minute, ProbeTimeout: 3 * time.Second, StatusEvery: 30 * time.Second,
 		status: Status{NodeID: st.NodeID, NodeName: st.NodeName, PortalState: "starting", KitVersion: kitVersion, Variant: buildinfo.Variant()},
 	}
 }
 
 // Run repeats the control cycle until ctx ends.
 func (c *Controller) Run(ctx context.Context) error {
+	heartbeat := time.NewTimer(c.cycle(ctx))
+	defer heartbeat.Stop()
+	refresh := time.NewTicker(c.StatusEvery)
+	defer refresh.Stop()
 	for {
-		wait := c.cycle(ctx)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(wait):
+		case <-heartbeat.C:
+			heartbeat.Reset(c.cycle(ctx))
+		case <-refresh.C:
+			// The services' health between heartbeats (the portal may space them by minutes):
+			// what install.sh status shows follows an instant service that has just compiled.
+			services, health := c.probe(ctx)
+			c.writeStatus(services, c.withNotices(health))
 		}
+	}
+}
+
+// withNotices turns an ok health degraded while there are notices.
+func (c *Controller) withNotices(health contract.Health) contract.Health {
+	if len(c.notices) > 0 && health.Status == "ok" {
+		return contract.Health{Status: "degraded", Detail: truncate(c.notices[0], 200)}
+	}
+	return health
+}
+
+func (c *Controller) writeStatus(services []ServiceStatus, health contract.Health) {
+	c.status.Health, c.status.Services, c.status.Notices = health, services, c.notices
+	c.status.LastHandshake = c.tunnel.LastHandshake()
+	c.status.CertificateNotAfter = c.st.CertificateNotAfter
+	c.status.UpdatedAt = c.Now()
+	if err := c.store.WriteStatus(c.status); err != nil {
+		c.log.Warn("status_write_failed", "error", err.Error())
 	}
 }
 
@@ -92,9 +120,7 @@ func (c *Controller) cycle(ctx context.Context) time.Duration {
 	if c.lastConfig.IsZero() || c.Now().Sub(c.lastConfig) >= c.ConfigEvery {
 		c.refreshConfig(ctx)
 	}
-	if len(c.notices) > 0 && health.Status == "ok" {
-		health = contract.Health{Status: "degraded", Detail: truncate(c.notices[0], 200)}
-	}
+	health = c.withNotices(health)
 	infos := make([]contract.ServiceInfo, 0, len(c.services))
 	for _, s := range c.services {
 		info := s.Info
@@ -126,13 +152,7 @@ func (c *Controller) cycle(ctx context.Context) time.Duration {
 		c.failures++
 		c.log.Warn("heartbeat_failed", "error", err.Error(), "retry_in", wait.String())
 	}
-	c.status.Health, c.status.Services, c.status.Notices = health, services, c.notices
-	c.status.LastHandshake = c.tunnel.LastHandshake()
-	c.status.CertificateNotAfter = c.st.CertificateNotAfter
-	c.status.UpdatedAt = c.Now()
-	if err := c.store.WriteStatus(c.status); err != nil {
-		c.log.Warn("status_write_failed", "error", err.Error())
-	}
+	c.writeStatus(services, health)
 	return wait
 }
 

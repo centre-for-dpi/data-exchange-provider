@@ -338,3 +338,39 @@ func TestStatusCarriesServiceStats(t *testing.T) {
 		t.Fatalf("%+v", s)
 	}
 }
+
+// status.json follows the services between heartbeats: an instant service compiles a moment
+// after the first heartbeat, and install.sh status must not show it down until the next one.
+func TestStatusRefreshedBetweenHeartbeats(t *testing.T) {
+	p := fakeportal.New(t)
+	var ready atomic.Bool
+	c, _ := controller(t, p, func(context.Context) error {
+		if !ready.Load() {
+			return errors.New("el catálogo todavía no se ha leído")
+		}
+		return nil
+	})
+	c.Interval = time.Hour
+	c.StatusEvery = 20 * time.Millisecond
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = c.Run(ctx) }()
+	for p.Count("/heartbeat") == 0 {
+		time.Sleep(5 * time.Millisecond)
+	}
+	ready.Store(true)
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		var st Status
+		if err := c.store.ReadStatus(&st); err == nil && len(st.Services) == 1 && st.Services[0].Healthy && st.Health.Status == "ok" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("status.json still shows the service down")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := p.Count("/heartbeat"); n != 1 {
+		t.Fatalf("refreshing the status must not send heartbeats: %d", n)
+	}
+}
