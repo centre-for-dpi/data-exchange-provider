@@ -1,6 +1,6 @@
 # APIs instantáneas: uso y configuración
 
-Para el **DBA** y el **equipo de infraestructura** de una entidad proveedora que no tiene API propia y va a publicar datos de su base con el nodo en **modo completo**.
+Para el **DBA** y el **equipo de infraestructura** de una entidad proveedora que no tiene API propia y va a publicar datos de su base con el nodo en **modo completo**. Versión para ver en el navegador o proyectar: `APIS-INSTANTANEAS.html`.
 
 El primer servicio se crea con el instalador: está en la [guía de instalación](INSTALACION.md#5-agregar-una-api-instantánea-modo-completo). Esta guía explica qué hay detrás: cómo preparar la base, qué dice el archivo del servicio, cómo responde la API y cómo cambiarla después.
 

@@ -1,0 +1,713 @@
+<meta charset="utf-8">
+<title>APIs instantáneas RID</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a sticky contents rail beside one reading column; the two planes of the network carry
+   their own hue (governance = indigo, data = teal) through every diagram, chip and card. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #15202b;
+  --muted: #586575;
+  --line: #d8dee6;
+  --gov: #3a4cc0;
+  --gov-tint: #eceffd;
+  --data: #0a7569;
+  --data-tint: #e2f3f0;
+  --ok: #1d7139;
+  --ok-tint: #e5f4ea;
+  --warn: #9a5200;
+  --warn-tint: #fdf1e1;
+  --bad: #b0222b;
+  --bad-tint: #fcebed;
+  --code-bg: #edf0f4;
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --step: 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+    --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+    --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+    --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+  --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+  --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+  --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; scroll-padding-top: 72px; }
+html.big { font-size: 19px; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  font-size: 1rem; line-height: 1.6; margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+table { font-size: inherit; }
+a { color: var(--gov); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--gov); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.topbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.brand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand small { font-weight: 500; color: var(--muted); font-family: var(--font-body); }
+.topbar .spacer { flex: 1; }
+.tool {
+  font: inherit; font-size: 0.85rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+.tool[aria-pressed="true"] { background: var(--gov); border-color: var(--gov); color: var(--surface); }
+
+.hero {
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 28px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.hero-inner { max-width: 1180px; margin: 0 auto; display: grid; gap: 14px; }
+.eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 700; max-width: 22ch; }
+.lede { font-size: 1.12rem; max-width: 64ch; color: var(--muted); margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.shell {
+  max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 80px;
+}
+.toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow-y: auto; font-size: 0.9rem; }
+.toc p { margin: 18px 0 6px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.toc p:first-child { margin-top: 0; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); }
+.toc a.active { color: var(--ink); border-left-color: var(--gov); font-weight: 600; }
+.toc-mobile { display: none; }
+
+main { min-width: 0; display: grid; gap: 64px; }
+section { display: grid; gap: 18px; min-width: 0; }
+section > p, section > ul, .prose { max-width: 70ch; margin: 0; }
+.part {
+  font-family: var(--font-display); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); border-top: 2px solid var(--ink); padding-top: 10px; font-weight: 600;
+}
+h2 { font-size: 1.65rem; font-weight: 700; }
+h2 .num { color: var(--muted); font-weight: 500; margin-right: 0.35em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+ul.ticks { padding-left: 1.2em; display: grid; gap: 8px; }
+
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.principle { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.principle b { font-family: var(--font-display); font-size: 1.02rem; }
+.principle span { color: var(--muted); font-size: 0.93rem; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.figscroll { overflow-x: auto; }
+figure svg { display: block; width: 100%; height: auto; min-width: 640px; color: var(--ink); }
+figcaption { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+
+/* SVG classes, themed through the page tokens */
+.d-box { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+.d-gov { fill: var(--gov-tint); stroke: var(--gov); stroke-width: 1.2; }
+.d-data { fill: var(--data-tint); stroke: var(--data); stroke-width: 1.2; }
+.d-panel-gov { fill: var(--gov-tint); fill-opacity: 0.45; stroke: var(--gov); stroke-dasharray: 5 4; }
+.d-panel-data { fill: var(--data-tint); fill-opacity: 0.45; stroke: var(--data); stroke-dasharray: 5 4; }
+.d-edge { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.d-ent { fill: var(--bg); stroke: var(--muted); stroke-dasharray: 3 3; }
+.d-line { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+.d-thin { stroke: var(--muted); stroke-width: 1; fill: none; }
+.d-dash { stroke: var(--ink); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.d-strong { stroke: var(--data); stroke-width: 2.6; fill: none; }
+.d-life { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 4; }
+.d-t { fill: var(--ink); font-family: var(--font-body); font-size: 13px; }
+.d-tb { fill: var(--ink); font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.d-ts { fill: var(--muted); font-family: var(--font-body); font-size: 11.5px; }
+.d-lab { fill: var(--ink); font-family: var(--font-mono); font-size: 11.5px; }
+.d-cap { fill: var(--muted); font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; }
+.d-capgov { fill: var(--gov); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-capdata { fill: var(--data); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-ah { fill: var(--ink); }
+.d-ahd { fill: var(--data); }
+.d-ahm { fill: var(--muted); }
+
+/* Tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table.t { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; background: var(--bg); }
+table.t td:first-child { font-weight: 600; white-space: nowrap; }
+table.t td.wrap { white-space: normal; }
+
+/* Role cards */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.role header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; justify-content: space-between; }
+.role code { font-weight: 500; }
+.role .who { font-size: 0.82rem; color: var(--muted); }
+.role p { margin: 0; font-size: 0.93rem; }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.tag.mfa { background: var(--warn-tint); color: var(--warn); }
+.tag.gov { background: var(--gov-tint); color: var(--gov); }
+.tag.data { background: var(--data-tint); color: var(--data); }
+.tag.ok { background: var(--ok-tint); color: var(--ok); }
+.tag.warn { background: var(--warn-tint); color: var(--warn); }
+.tag.bad { background: var(--bad-tint); color: var(--bad); }
+.tag.plain { background: var(--code-bg); color: var(--muted); }
+
+/* Component cards */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.85rem; color: var(--muted); align-items: center; }
+.comps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.comp {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid;
+  gap: 10px; align-content: start; min-width: 0;
+}
+.comp.g { border-top: 3px solid var(--gov); }
+.comp.d { border-top: 3px solid var(--data); }
+.comp.e { border-top: 3px solid var(--ink); }
+.comp h4 { font-size: 1.08rem; }
+.comp .tech { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+.comp p { margin: 0; font-size: 0.93rem; }
+.comp dl { margin: 0; display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: 6px 10px; font-size: 0.88rem; border-top: 1px solid var(--line); padding-top: 10px; }
+.comp dt { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.comp dd { margin: 0; display: grid; gap: 4px; justify-items: start; }
+
+.comp ul.ticks { margin: 0; font-size: 0.93rem; gap: 4px; }
+/* State pipelines */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.st { font-family: var(--font-mono); font-size: 0.84rem; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.st.opt { border-style: dashed; color: var(--muted); }
+.st.goal { border-color: var(--ok); color: var(--ok); background: var(--ok-tint); font-weight: 500; }
+.st.end { border-color: var(--muted); color: var(--muted); }
+.arrow { color: var(--muted); font-size: 0.9rem; }
+.flowcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; max-width: 72ch; }
+ol.steps > li::before {
+  content: counter(s); font-family: var(--font-display); font-weight: 700; width: 1.75rem; height: 1.75rem;
+  border-radius: 50%; display: grid; place-items: center; background: var(--code-bg); font-size: 0.88rem;
+}
+
+/* Guarantees */
+.guar { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.guar div { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.guar b { font-family: var(--font-display); }
+.guar span { font-size: 0.92rem; color: var(--muted); }
+
+/* Spec sheet */
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.spec div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.spec .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.spec .v { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.spec .s { font-size: 0.85rem; color: var(--muted); }
+.ports { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.port { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.port .pn { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 500; }
+.port span { font-size: 0.9rem; color: var(--muted); }
+
+/* Checklist */
+.check { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; display: grid; }
+.check label { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 10px; padding: 8px 16px; cursor: pointer; align-items: start; }
+.check input { width: 1.05rem; height: 1.05rem; margin-top: 0.25em; accent-color: var(--ok); }
+.check input:checked + span { color: var(--muted); text-decoration: line-through; }
+
+/* Code */
+.code { position: relative; background: var(--code-bg); border-radius: 8px; border: 1px solid var(--line); min-width: 0; }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code .copy { position: absolute; top: 8px; right: 8px; }
+.copy { font: inherit; font-size: 0.75rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 9px; border-radius: 5px; cursor: pointer; }
+.cmds { display: grid; gap: 8px; }
+.cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.cmd code { background: none; padding: 0; font-size: 0.9rem; font-weight: 500; }
+.cmd span { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
+
+/* Install stepper */
+.qs { display: grid; gap: 10px; counter-reset: q; }
+.q { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.q .qn { font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: grid; align-content: start; gap: 2px; }
+.q .qn b { font-size: 1.6rem; color: var(--ink); line-height: 1; }
+.q h4 { font-size: 1.02rem; margin-bottom: 4px; }
+.q p { margin: 0; font-size: 0.93rem; }
+.q .auto { color: var(--muted); }
+.opts { display: grid; gap: 6px; margin-top: 8px; }
+.opts div { font-size: 0.9rem; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 6px; }
+.opts kbd { font-weight: 600; background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; text-align: center; height: 1.5rem; line-height: 1.45rem; }
+
+.callout { border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; max-width: 80ch; }
+.callout.warn { background: var(--warn-tint); border: 1px solid var(--warn); }
+.callout.info { background: var(--gov-tint); border: 1px solid var(--gov); }
+.callout b { font-family: var(--font-display); }
+.callout p { margin: 0; }
+
+details.faq { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+details.faq + details.faq { margin-top: -8px; }
+details.faq summary { cursor: pointer; padding: 12px 16px; font-weight: 600; list-style-position: outside; }
+details.faq p { margin: 0; padding: 0 16px 14px; max-width: 72ch; color: var(--muted); }
+details.faq[open] summary { color: var(--gov); }
+
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .toc { display: none; }
+  .toc-mobile { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .toc-mobile summary { cursor: pointer; font-weight: 600; }
+  .toc-mobile ol { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+  .brand small { display: none; }
+}
+@media (max-width: 520px) {
+  .q { grid-template-columns: minmax(0, 1fr); }
+  .q .qn { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: 8px; }
+  .comp dl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="5" cy="13" r="3.2" fill="var(--gov)"></circle>
+        <circle cx="21" cy="5.5" r="3.2" fill="var(--data)"></circle>
+        <circle cx="21" cy="20.5" r="3.2" fill="var(--data)"></circle>
+        <path d="M8 13 H13 M13 13 L18 7 M13 13 L18 19" stroke="var(--ink)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <span>Red de Intercambio de Datos <small>· APIs instantáneas</small></span>
+    </div>
+    <span class="spacer"></span>
+    <button class="tool" id="bigtext" type="button" aria-pressed="false" title="Letra más grande para proyectar">Modo proyección</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Nodo en modo completo · uso y configuración</span>
+    <h1>Publicar una vista de la base de datos como una API de consulta por clave</h1>
+    <p class="lede">Para la entidad proveedora que no tiene API propia. El primer servicio se crea con el instalador (guía de instalación, sección 5); esta guía explica qué hay detrás: cómo preparar la base, qué dice el archivo del servicio, cómo responde la API y cómo cambiarla después.</p>
+    <div class="meta">
+      <span><b>Para</b> el DBA y el equipo de infraestructura de la entidad</span>
+      <span><b>Motores</b> SQL Server · PostgreSQL · MySQL · Oracle</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contenido">
+    <p>Antes de crear el servicio</p>
+    <ol>
+      <li><a href="#que-publica">1. Qué publica el nodo</a></li>
+      <li><a href="#base">2. Preparar la base</a></li>
+      <li><a href="#modo">3. Modo del nodo</a></li>
+    </ol>
+    <p>Configuración</p>
+    <ol>
+      <li><a href="#archivo">4. El archivo del servicio</a></li>
+      <li><a href="#tipos">5. Tipos de las columnas</a></li>
+      <li><a href="#clave">6. La clave</a></li>
+      <li><a href="#respuestas">7. Cómo responde</a></li>
+    </ol>
+    <p>Operación</p>
+    <ol>
+      <li><a href="#cambiar">8. Cambiar un servicio</a></li>
+      <li><a href="#seguridad">9. Seguridad</a></li>
+      <li><a href="#problemas">10. Problemas comunes</a></li>
+      <li><a href="#limites">11. Límites</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <details class="toc-mobile">
+      <summary>Contenido</summary>
+      <ol>
+        <li><a href="#que-publica">Qué publica el nodo</a></li>
+        <li><a href="#base">Preparar la base</a></li>
+        <li><a href="#modo">Modo del nodo</a></li>
+        <li><a href="#archivo">El archivo del servicio</a></li>
+        <li><a href="#tipos">Tipos de las columnas</a></li>
+        <li><a href="#clave">La clave</a></li>
+        <li><a href="#respuestas">Cómo responde</a></li>
+        <li><a href="#cambiar">Cambiar un servicio</a></li>
+        <li><a href="#seguridad">Seguridad</a></li>
+        <li><a href="#problemas">Problemas comunes</a></li>
+        <li><a href="#limites">Límites</a></li>
+      </ol>
+    </details>
+
+    <section id="que-publica">
+      <div class="part">Antes de crear el servicio</div>
+      <h2><span class="num">1</span>Qué publica el nodo</h2>
+      <p>El nodo lee una <b>vista</b> (o una tabla) de la base de la entidad y la publica como una consulta <b>por clave</b>: <code>GET {ruta del servicio}/{recurso}/{clave}</code>.</p>
+      <div class="flowcard">
+        <div class="flow" aria-label="Recorrido de una consulta">
+          <span class="st">GET /afiliacion/afiliados/1000000001</span><span class="arrow">→</span>
+          <span class="st">el nodo valida la clave</span><span class="arrow">→</span>
+          <span class="st">SELECT … WHERE numero_documento = ? · solo lectura</span><span class="arrow">→</span>
+          <span class="st">vista salud.v_afiliados</span><span class="arrow">→</span>
+          <span class="st goal">JSON con las columnas declaradas</span>
+        </div>
+        <div class="code"><button class="copy" type="button">Copiar</button><pre><code>GET /afiliacion/afiliados/1000000001
+→ 200 {"numero_documento": "1000000001", "eps": "EPS01", "regimen": "contributivo", ...}</code></pre></div>
+      </div>
+      <p>A través del gateway, el consumidor llama a <code>/&lt;entidad&gt;/&lt;api&gt;/v1/afiliados/1000000001</code>. La ruta exacta está en la ficha de la API en el portal.</p>
+      <div class="principles">
+        <div class="principle"><b>Cuatro motores</b><span>SQL Server, PostgreSQL, MySQL y Oracle. No hace falta instalar ningún cliente en el servidor: los drivers van dentro del nodo.</span></div>
+        <div class="principle"><b>Un servicio, una conexión</b><span>Cada servicio se conecta a una base y tiene uno o varios recursos. Cada recurso es una vista y una clave.</span></div>
+        <div class="principle"><b>OpenAPI generado</b><span>El nodo genera el contrato que se sube al portal, y ya cumple las reglas de la red.</span></div>
+        <div class="principle"><b>Solo por clave</b><span>No hay listados, filtros, búsquedas ni escrituras.</span></div>
+      </div>
+    </section>
+
+    <section id="base">
+      <h2><span class="num">2</span>Preparar la base de datos (DBA)</h2>
+      <h3>La vista</h3>
+      <div class="callout info">
+        <b>La vista es el contrato</b>
+        <p>Lo que no está en la vista no sale. Incluye solo las columnas que se van a compartir, con la minimización que declara la ficha del servicio.</p>
+      </div>
+      <ul class="ticks">
+        <li><b>Nombres simples:</b> letras, números y <code>_</code>, empezando por una letra o <code>_</code> (<code>numero_documento</code>, no <code>"Número documento"</code>). Una columna con otro nombre se renombra en la vista con <code>AS</code>.</li>
+        <li><b>La columna clave</b> debe ser de texto, entero, numérico sin decimales, UUID o fecha. Si es de texto, conviene que solo use letras, números y guiones (sección 6).</li>
+        <li><b>Clave única,</b> salvo que el recurso se declare con varias filas por clave (por ejemplo, un hogar con varias personas).</li>
+        <li><b>Un índice</b> sobre la columna clave en la tabla de origen: cada consulta es un <code>WHERE clave = ?</code>.</li>
+      </ul>
+
+      <h3>El usuario de solo lectura</h3>
+      <p>Un usuario propio para el nodo, con <code>SELECT</code> <b>sobre las vistas que se exponen y nada más</b>. Sin roles amplios como <code>db_datareader</code> y sin permisos sobre las tablas de origen: la vista ya se lee con los permisos de su dueño.</p>
+      <div class="comps">
+        <article class="comp e">
+          <div><h4>PostgreSQL</h4></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE ROLE rid_reader LOGIN PASSWORD '&lt;contraseña&gt;';
+GRANT CONNECT ON DATABASE entidad TO rid_reader;
+GRANT USAGE ON SCHEMA salud TO rid_reader;
+GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+        </article>
+        <article class="comp e">
+          <div><h4>SQL Server</h4></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE LOGIN rid_reader WITH PASSWORD = '&lt;contraseña&gt;';
+USE entidad;
+CREATE USER rid_reader FOR LOGIN rid_reader;
+GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+        </article>
+        <article class="comp e">
+          <div><h4>MySQL</h4><span class="tech">el "esquema" es la base de datos</span></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE USER 'rid_reader'@'&lt;IP del nodo&gt;' IDENTIFIED BY '&lt;contraseña&gt;';
+GRANT SELECT ON salud.v_afiliados TO 'rid_reader'@'&lt;IP del nodo&gt;';</code></pre></div>
+        </article>
+        <article class="comp e">
+          <div><h4>Oracle</h4><span class="tech">en la PDB; la "base" es el servicio (p. ej. ORCLPDB1)</span></div>
+          <div class="code"><button class="copy" type="button">Copiar</button><pre><code>CREATE USER rid_reader IDENTIFIED BY "&lt;contraseña&gt;";
+GRANT CREATE SESSION TO rid_reader;
+GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+        </article>
+      </div>
+      <ul class="ticks">
+        <li>La contraseña no se escribe en ningún archivo de configuración: el instalador la pide sin mostrarla y la guarda en <code>/opt/rid-node/secrets/&lt;servicio&gt;_db_password</code>.</li>
+        <li><code>doctor</code> comprueba que el usuario <b>no pueda escribir</b> en las vistas que se exponen. Si puede, lo marca con ✘.</li>
+      </ul>
+
+      <h3>La red y el TLS hacia la base</h3>
+      <div class="ports">
+        <div class="port"><span class="pn">1433</span><b>SQL Server</b></div>
+        <div class="port"><span class="pn">5432</span><b>PostgreSQL</b></div>
+        <div class="port"><span class="pn">3306</span><b>MySQL</b></div>
+        <div class="port"><span class="pn">1521</span><b>Oracle</b></div>
+      </div>
+      <p>Del servidor del nodo hacia la base, dentro de la red de la entidad, o el puerto que use la entidad.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th><code>tls</code></th><th>Qué hace</th></tr></thead>
+          <tbody>
+            <tr><td><code>require</code> <span class="tag plain">por defecto</span></td><td class="wrap">Cifra la conexión, sin verificar el certificado de la base</td></tr>
+            <tr><td><code>verify</code></td><td class="wrap">Cifra y verifica el certificado. Con una CA interna, el instalador pide el archivo de la CA. En Oracle se usan solo las CA del sistema</td></tr>
+            <tr><td><code>disable</code></td><td class="wrap">Sin cifrar. Solo es razonable dentro de la red de la entidad, y el instalador lo advierte</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="modo">
+      <h2><span class="num">3</span>Modo del nodo</h2>
+      <p>Las APIs instantáneas necesitan el nodo en <b>modo completo</b>. Si se instaló en modo canal, se cambia sin perder la identidad ni los servicios:</p>
+      <div class="cmds">
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh modo completo</code><button class="copy" type="button">Copiar</button><span>Cambia a la imagen con las APIs instantáneas y los drivers.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh servicio</code><button class="copy" type="button">Copiar</button><span>Tipo <code>instant</code>: muestra las vistas que el usuario puede leer, crea el recurso y genera el OpenAPI en <code>/opt/rid-node/config/services/&lt;servicio&gt;.openapi.json</code>.</span></div>
+      </div>
+    </section>
+
+    <section id="archivo">
+      <div class="part">Configuración</div>
+      <h2><span class="num">4</span>El archivo del servicio</h2>
+      <p>Cada servicio vive en <code>/opt/rid-node/config/services/&lt;servicio&gt;.yaml</code>. El instalador lo escribe; se puede editar después (sección 8).</p>
+      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>name: afiliacion                       # nombre del servicio: minúsculas, números y guiones
+path: /afiliacion                      # "Ruta del servicio en el nodo" en el portal
+type: instant
+title: Afiliación en salud             # opcional: título del OpenAPI (por defecto, el nombre)
+description: Consulta de afiliación    # opcional
+version: 1.0.0                         # opcional: versión del OpenAPI (por defecto 1.0.0)
+database:
+  engine: postgres                     # sqlserver | postgres | mysql | oracle
+  host: bd.interna.entidad
+  port: 5432
+  name: entidad                        # la base; en Oracle, el nombre del servicio
+  user: rid_reader
+  passwordFile: /run/secrets/afiliacion_db_password
+  tls: require                         # disable | require | verify
+  # caFile: /run/secrets/afiliacion_db_ca.pem   # solo con verify (no en Oracle)
+  maxConnections: 4                    # conexiones simultáneas a la base (por defecto 4)
+  queryTimeout: 5s                     # tiempo máximo por consulta (por defecto 5 s)
+resources:
+  - name: afiliados                    # en la URL: /afiliacion/afiliados/{clave}
+    entity: Afiliado                   # nombre en el OpenAPI (esquema y operationId getAfiliado)
+    source: salud.v_afiliados          # esquema.vista
+    description: Afiliado por documento   # opcional
+    key:
+      column: numero_documento         # la columna que se busca con la clave
+      # pattern: '[0-9]{6,12}'         # opcional: formato propio de la clave
+    dataSubject: { documentType: CC }  # si la clave identifica a una persona
+    many: false                        # true: la clave trae una lista
+    # maxRows: 100                     # con many: máximo de filas (por defecto 100, hasta 1000)
+    columns:
+      - { name: tipo_documento }
+      - { name: numero_documento }
+      - { name: eps }
+      - { name: activo, as: boolean }  # as cambia cómo se publica la columna (sección 5)</code></pre></div>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Campo del recurso</th><th>Qué es</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td class="wrap">El nombre del recurso en la URL. Minúsculas, números y guiones, máximo 80</td></tr>
+            <tr><td><code>entity</code></td><td class="wrap">El nombre en el OpenAPI. Empieza por mayúscula, solo letras y números, único en el servicio (<code>Problem</code> está reservado)</td></tr>
+            <tr><td><code>source</code></td><td class="wrap">La vista o tabla, como <code>esquema.objeto</code>. Las mayúsculas no importan</td></tr>
+            <tr><td><code>key.column</code></td><td class="wrap">La columna clave. Debe estar en la vista</td></tr>
+            <tr><td><code>columns</code></td><td class="wrap">Las columnas que se publican. <b>Una columna que no está aquí no sale</b>, aunque esté en la vista</td></tr>
+            <tr><td><code>dataSubject</code> <span class="tag warn">datos personales</span></td><td class="wrap">Declara que la clave identifica a una persona y con qué tipo de documento. El portal lo exige en APIs personales o sensibles. Sin él, el OpenAPI declara que el recurso no tiene titular</td></tr>
+            <tr><td><code>many</code> <span class="tag plain">opcional</span></td><td class="wrap"><code>true</code> si una clave trae varias filas. La respuesta es una lista</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <b>Todo o nada</b>
+        <p>El archivo se valida completo antes de aplicarlo. Si algo no coincide con la base (una vista que no existe, una columna mal escrita, un <code>as</code> que no se puede aplicar), el nodo <b>no sirve ningún recurso del servicio</b>, y <code>validate</code> y <code>doctor</code> dicen por qué.</p>
+      </div>
+    </section>
+
+    <section id="tipos">
+      <h2><span class="num">5</span>Tipos de las columnas</h2>
+      <p>El nodo lee el tipo de cada columna en el catálogo de la base y lo publica así:</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Se publica como</th><th>SQL Server</th><th>PostgreSQL</th><th>MySQL</th><th>Oracle</th></tr></thead>
+          <tbody>
+            <tr><td>texto</td><td class="wrap"><code>varchar</code>, <code>nvarchar</code>, <code>char</code>, <code>nchar</code></td><td class="wrap"><code>varchar</code>, <code>char</code>, <code>text</code></td><td class="wrap"><code>varchar</code>, <code>char</code>, <code>*text</code>, <code>enum</code></td><td class="wrap"><code>varchar2</code>, <code>nvarchar2</code>, <code>char</code>, <code>nchar</code></td></tr>
+            <tr><td>entero</td><td class="wrap"><code>int</code>, <code>smallint</code>, <code>tinyint</code>, <code>bigint</code></td><td class="wrap"><code>integer</code>, <code>smallint</code>, <code>bigint</code></td><td class="wrap"><code>int</code>, <code>smallint</code>, <code>tinyint</code>, <code>mediumint</code>, <code>bigint</code>, <code>year</code></td><td class="wrap"><code>number</code> sin decimales</td></tr>
+            <tr><td>número</td><td class="wrap"><code>decimal</code>, <code>numeric</code>, <code>money</code>, <code>float</code>, <code>real</code></td><td class="wrap"><code>numeric</code>, <code>real</code>, <code>double precision</code></td><td class="wrap"><code>decimal</code>, <code>float</code>, <code>double</code></td><td class="wrap"><code>number</code> con decimales, <code>float</code>, <code>binary_*</code></td></tr>
+            <tr><td>sí/no</td><td class="wrap"><code>bit</code></td><td class="wrap"><code>boolean</code></td><td class="wrap"><code>bit</code></td><td class="wrap"><code>boolean</code></td></tr>
+            <tr><td>fecha</td><td class="wrap"><code>date</code></td><td class="wrap"><code>date</code></td><td class="wrap"><code>date</code></td><td class="wrap">—</td></tr>
+            <tr><td>fecha y hora con zona</td><td class="wrap"><code>datetimeoffset</code></td><td class="wrap"><code>timestamp with time zone</code></td><td class="wrap">—</td><td class="wrap"><code>timestamp with time zone</code></td></tr>
+            <tr><td>fecha y hora sin zona</td><td class="wrap"><code>datetime2</code>, <code>datetime</code>, <code>smalldatetime</code></td><td class="wrap"><code>timestamp</code></td><td class="wrap"><code>datetime</code>, <code>timestamp</code></td><td class="wrap"><code>date</code>, <code>timestamp</code></td></tr>
+            <tr><td>UUID</td><td class="wrap"><code>uniqueidentifier</code></td><td class="wrap"><code>uuid</code></td><td class="wrap">—</td><td class="wrap">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Los demás tipos (binarios, XML, JSON, geográficos, intervalos) <b>no se pueden publicar</b>. El instalador los deja fuera y los anota como comentario en el archivo. Si hace falta uno, conviértelo en la vista, por ejemplo con <code>CAST(... AS varchar)</code>. Un valor <code>NULL</code> sale como <code>null</code>.</p>
+      <h3>Cambiar cómo se publica una columna: <code>as</code></h3>
+      <p>Solo se aceptan conversiones que no pierden información.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th><code>as</code></th><th>Sirve para</th></tr></thead>
+          <tbody>
+            <tr><td><code>string</code></td><td class="wrap">Cualquier columna</td></tr>
+            <tr><td><code>integer</code></td><td class="wrap">Columnas enteras</td></tr>
+            <tr><td><code>number</code></td><td class="wrap">Números y enteros</td></tr>
+            <tr><td><code>boolean</code></td><td class="wrap">Un entero que guarda 0 o 1 (<code>NUMBER(1)</code> de Oracle, <code>TINYINT(1)</code> de MySQL)</td></tr>
+            <tr><td><code>date</code></td><td class="wrap">Fechas y fechas con hora, cuando la hora no importa (el <code>DATE</code> de Oracle siempre trae hora)</td></tr>
+            <tr><td><code>date-time</code></td><td class="wrap">Solo columnas con zona horaria</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="clave">
+      <h2><span class="num">6</span>La clave</h2>
+      <p>La clave llega en la URL y se valida <b>antes</b> de consultar la base. Un formato inválido da 400 sin tocar la base.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Tipo de la columna clave</th><th>Formato que acepta por defecto</th></tr></thead>
+          <tbody>
+            <tr><td>Texto</td><td class="wrap">Letras, números y guiones, hasta el largo de la columna. Sin espacios, comillas ni separadores</td></tr>
+            <tr><td>Entero</td><td class="wrap">Hasta 18 dígitos</td></tr>
+            <tr><td>Número sin decimales</td><td class="wrap">Hasta 38 dígitos</td></tr>
+            <tr><td>UUID</td><td class="wrap"><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td></tr>
+            <tr><td>Fecha</td><td class="wrap"><code>AAAA-MM-DD</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Si las claves de la entidad tienen otro formato (por ejemplo, con puntos o letras al final), se declara <code>key.pattern</code> con una expresión regular. El nodo la ajusta a la clave completa. Ninguna clave puede pasar de 256 bytes.</p>
+    </section>
+
+    <section id="respuestas">
+      <h2><span class="num">7</span>Cómo responde la API</h2>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Respuesta</th><th>Cuándo</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag ok">200</span> objeto</td><td class="wrap">La clave existe (recurso sin <code>many</code>)</td></tr>
+            <tr><td><span class="tag ok">200</span> lista</td><td class="wrap">La clave existe (recurso con <code>many</code>)</td></tr>
+            <tr><td><span class="tag plain">404</span> <code>not_found</code></td><td class="wrap">La clave no existe, o el recurso no existe</td></tr>
+            <tr><td><span class="tag warn">400</span> <code>invalid_key</code></td><td class="wrap">La clave no tiene el formato del recurso</td></tr>
+            <tr><td><span class="tag warn">400</span> <code>query_not_allowed</code></td><td class="wrap">La URL trae parámetros (<code>?...</code>). Las claves van siempre en la ruta</td></tr>
+            <tr><td><span class="tag warn">405</span> <code>method_not_allowed</code></td><td class="wrap">Un método distinto de <code>GET</code></td></tr>
+            <tr><td><span class="tag bad">500</span> <code>non_unique_key</code></td><td class="wrap">Una clave declarada única trajo dos filas. Revisa la vista, o declara <code>many: true</code></td></tr>
+            <tr><td><span class="tag bad">500</span> <code>too_many_rows</code></td><td class="wrap">Una lista pasó de <code>maxRows</code>. Nunca se corta en silencio</td></tr>
+            <tr><td><span class="tag bad">500</span> <code>response_too_large</code></td><td class="wrap">La respuesta pasó de 8 MiB</td></tr>
+            <tr><td><span class="tag bad">503</span> <code>service_unavailable</code></td><td class="wrap">La base no responde, o el archivo del servicio no coincide con la base</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="ticks">
+        <li>Los errores van en <code>application/problem+json</code>, con un título en español y un <code>code</code> estable.</li>
+        <li><code>GET {ruta del servicio}/</code> responde <code>{"status":"ok"}</code>, o 503 si la base no responde: es lo que usa el portal para saber si el servicio está sano.</li>
+        <li>Si la base se cae, el servicio contesta 503 y el portal lo ve con problemas. Cuando la base vuelve, el servicio se recupera solo, sin reiniciar el nodo.</li>
+      </ul>
+    </section>
+
+    <section id="cambiar">
+      <div class="part">Operación</div>
+      <h2><span class="num">8</span>Cambiar un servicio</h2>
+      <p>Los comandos del nodo se ejecutan dentro del contenedor, desde <code>/opt/rid-node</code>. Dentro del contenedor, la configuración está en <code>/etc/rid-node/services/</code>.</p>
+      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/rid-node
+sudo docker compose exec rid-node /rid-node &lt;comando&gt;</code></pre></div>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Comando</th><th>Para qué</th></tr></thead>
+          <tbody>
+            <tr><td class="wrap"><code>catalog --service-file /etc/rid-node/services/&lt;servicio&gt;.yaml</code></td><td class="wrap">Las vistas y tablas que el usuario puede leer, con sus columnas y si se pueden publicar</td></tr>
+            <tr><td class="wrap"><code>scaffold --print --service-file ... --source esquema.vista --key columna [--resource nombre] [--entity Nombre] [--subject CC] [--many]</code></td><td class="wrap">Imprime el archivo del servicio con un recurso nuevo, que trae todas las columnas que se pueden publicar</td></tr>
+            <tr><td><code>validate</code></td><td class="wrap">Valida todos los servicios contra sus bases</td></tr>
+            <tr><td><code>openapi &lt;servicio&gt;</code></td><td class="wrap">Imprime el OpenAPI que se sube al portal</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Quitar o ajustar columnas</h3>
+      <p>Edita <code>config/services/&lt;servicio&gt;.yaml</code>: quita la columna de <code>columns</code>, o agrégale <code>as</code>.</p>
+
+      <h3>Agregar un recurso a un servicio existente</h3>
+      <p>Otra vista sobre la misma base:</p>
+      <div class="code"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/rid-node
+sudo docker compose exec rid-node /rid-node scaffold --print \
+  --service-file /etc/rid-node/services/afiliacion.yaml --source salud.v_hogares --key hogar_id --many \
+  | sudo tee config/services/afiliacion.yaml.nuevo &gt;/dev/null
+# revisa el archivo nuevo y, si está bien:
+sudo mv config/services/afiliacion.yaml.nuevo config/services/afiliacion.yaml</code></pre></div>
+
+      <h3>Después de cualquier cambio</h3>
+      <ol class="steps">
+        <li><span>Valida, regenera el OpenAPI y reinicia:
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>cd /opt/rid-node
+sudo docker compose exec rid-node /rid-node validate
+sudo docker compose exec rid-node /rid-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json &gt;/dev/null
+sudo docker compose restart rid-node</code></pre></div></span></li>
+        <li><span><b>Si el OpenAPI cambió, publica una versión nueva en el portal.</b> El nodo envía la huella del OpenAPI que sirve en cada heartbeat, para que el portal sepa qué contrato está detrás. Un cambio incompatible (quitar una columna, cambiar su tipo, cambiar la clave) exige una versión mayor nueva.</span></li>
+      </ol>
+      <div class="callout info">
+        <b>Si cambia la vista en la base</b>
+        <p>El servicio sigue sirviendo las columnas declaradas. Una columna nueva en la vista no se publica hasta que se agrega a <code>columns</code>. Si se quita de la vista una columna declarada, el servicio deja de servir y <code>doctor</code> dice cuál falta.</p>
+      </div>
+    </section>
+
+    <section id="seguridad">
+      <h2><span class="num">9</span>Seguridad y privacidad</h2>
+      <div class="guar">
+        <div><b>Solo lectura en tres capas</b><span>El usuario de la base, que <code>doctor</code> verifica; una transacción de solo lectura en cada consulta (PostgreSQL, MySQL y Oracle; SQL Server no la tiene); y un <code>SELECT</code> generado por el nodo con la clave como único parámetro. Los nombres de vistas y columnas salen del catálogo, nunca de la petición.</span></div>
+        <div><b>Sin contenido en los logs</b><span>El recurso, la plantilla de la ruta y el resultado; nunca la clave ni los valores. Los errores de la base se registran por clase, no con el mensaje del driver.</span></div>
+        <div><b>Los datos no se copian</b><span>Cada consulta se responde en el momento desde la base de la entidad, y el nodo no guarda nada.</span></div>
+        <div><b>La base se protege</b><span>El nodo limita las conexiones (<code>maxConnections</code>), el tiempo por consulta (<code>queryTimeout</code>) y las peticiones simultáneas.</span></div>
+      </div>
+    </section>
+
+    <section id="problemas">
+      <h2><span class="num">10</span>Problemas comunes</h2>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Síntoma</th><th>Causa probable</th><th>Qué hacer</th></tr></thead>
+          <tbody>
+            <tr><td class="wrap">El instalador: "No se pudo leer el catálogo de la base con ese usuario"</td><td class="wrap">Host, puerto, base, usuario o contraseña equivocados, o el firewall no deja pasar</td><td class="wrap">Revisa los datos y la conexión del servidor del nodo hacia la base</td></tr>
+            <tr><td class="wrap"><code>catalog</code>: "el usuario no puede leer ninguna vista ni tabla"</td><td class="wrap">Falta el <code>GRANT SELECT</code> (o, en PostgreSQL, el <code>USAGE</code> sobre el esquema)</td><td class="wrap">Sección 2</td></tr>
+            <tr><td class="wrap"><code>doctor</code>: ✘ el usuario puede escribir</td><td class="wrap">El usuario tiene <code>INSERT</code>, <code>UPDATE</code> o <code>DELETE</code>, directo o por un rol</td><td class="wrap">Quita esos permisos y deja solo <code>SELECT</code> sobre las vistas</td></tr>
+            <tr><td class="wrap"><code>validate</code>: una columna no existe</td><td class="wrap">La vista cambió, o el nombre está mal escrito</td><td class="wrap">Corrige <code>columns</code> o la vista</td></tr>
+            <tr><td class="wrap">Todas las consultas dan 503</td><td class="wrap">La base no responde, o el archivo no coincide con la base</td><td class="wrap"><code>doctor</code> dice cuál de las dos</td></tr>
+            <tr><td class="wrap"><code>400 invalid_key</code> con claves válidas</td><td class="wrap">El patrón por defecto no acepta el formato de las claves</td><td class="wrap">Declara <code>key.pattern</code> (sección 6)</td></tr>
+            <tr><td class="wrap"><code>500 non_unique_key</code></td><td class="wrap">La clave se repite en la vista</td><td class="wrap">Corrige la vista, o declara <code>many: true</code> y publica una versión nueva</td></tr>
+            <tr><td class="wrap">Con TLS <code>verify</code>, falla la conexión</td><td class="wrap">La base usa un certificado de una CA interna</td><td class="wrap">Indica el archivo de la CA (no en Oracle), o usa <code>require</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limites">
+      <h2><span class="num">11</span>Límites de esta versión</h2>
+      <ul class="ticks">
+        <li>Solo <code>GET</code> por clave. No hay listados, filtros ni búsquedas por cuerpo (POST).</li>
+        <li>Un recurso nuevo en un servicio existente se agrega editando el archivo (sección 8): el instalador solo crea servicios nuevos.</li>
+        <li>Oracle se probó con la versión 23ai. Con versiones más antiguas, se prueba con cada entidad.</li>
+        <li>En PostgreSQL, las columnas <code>timestamp with time zone</code> salen en UTC.</li>
+      </ul>
+      <p class="footer">Versión en Markdown: <code>docs/APIS-INSTANTANEAS.md</code> del repositorio del kit. La instalación del nodo está en <code>docs/INSTALACION.md</code>.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var big = document.getElementById('bigtext');
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function setBig(on) { root.classList.toggle('big', on); big.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  setBig(load('ridi-big') === '1');
+  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('ridi-big', on ? '1' : '0'); });
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var box = btn.closest('.code, .cmd');
+      var text = box.querySelector('pre, code').innerText.trim();
+      var done = function () { btn.textContent = 'Copiado'; setTimeout(function () { btn.textContent = 'Copiar'; }, 1500); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(box.querySelector('pre, code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Seleccionado'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    });
+  });
+
+  document.querySelectorAll('#pre input').forEach(function (box) {
+    box.checked = load('ridi-' + box.id) === '1';
+    box.addEventListener('change', function () { store('ridi-' + box.id, box.checked ? '1' : '0'); });
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  if ('IntersectionObserver' in window) {
+    var seen = {};
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+      var first = links.find(function (a) { return seen[a.getAttribute('href').slice(1)]; });
+      if (first) links.forEach(function (a) { a.classList.toggle('active', a === first); });
+    }, { rootMargin: '-80px 0px -55% 0px' });
+    links.forEach(function (a) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) io.observe(s); });
+  }
+})();
+</script>
