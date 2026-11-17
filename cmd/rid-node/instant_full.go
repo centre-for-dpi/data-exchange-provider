@@ -42,14 +42,14 @@ func openInstant(s config.Service, log *slog.Logger) (*instant.Service, error) {
 }
 
 // instantRuntime opens and starts an instant service for run: it serves 503 until its catalog
-// compiles, and the heartbeat carries its OpenAPI's SHA once it does.
-func instantRuntime(ctx context.Context, s config.Service, log *slog.Logger) (server.Route, agent.ServiceRuntime, error) {
+// compiles, and the heartbeat carries its OpenAPI's SHA once it does. closeFn closes the pool;
+// run calls it after the server has drained.
+func instantRuntime(ctx context.Context, s config.Service, log *slog.Logger) (route server.Route, rt agent.ServiceRuntime, closeFn func(), err error) {
 	svc, err := openInstant(s, log)
 	if err != nil {
-		return server.Route{}, agent.ServiceRuntime{}, err
+		return server.Route{}, agent.ServiceRuntime{}, nil, err
 	}
 	svc.Start(ctx)
-	go func() { <-ctx.Done(); _ = svc.Close() }()
 	sha := func() string {
 		b, err := svc.OpenAPI()
 		if err != nil {
@@ -59,7 +59,8 @@ func instantRuntime(ctx context.Context, s config.Service, log *slog.Logger) (se
 		return hex.EncodeToString(sum[:])
 	}
 	return server.Route{Path: s.Path, Handler: svc.Handler()},
-		agent.ServiceRuntime{Info: contract.ServiceInfo{Name: s.Name, Path: s.Path}, Probe: svc.Probe, OpenAPISHA256: sha}, nil
+		agent.ServiceRuntime{Info: contract.ServiceInfo{Name: s.Name, Path: s.Path}, Probe: svc.Probe, OpenAPISHA256: sha},
+		func() { _ = svc.Close() }, nil
 }
 
 // detail adds the driver's message to a database error, for the operator's terminal only
@@ -137,10 +138,13 @@ func doctorInstant(ctx context.Context, s config.Service, c *checker) {
 	default:
 		c.ok("servicio %s: el usuario %s no puede escribir en las fuentes expuestas (%d)", s.Name, db.User, len(s.Instant.Resources))
 	}
-	if db.Engine == "sqlserver" {
+	switch err := svc.CheckReadOnly(ctx); {
+	case db.Engine == "sqlserver":
 		c.info("servicio %s: SQL Server no tiene transacciones de solo lectura; la garantía es el usuario de solo lectura", s.Name)
-	} else {
-		c.ok("servicio %s: las consultas corren en una transacción de solo lectura", s.Name)
+	case err != nil:
+		c.fail("servicio %s: no se pudo abrir una transacción de solo lectura: %s", s.Name, detail(err))
+	default:
+		c.ok("servicio %s: las consultas corren en una transacción de solo lectura (abierta y cerrada ahora)", s.Name)
 	}
 }
 

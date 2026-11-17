@@ -49,10 +49,11 @@ func runNode(ctx context.Context, o runOptions) error {
 				log.Warn("instant service without resources: not served", "service", s.Name)
 				continue
 			}
-			route, rt, err := instantRuntime(ctx, s, log)
+			route, rt, closeFn, err := instantRuntime(ctx, s, log)
 			if err != nil {
 				return fmt.Errorf("servicio %q: %w", s.Name, err)
 			}
+			defer closeFn() // after the server has drained (runNode returns after Serve)
 			routes = append(routes, route)
 			services = append(services, rt)
 			continue

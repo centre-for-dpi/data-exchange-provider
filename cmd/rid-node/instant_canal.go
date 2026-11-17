@@ -19,8 +19,8 @@ import (
 
 const notInCanal = "no está disponible en modo canal: las APIs instantáneas vienen en la imagen completa (install.sh modo completo)"
 
-func instantRuntime(context.Context, config.Service, *slog.Logger) (server.Route, agent.ServiceRuntime, error) {
-	return server.Route{}, agent.ServiceRuntime{}, errors.New("las APIs instantáneas " + notInCanal)
+func instantRuntime(context.Context, config.Service, *slog.Logger) (server.Route, agent.ServiceRuntime, func(), error) {
+	return server.Route{}, agent.ServiceRuntime{}, nil, errors.New("las APIs instantáneas " + notInCanal)
 }
 
 func validateInstant(_ context.Context, s config.Service, out io.Writer) bool {

@@ -11,11 +11,13 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -292,5 +294,50 @@ func TestRunServesInstantInProcess(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("runNode did not stop")
+	}
+}
+
+// doctor opens a read-only transaction instead of assuming the engine has one.
+func TestDoctorOpensTheReadOnlyTransaction(t *testing.T) {
+	portal := portalWithDate(t, 0)
+	cfg, _, db := instantSetup(t, portal.URL, "postgres", afiliadosYAML)
+	db.Set(func(f *instanttest.DB) { f.ReadOnlyErr = errors.New("cannot set transaction read-only mode") })
+	code, out := doctorAt(t, portal, cfg)
+	if code != 1 || !strings.Contains(out, "✘ servicio afiliacion: no se pudo abrir una transacción de solo lectura") {
+		t.Fatalf("code=%d %s", code, out)
+	}
+}
+
+// The pool stays open while the server drains: it closes when run is done with it, not when the
+// context ends.
+func TestInstantRuntimeClosesAfterServing(t *testing.T) {
+	cfg, _, _ := instantSetup(t, "https://portal.red.example", "postgres", afiliadosYAML)
+	n, err := config.Load(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	route, _, closeFn, err := instantRuntime(ctx, n.Services[0], slog.New(slog.DiscardHandler))
+	if err != nil {
+		t.Fatal(err)
+	}
+	get := func() int {
+		rec := httptest.NewRecorder()
+		route.Handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/afiliados/123", nil))
+		return rec.Code
+	}
+	for deadline := time.Now().Add(3 * time.Second); get() != 200; time.Sleep(10 * time.Millisecond) {
+		if time.Now().After(deadline) {
+			t.Fatal("never served")
+		}
+	}
+	cancel()
+	time.Sleep(50 * time.Millisecond)
+	if code := get(); code != 200 {
+		t.Fatalf("a request after shutdown began (the server drains) got %d", code)
+	}
+	closeFn()
+	if code := get(); code != 503 {
+		t.Fatalf("after close: %d", code)
 	}
 }

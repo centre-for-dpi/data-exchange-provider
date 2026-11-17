@@ -316,3 +316,12 @@ func (s *Service) probe(ctx context.Context, rs []Compiled) error {
 	}
 	return errors.Join(errs...)
 }
+
+// CheckReadOnly opens the read-only transaction every query runs in, and rolls it back.
+func (s *Service) CheckReadOnly(ctx context.Context) error {
+	tx, err := s.d.BeginReadOnly(ctx, s.db)
+	if err != nil {
+		return dbError(err)
+	}
+	return tx.Rollback()
+}

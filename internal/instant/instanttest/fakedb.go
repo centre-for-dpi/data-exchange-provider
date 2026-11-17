@@ -31,7 +31,8 @@ type DB struct {
 	ByKey       int                         // queries by key run
 	Catalogue   int
 	ColumnReads int   // column queries run (one per object read)
-	ProbeErr    error // a SELECT without parameters (the compile's permission probe) fails with this                         // catalog reads
+	ProbeErr    error // a SELECT without parameters (the compile's permission probe) fails with this
+	ReadOnlyErr error // beginning a read-only transaction fails with this                         // catalog reads
 }
 
 var (
@@ -88,6 +89,9 @@ func (c *fakeConn) BeginTx(_ context.Context, o driver.TxOptions) (driver.Tx, er
 		return nil, driver.ErrBadConn
 	}
 	if o.ReadOnly {
+		if c.f.ReadOnlyErr != nil {
+			return nil, c.f.ReadOnlyErr
+		}
 		c.f.ReadOnly++
 	}
 	return fakeTx{}, nil
