@@ -1,0 +1,62 @@
+-- Integration data, Oracle 23ai Free (FREEPDB1): synthetic, deterministic, the same in every
+-- engine. SALUD is a schema-only account (no password, nobody logs in as it).
+CREATE USER salud NO AUTHENTICATION QUOTA UNLIMITED ON users;
+CREATE TABLE salud.personas_base (
+  persona_id       NUMBER(10) PRIMARY KEY,
+  tipo_documento   VARCHAR2(3)   NOT NULL,
+  numero_documento VARCHAR2(20)  NOT NULL UNIQUE,
+  nombres          NVARCHAR2(80) NOT NULL,
+  eps              NVARCHAR2(60) NOT NULL,
+  regimen          VARCHAR2(20)  NOT NULL,
+  estado           VARCHAR2(20)  NOT NULL,
+  fecha_afiliacion DATE          NOT NULL,
+  actualizado_en   TIMESTAMP WITH TIME ZONE NOT NULL,
+  puntaje          NUMBER(6,2)   NOT NULL,
+  activo           NUMBER(1)     NOT NULL,
+  hogar_id         NUMBER(10)    NOT NULL
+);
+INSERT INTO salud.personas_base
+SELECT LEVEL,
+       CASE WHEN MOD(LEVEL, 10) = 0 THEN 'CE' ELSE 'CC' END,
+       TO_CHAR(1000000000 + LEVEL),
+       'Persona sintética ' || LEVEL,
+       CASE MOD(LEVEL, 5) WHEN 0 THEN 'EPS Uno' WHEN 1 THEN 'EPS Dos' WHEN 2 THEN 'EPS Tres'
+                          WHEN 3 THEN 'EPS Cuatro' ELSE 'EPS Cinco' END,
+       CASE WHEN MOD(LEVEL, 2) = 0 THEN 'contributivo' ELSE 'subsidiado' END,
+       CASE WHEN MOD(LEVEL, 7) = 0 THEN 'retirado' ELSE 'activo' END,
+       DATE '2026-01-01' - MOD(LEVEL * 37, 3650),
+       TIMESTAMP '2026-11-01 08:00:00 -05:00' + NUMTODSINTERVAL(LEVEL, 'MINUTE'),
+       MOD(LEVEL * 13, 10000) / 100,
+       CASE WHEN MOD(LEVEL, 7) = 0 THEN 0 ELSE 1 END,
+       TRUNC((LEVEL + 1) / 2)
+FROM dual CONNECT BY LEVEL <= 1000;
+
+CREATE VIEW salud.v_afiliados AS
+SELECT tipo_documento, numero_documento, eps, regimen, estado, fecha_afiliacion, actualizado_en
+FROM salud.personas_base;
+CREATE VIEW salud.v_hogares AS
+SELECT hogar_id, numero_documento, puntaje, activo FROM salud.personas_base;
+CREATE TABLE salud.notas_internas (id NUMBER PRIMARY KEY, nota VARCHAR2(200));
+
+CREATE TABLE salud.tipos (
+  id              NUMBER(10) PRIMARY KEY,
+  decimal_largo   NUMBER(38,10),
+  entero_grande   NUMBER(19),
+  fecha           DATE,
+  fecha_hora      TIMESTAMP(3),
+  fecha_hora_zona TIMESTAMP(3) WITH TIME ZONE,
+  texto           NVARCHAR2(100),
+  bandera         NUMBER(1),
+  identificador   VARCHAR2(36),
+  binario         RAW(16)
+);
+INSERT INTO salud.tipos VALUES
+  (1, 12345678901234567890.1234567890, 9007199254740993, DATE '2026-11-16',
+   TIMESTAMP '2026-11-16 10:30:15.123', TIMESTAMP '2026-11-16 10:30:15.123 -05:00',
+   UNISTR('Jos\00E9 "Pepe" O''Brien') || CHR(10) || UNISTR('\00F1and\00FA \2713'), 1,
+   '6f1c0b2a-3d4e-4f50-8a6b-7c8d9e0f1a2b', HEXTORAW('00FF'));
+INSERT INTO salud.tipos VALUES (2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+COMMIT;
+CREATE VIEW salud.v_tipos AS SELECT * FROM salud.tipos;
+
+CREATE TABLE salud.escritura (id NUMBER(10) PRIMARY KEY, nota VARCHAR2(100));

@@ -1,0 +1,63 @@
+# Integration databases for the instant APIs (make test-engines). Synthetic data only.
+# Passwords come from an env file outside the repo (see docs/DESARROLLO.md):
+#   docker compose -f test/engines/compose.yaml --env-file "$RID_IT_ENV" up -d --wait
+# The engine images are test infrastructure, never shipped in the kit.
+name: rid-engines
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      POSTGRES_DB: entidad
+      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
+      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["./postgres:/docker-entrypoint-initdb.d:ro"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "entidad"]
+      interval: 2s
+      retries: 60
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
+      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+    ports: ["127.0.0.1:53306:3306"]
+    volumes: ["./mysql:/docker-entrypoint-initdb.d:ro"]
+    healthcheck:
+      # TCP, not the socket: the init server runs without networking, so this passes only after it.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 2s
+      retries: 90
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
+      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+    ports: ["127.0.0.1:51433:1433"]
+    volumes: ["./sqlserver:/init:ro"]
+    # The image has no init hook: start the server, seed it, then mark it seeded for the healthcheck.
+    entrypoint: ["/bin/bash", "/init/start.sh"]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/seeded"]
+      interval: 3s
+      retries: 100
+
+  oracle:
+    image: gvenzl/oracle-free:23-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
+      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+    ports: ["127.0.0.1:51521:1521"]
+    volumes: ["./oracle:/container-entrypoint-initdb.d:ro"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"] # waits for the setup scripts too
+      interval: 5s
+      retries: 100

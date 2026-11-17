@@ -20,3 +20,4 @@ spikes/**/*.log
 # Build output
 /bin/
 /dist/
+/internal/instant/testdata/out/

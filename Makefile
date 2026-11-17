@@ -60,3 +60,21 @@ check: fmt-check check-canal-deps
 	go vet -tags canal ./...
 	go mod verify
 	$(MAKE) test licenses vuln
+
+# Instant APIs against real SQL Server, PostgreSQL, MySQL and Oracle (test/engines), then the
+# portal's lint on the OpenAPI each engine generated. RID_IT_ENV is an env file outside the repo
+# with RID_IT_ADMIN_PASSWORD, RID_IT_READER_PASSWORD and RID_IT_WRITER_PASSWORD (DESARROLLO.md).
+RID_IT_ENV ?= $(HOME)/.config/rid-node/engines.env
+ENGINES    := docker compose -f test/engines/compose.yaml --env-file $(RID_IT_ENV)
+
+.PHONY: test-engines engines-up engines-down
+engines-up:
+	$(ENGINES) up -d --wait --wait-timeout 600
+
+engines-down:
+	$(ENGINES) down -v
+
+test-engines: engines-up
+	rm -rf internal/instant/testdata/out
+	set -a && . $(RID_IT_ENV) && set +a && go test -tags integration -count=1 ./internal/instant/...
+	for f in internal/instant/testdata/out/*.json; do node spikes/tools/rid-lint.mts $$f || exit 1; done

@@ -1,0 +1,61 @@
+-- Integration data, MySQL (synthetic, deterministic; the same in every engine).
+-- MySQL has no time zone type: actualizado_en and fecha_hora_zona are DATETIME in UTC.
+CREATE DATABASE salud CHARACTER SET utf8mb4;
+USE salud;
+CREATE TABLE personas_base (
+  persona_id       INT PRIMARY KEY,
+  tipo_documento   VARCHAR(3)   NOT NULL,
+  numero_documento VARCHAR(20)  NOT NULL UNIQUE,
+  nombres          VARCHAR(80)  NOT NULL,
+  eps              VARCHAR(60)  NOT NULL,
+  regimen          VARCHAR(20)  NOT NULL,
+  estado           VARCHAR(20)  NOT NULL,
+  fecha_afiliacion DATE         NOT NULL,
+  actualizado_en   DATETIME     NOT NULL,
+  puntaje          DECIMAL(6,2) NOT NULL,
+  activo           TINYINT(1)   NOT NULL,
+  hogar_id         INT          NOT NULL
+);
+INSERT INTO personas_base
+WITH RECURSIVE n (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 1000)
+SELECT i,
+       IF(i % 10 = 0, 'CE', 'CC'),
+       CAST(1000000000 + i AS CHAR),
+       CONCAT('Persona sintética ', i),
+       ELT(i % 5 + 1, 'EPS Uno', 'EPS Dos', 'EPS Tres', 'EPS Cuatro', 'EPS Cinco'),
+       IF(i % 2 = 0, 'contributivo', 'subsidiado'),
+       IF(i % 7 = 0, 'retirado', 'activo'),
+       DATE_SUB('2026-01-01', INTERVAL (i * 37) % 3650 DAY),
+       TIMESTAMP('2026-11-01 13:00:00') + INTERVAL i MINUTE,
+       ((i * 13) % 10000) / 100,
+       IF(i % 7 = 0, 0, 1),
+       FLOOR((i + 1) / 2)
+FROM n;
+
+CREATE VIEW v_afiliados AS
+SELECT tipo_documento, numero_documento, eps, regimen, estado, fecha_afiliacion, actualizado_en
+FROM personas_base;
+CREATE VIEW v_hogares AS
+SELECT hogar_id, numero_documento, puntaje, activo FROM personas_base;
+CREATE TABLE notas_internas (id INT PRIMARY KEY, nota VARCHAR(200));
+
+CREATE TABLE tipos (
+  id              INT PRIMARY KEY,
+  decimal_largo   DECIMAL(38,10),
+  entero_grande   BIGINT,
+  fecha           DATE,
+  fecha_hora      DATETIME(3),
+  fecha_hora_zona DATETIME(3),
+  texto           VARCHAR(100),
+  bandera         TINYINT(1),
+  identificador   CHAR(36),
+  binario         BLOB
+);
+INSERT INTO tipos VALUES
+  (1, 12345678901234567890.1234567890, 9007199254740993, '2026-11-16', '2026-11-16 10:30:15.123',
+   '2026-11-16 15:30:15.123', 'José "Pepe" O''Brien\nñandú ✓', 1,
+   '6f1c0b2a-3d4e-4f50-8a6b-7c8d9e0f1a2b', X'00FF'),
+  (2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+CREATE VIEW v_tipos AS SELECT * FROM tipos;
+
+CREATE TABLE escritura (id INT PRIMARY KEY, nota VARCHAR(100));

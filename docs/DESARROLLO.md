@@ -33,7 +33,25 @@ make test                  # pruebas de las dos variantes (completo y canal)
 make check                 # gofmt, vet, go mod verify, pruebas, licencias, vulnerabilidades y guardia de canal
 make image image-canal     # imágenes rid-node:<versión> y rid-node:<versión>-canal
 make e2e                   # imagen canal + punta a punta contra el portal real
+make test-engines          # APIs instantáneas contra SQL Server, PostgreSQL, MySQL y Oracle reales
 ```
+
+### Motores de base de datos para las APIs instantáneas
+
+`make test-engines` levanta `test/engines/compose.yaml` y corre las pruebas de integración. Son cuatro contenedores con datos sintéticos, en `127.0.0.1:55432` (PostgreSQL), `53306` (MySQL), `51433` (SQL Server) y `51521` (Oracle). Después pasa el lint del portal sobre el OpenAPI que generó cada motor. El lint necesita el repositorio del portal en `../data-exchange`, con sus dependencias instaladas.
+
+Las contraseñas van en un archivo de variables fuera del repositorio. Por defecto es `~/.config/rid-node/engines.env`, y se puede cambiar con `RID_IT_ENV`. Para crearlo con contraseñas aleatorias:
+
+```
+mkdir -p ~/.config/rid-node && umask 077
+r() { od -An -N12 -tx1 /dev/urandom | tr -d ' \n'; }
+printf "RID_IT_ADMIN_PASSWORD='Rid-%s-Aa1'\nRID_IT_READER_PASSWORD='%s@:/?x'\nRID_IT_WRITER_PASSWORD='%sWr1'\n" "$(r)" "$(r)" "$(r)" \
+  > ~/.config/rid-node/engines.env
+```
+
+La contraseña de `rid_reader` lleva `@:/?` a propósito, para probar que el DSN la escapa. `make engines-down` borra los contenedores y sus datos.
+
+Las imágenes de los motores (incluidas SQL Server Developer y Oracle Free) son solo infraestructura de prueba: nunca se empaquetan en el kit.
 
 ## Variantes
 
