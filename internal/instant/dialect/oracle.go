@@ -52,6 +52,22 @@ WHERE owner IN (SELECT username FROM all_users WHERE oracle_maintained = 'N')
 ORDER BY 1, 2`
 }
 
+// oracleSchemas are the schemas Oracle installs (11g has no oracle_maintained to tell them).
+const oracleSchemas = `'SYS', 'SYSTEM', 'XDB', 'MDSYS', 'CTXSYS', 'ORDSYS', 'ORDDATA', 'ORDPLUGINS', 'SI_INFORMTN_SCHEMA',
+  'OUTLN', 'DBSNMP', 'APPQOSSYS', 'WMSYS', 'EXFSYS', 'OLAPSYS', 'FLOWS_FILES', 'ANONYMOUS', 'XS$NULL', 'DIP',
+  'ORACLE_OCM', 'MGMT_VIEW', 'SYSMAN', 'OWBSYS', 'OWBSYS_AUDIT', 'SPATIAL_CSW_ADMIN_USR', 'SPATIAL_WFS_ADMIN_USR',
+  'MDDATA', 'LBACSYS', 'DVSYS', 'DVF', 'AUDSYS', 'GSMADMIN_INTERNAL', 'OJVMSYS', 'DBSFWUSER', 'REMOTE_SCHEDULER_AGENT'`
+
+// ObjectsFallback is Objects for Oracle 11g (no oracle_maintained): Oracle's own schemas by name.
+func (oracle) ObjectsFallback() string {
+	return `SELECT owner, table_name, 'table' FROM all_tables
+WHERE owner NOT IN (` + oracleSchemas + `) AND owner NOT LIKE 'APEX%' AND owner NOT LIKE 'FLOWS%'
+UNION ALL
+SELECT owner, view_name, 'view' FROM all_views
+WHERE owner NOT IN (` + oracleSchemas + `) AND owner NOT LIKE 'APEX%' AND owner NOT LIKE 'FLOWS%'
+ORDER BY 1, 2`
+}
+
 func (oracle) Columns() string {
 	return `SELECT column_name, data_type, char_length, data_scale, nullable
 FROM all_tab_columns WHERE owner = :1 AND table_name = :2 ORDER BY column_id`
@@ -59,8 +75,9 @@ FROM all_tab_columns WHERE owner = :1 AND table_name = :2 ORDER BY column_id`
 
 func (oracle) Quote(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
+// SelectByKey limits with ROWNUM over a subquery (ordered inside it): FETCH FIRST is 12c+.
 func (oracle) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = :1%s FETCH FIRST %d ROWS ONLY", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
+	return fmt.Sprintf("SELECT * FROM (SELECT %s FROM %s WHERE %s = :1%s) WHERE ROWNUM <= %d", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
 }
 
 func (oracle) Kind(t string, scale sql.NullInt64) instant.Kind {

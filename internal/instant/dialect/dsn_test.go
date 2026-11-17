@@ -181,7 +181,9 @@ func TestSelectByKey(t *testing.T) {
 		"sqlserver": {"SELECT TOP (2) [a], [b] FROM [s].[v] WHERE [k] = @p1", "SELECT TOP (11) [a], [b] FROM [s].[v] WHERE [k] = @p1 ORDER BY [a], [b]"},
 		"postgres":  {`SELECT "a", "b" FROM "s"."v" WHERE "k" = $1 LIMIT 2`, `SELECT "a", "b" FROM "s"."v" WHERE "k" = $1 ORDER BY "a", "b" LIMIT 11`},
 		"mysql":     {"SELECT `a`, `b` FROM `s`.`v` WHERE `k` = ? LIMIT 2", "SELECT `a`, `b` FROM `s`.`v` WHERE `k` = ? ORDER BY `a`, `b` LIMIT 11"},
-		"oracle":    {`SELECT "a", "b" FROM "s"."v" WHERE "k" = :1 FETCH FIRST 2 ROWS ONLY`, `SELECT "a", "b" FROM "s"."v" WHERE "k" = :1 ORDER BY "a", "b" FETCH FIRST 11 ROWS ONLY`},
+		// ROWNUM over a subquery: FETCH FIRST is 12c+, and the pilot may run 11g.
+		"oracle": {`SELECT * FROM (SELECT "a", "b" FROM "s"."v" WHERE "k" = :1) WHERE ROWNUM <= 2`,
+			`SELECT * FROM (SELECT "a", "b" FROM "s"."v" WHERE "k" = :1 ORDER BY "a", "b") WHERE ROWNUM <= 11`},
 	}
 	for e, w := range want {
 		d, _ := For(e)
@@ -257,5 +259,19 @@ func TestOracleBindsCharKeysPadded(t *testing.T) {
 		if d, _ := For(e); func() bool { _, ok := d.(instant.KeyBinder); return ok }() {
 			t.Fatalf("%s compares CHAR without padding the bind: it must not pad", e)
 		}
+	}
+}
+
+// Oracle 11g has no all_users.oracle_maintained (12c+): the dialect gives a fallback catalog
+// query that leaves out Oracle's own schemas by name.
+func TestOracleCatalogFallback(t *testing.T) {
+	d, _ := For("oracle")
+	f, ok := d.(instant.ObjectsFallbacker)
+	if !ok {
+		t.Fatal("the Oracle dialect must offer a fallback catalog query")
+	}
+	q := f.ObjectsFallback()
+	if strings.Contains(q, "oracle_maintained") || !strings.Contains(q, "'SYS'") || !strings.Contains(q, "APEX") {
+		t.Fatalf("fallback: %s", q)
 	}
 }

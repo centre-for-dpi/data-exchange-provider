@@ -61,3 +61,34 @@ services:
       test: ["CMD", "healthcheck.sh"] # waits for the setup scripts too
       interval: 5s
       retries: 100
+
+  # Older Oracle versions the pilot entities may run (make test-engines-legacy).
+  oracle21:
+    profiles: [legacy]
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment:
+      ORACLE_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      RID_ORACLE_PDB: XEPDB1
+      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
+      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+    ports: ["127.0.0.1:51523:1521"]
+    volumes: ["./oracle:/container-entrypoint-initdb.d:ro"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 5s
+      retries: 120
+
+  oracle11:
+    profiles: [legacy]
+    image: gvenzl/oracle-xe:11-slim
+    shm_size: 1g
+    environment:
+      ORACLE_PASSWORD: ${RID_IT_ADMIN_PASSWORD:?}
+      RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
+      RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
+    ports: ["127.0.0.1:51522:1521"]
+    volumes: ["./oracle11:/container-entrypoint-initdb.d:ro", "./oracle/seed.ora:/seed/seed.ora:ro"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 5s
+      retries: 120

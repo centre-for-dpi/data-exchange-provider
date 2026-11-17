@@ -79,3 +79,10 @@ test-engines: engines-up
 	rm -rf internal/instant/testdata/out
 	set -a && . $(RID_IT_ENV) && set +a && go test -tags integration -count=1 ./internal/instant/...
 	for f in internal/instant/testdata/out/*.json; do node spikes/tools/rid-lint.mts $$f || exit 1; done
+
+# The same suite against older Oracle versions the pilot entities may run (11g XE, 21c XE).
+.PHONY: test-engines-legacy
+test-engines-legacy:
+	go run ./test/engines/gencerts test/engines/.certs
+	$(ENGINES) --profile legacy up -d --wait --wait-timeout 900 oracle11 oracle21
+	set -a && . $(RID_IT_ENV) && set +a && RID_IT_ENGINES=oracle11,oracle21 go test -tags integration -count=1 ./internal/instant/...

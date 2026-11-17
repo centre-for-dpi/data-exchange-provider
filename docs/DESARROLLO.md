@@ -44,12 +44,14 @@ Las contraseñas van en un archivo de variables fuera del repositorio. Por defec
 
 ```
 mkdir -p ~/.config/rid-node && umask 077
-r() { od -An -N12 -tx1 /dev/urandom | tr -d ' \n'; }
-printf "RID_IT_ADMIN_PASSWORD='Rid-%s-Aa1'\nRID_IT_READER_PASSWORD='%s@:/?x'\nRID_IT_WRITER_PASSWORD='%sWr1'\n" "$(r)" "$(r)" "$(r)" \
+r() { od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'; }
+printf "RID_IT_ADMIN_PASSWORD='Rid-%s-Aa1'\nRID_IT_READER_PASSWORD='%s@:/?x'\nRID_IT_WRITER_PASSWORD='%sWr1'\n" "$(r 8)" "$(r 12)" "$(r 12)" \
   > ~/.config/rid-node/engines.env
 ```
 
-La contraseña de `rid_reader` lleva `@:/?` a propósito, para probar que el DSN la escapa. `make engines-down` borra los contenedores y sus datos.
+La contraseña de `rid_reader` lleva `@:/?` a propósito, para probar que el DSN la escapa. Ninguna pasa de 30 caracteres, el límite de Oracle 11g. `make engines-down` borra los contenedores y sus datos.
+
+`make test-engines-legacy` corre la misma suite contra Oracle 11g XE y 21c XE (perfil `legacy` del compose), las versiones más viejas que puede tener una entidad.
 
 `make engines-up` genera antes una CA y un certificado de servidor desechables en `test/engines/.certs` (`go run ./test/engines/gencerts`, fuera de git). PostgreSQL arranca con TLS usando esos certificados, para probar `tls: verify`. Si se borran, hay que recrear los motores.
 

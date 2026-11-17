@@ -30,17 +30,21 @@ import (
 )
 
 type engineIT struct {
+	label  string // subtest and OpenAPI file name
 	engine string
 	port   int
 	name   string // database (MySQL: the schema; Oracle: the service)
 	tls    string
+	legacy bool // older versions (make test-engines-legacy): only when named in RID_IT_ENGINES
 }
 
 var engines = []engineIT{
-	{"postgres", 55432, "entidad", "disable"},
-	{"mysql", 53306, "salud", "require"},
-	{"sqlserver", 51433, "entidad", "require"},
-	{"oracle", 51521, "FREEPDB1", "disable"},
+	{"postgres", "postgres", 55432, "entidad", "disable", false},
+	{"mysql", "mysql", 53306, "salud", "require", false},
+	{"sqlserver", "sqlserver", 51433, "entidad", "require", false},
+	{"oracle", "oracle", 51521, "FREEPDB1", "disable", false},
+	{"oracle21", "oracle", 51523, "XEPDB1", "disable", true},
+	{"oracle11", "oracle", 51522, "XE", "disable", true},
 }
 
 func forEachEngine(t *testing.T, fn func(t *testing.T, e engineIT)) {
@@ -49,10 +53,11 @@ func forEachEngine(t *testing.T, fn func(t *testing.T, e engineIT)) {
 	}
 	only := os.Getenv("RID_IT_ENGINES")
 	for _, e := range engines {
-		if only != "" && !slices.Contains(strings.Split(only, ","), e.engine) {
+		named := slices.Contains(strings.Split(only, ","), e.label)
+		if (only != "" && !named) || (e.legacy && !named) {
 			continue
 		}
-		t.Run(e.engine, func(t *testing.T) { fn(t, e) })
+		t.Run(e.label, func(t *testing.T) { fn(t, e) })
 	}
 }
 
@@ -204,7 +209,7 @@ func writeOpenAPI(t *testing.T, e engineIT, s *instant.Service) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, e.engine+".json"), b, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, e.label+".json"), b, 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

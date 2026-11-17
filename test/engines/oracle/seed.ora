@@ -1,6 +1,6 @@
--- Integration data, Oracle 23ai Free (FREEPDB1): synthetic, deterministic, the same in every
--- engine. SALUD is a schema-only account (no password, nobody logs in as it).
-CREATE USER salud NO AUTHENTICATION QUOTA UNLIMITED ON users;
+-- Integration data, Oracle (23ai Free, 21c XE, 11g XE): synthetic, deterministic, the same in
+-- every engine. The init script creates SALUD first (its syntax depends on the version); nobody
+-- logs in as it.
 CREATE TABLE salud.personas_base (
   persona_id       NUMBER(10) PRIMARY KEY,
   tipo_documento   VARCHAR2(3)   NOT NULL,

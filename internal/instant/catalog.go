@@ -53,6 +53,9 @@ type Dialect interface {
 // costs a few round trips however broad the user's grants are; nil reads every object.
 func ReadCatalog(ctx context.Context, db *sql.DB, d Dialect, sources []string) ([]Object, error) {
 	rows, err := db.QueryContext(ctx, d.Objects())
+	if f, ok := d.(ObjectsFallbacker); ok && err != nil && errorClass(err) == "query" {
+		rows, err = db.QueryContext(ctx, f.ObjectsFallback())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -119,4 +122,11 @@ func matchesAny(o Object, sources []string) bool {
 // a CHAR column blank-padded only against another CHAR, so its fixed-width keys are padded).
 type KeyBinder interface {
 	BindKey(key Column, value string) any
+}
+
+// ObjectsFallbacker is implemented by dialects whose Objects query needs a newer server than some
+// entities run (Oracle's oracle_maintained is 12c+): when Objects is rejected, ReadCatalog tries
+// ObjectsFallback.
+type ObjectsFallbacker interface {
+	ObjectsFallback() string
 }
