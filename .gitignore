@@ -21,3 +21,4 @@ spikes/**/*.log
 /bin/
 /dist/
 /internal/instant/testdata/out/
+/test/engines/.certs/

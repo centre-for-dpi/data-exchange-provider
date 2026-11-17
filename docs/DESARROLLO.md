@@ -51,6 +51,15 @@ printf "RID_IT_ADMIN_PASSWORD='Rid-%s-Aa1'\nRID_IT_READER_PASSWORD='%s@:/?x'\nRI
 
 La contraseña de `rid_reader` lleva `@:/?` a propósito, para probar que el DSN la escapa. `make engines-down` borra los contenedores y sus datos.
 
+`make engines-up` genera antes una CA y un certificado de servidor desechables en `test/engines/.certs` (`go run ./test/engines/gencerts`, fuera de git). PostgreSQL arranca con TLS usando esos certificados, para probar `tls: verify`. Si se borran, hay que recrear los motores.
+
+Las pruebas cubren, en los cuatro motores:
+- catálogo, consulta por clave, listas y tipos difíciles;
+- claves `CHAR`, en mayúsculas, con espacios y `NULL`;
+- la caída de la base y su recuperación, con un proxy TCP dentro de la prueba;
+- la transacción de solo lectura y el chequeo de escritura (directo, por columna y por rol);
+- `tls: disable` en SQL Server y `tls: verify` en PostgreSQL.
+
 Las imágenes de los motores (incluidas SQL Server Developer y Oracle Free) son solo infraestructura de prueba: nunca se empaquetan en el kit.
 
 ## Variantes

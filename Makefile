@@ -69,6 +69,7 @@ ENGINES    := docker compose -f test/engines/compose.yaml --env-file $(RID_IT_EN
 
 .PHONY: test-engines engines-up engines-down
 engines-up:
+	go run ./test/engines/gencerts test/engines/.certs
 	$(ENGINES) up -d --wait --wait-timeout 600
 
 engines-down:

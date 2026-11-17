@@ -521,9 +521,13 @@ async function installInstant(token) {
   });
   expect(load.status === 0, `loading postgres into the test server failed: ${load.stderr}`);
   spawnSync('docker', ['cp', resolve(here, '../engines/postgres'), `${TEST_SERVER}:/root/bd-init`], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
+  // The seed turns TLS on with the throwaway certificates of make engines-up.
+  const certs = resolve(here, '../engines/.certs');
+  expect(spawnSync('go', ['run', './test/engines/gencerts', certs], { cwd: resolve(here, '../..'), encoding: 'utf8' }).status === 0, 'gencerts failed');
+  spawnSync('docker', ['cp', certs, `${TEST_SERVER}:/root/bd-certs`], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   const db = onServer(`docker run -d --name bd-entidad --network rid-node_default --restart unless-stopped ` +
     `-e POSTGRES_DB=entidad -e POSTGRES_PASSWORD=${randomBytes(12).toString('hex')} -e RID_READER_PASSWORD='${readerPassword}' ` +
-    `-e RID_WRITER_PASSWORD=${randomBytes(12).toString('hex')} -v /root/bd-init:/docker-entrypoint-initdb.d:ro postgres:17-alpine`);
+    `-e RID_WRITER_PASSWORD=${randomBytes(12).toString('hex')} -v /root/bd-init:/docker-entrypoint-initdb.d:ro -v /root/bd-certs:/certs:ro postgres:17-alpine`);
   expect(db.status === 0, `the entity's database did not start: ${db.stderr}`);
   await waitFor(async () => onServer('docker exec bd-entidad pg_isready -h 127.0.0.1 -U postgres -d entidad').status === 0,
     { timeoutMs: 120_000, everyMs: 2_000, what: "the entity's database is not ready" });

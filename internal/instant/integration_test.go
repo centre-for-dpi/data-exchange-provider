@@ -9,15 +9,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,7 +151,7 @@ func TestCatalogOnlyGranted(t *testing.T) {
 			got = append(got, strings.ToLower(o.Schema+"."+o.Name))
 		}
 		slices.Sort(got)
-		if want := []string{"salud.v_afiliados", "salud.v_codigos", "salud.v_hogares", "salud.v_tipos"}; !slices.Equal(got, want) {
+		if want := []string{"salud.v_afiliados", "salud.v_claves", "salud.v_codigos", "salud.v_hogares", "salud.v_tipos"}; !slices.Equal(got, want) {
 			t.Fatalf("the reader sees %v, want %v", got, want)
 		}
 	})
@@ -373,5 +376,175 @@ func TestSQLServerTLSDisable(t *testing.T) {
 		}
 		e.tls = "disable"
 		compile(t, reader(t, e, afiliados()))
+	})
+}
+
+// Review Focus 3 on real engines: a key in upper case, with a space, and NULL rows.
+func TestKeysOnRealEngines(t *testing.T) {
+	// A key in another case matches only where the default collation ignores case.
+	otherCase := map[string]int{"postgres": 404, "oracle": 404, "mysql": 200, "sqlserver": 200}
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		s := reader(t, e, config.Resource{Name: "claves", Entity: "Clave", Source: "salud.v_claves", MaxRows: 100,
+			Key: config.KeySpec{Column: "clave"}, Columns: []config.ColumnSpec{{Name: "nombre"}}})
+		compile(t, s)
+		if code, body := get(t, s, "/claves/ABC-1"); code != 200 || !strings.Contains(string(body), "mayusculas") {
+			t.Fatalf("upper-case key: %d %s", code, body)
+		}
+		if code, _ := get(t, s, "/claves/con%20espacio"); code != 400 {
+			t.Fatalf("a key with a space must not pass the default pattern: %d", code)
+		}
+		if code, _ := get(t, s, "/claves/null"); code != 404 {
+			t.Fatalf("NULL keys never match: %d", code)
+		}
+		if code, _ := get(t, s, "/claves/abc-1"); code != otherCase[e.engine] {
+			t.Fatalf("other case: %d, want %d", code, otherCase[e.engine])
+		}
+	})
+}
+
+// tcpProxy stands between the node and a database, so a test can take the database "down" and
+// back without touching its container.
+type tcpProxy struct {
+	target, addr string
+	mu           sync.Mutex
+	ln           net.Listener
+	conns        map[net.Conn]bool
+}
+
+func startProxy(t *testing.T, target string) *tcpProxy {
+	p := &tcpProxy{target: target, conns: map[net.Conn]bool{}}
+	p.up(t, "127.0.0.1:0")
+	t.Cleanup(p.down)
+	return p
+}
+
+func (p *tcpProxy) up(t *testing.T, addr string) {
+	t.Helper()
+	var ln net.Listener
+	var err error
+	for i := 0; i < 50; i++ { // the port may take a moment to be free again
+		if ln, err = net.Listen("tcp", addr); err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.mu.Lock()
+	p.ln, p.addr = ln, ln.Addr().String()
+	p.mu.Unlock()
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			u, err := net.Dial("tcp", p.target)
+			if err != nil {
+				c.Close()
+				continue
+			}
+			p.mu.Lock()
+			p.conns[c], p.conns[u] = true, true
+			p.mu.Unlock()
+			go func() { _, _ = io.Copy(u, c); u.Close() }()
+			go func() { _, _ = io.Copy(c, u); c.Close() }()
+		}
+	}()
+}
+
+// down closes the listener and every connection through it: the database is unreachable.
+func (p *tcpProxy) down() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.ln != nil {
+		p.ln.Close()
+	}
+	for c := range p.conns {
+		c.Close()
+	}
+	p.conns = map[net.Conn]bool{}
+}
+
+func (p *tcpProxy) port() int { return p.ln.Addr().(*net.TCPAddr).Port }
+
+// Review Focus 2 on real engines: the database goes away after the start: requests answer 503
+// within queryTimeout and the probe fails; when it comes back the service recovers without a
+// restart.
+func TestDatabaseDownAndRecovers(t *testing.T) {
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		p := startProxy(t, fmt.Sprintf("127.0.0.1:%d", e.port))
+		via := e
+		via.port = p.port()
+		s := reader(t, via, afiliados())
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		s.Start(ctx)
+		waitCode := func(want int, within time.Duration) {
+			t.Helper()
+			deadline := time.Now().Add(within)
+			for {
+				code, _ := get(t, s, "/afiliados/1000000001")
+				if code == want {
+					return
+				}
+				if time.Now().After(deadline) {
+					t.Fatalf("got %d, want %d within %s", code, want, within)
+				}
+				time.Sleep(200 * time.Millisecond)
+			}
+		}
+		waitCode(200, 60*time.Second)
+		p.down()
+		start := time.Now()
+		if code, _ := get(t, s, "/afiliados/1000000001"); code != 503 {
+			t.Fatalf("database down: %d", code)
+		}
+		if took := time.Since(start); took > 12*time.Second {
+			t.Fatalf("the 503 took %s (queryTimeout is 10 s)", took)
+		}
+		if s.Probe(context.Background()) == nil {
+			t.Fatal("the probe must fail while the database is down")
+		}
+		p.up(t, p.addr)
+		waitCode(200, 60*time.Second)
+		if err := s.Probe(context.Background()); err != nil {
+			t.Fatalf("probe after recovery: %v", err)
+		}
+	})
+}
+
+// tls: verify against PostgreSQL with the certificates of make engines-up (gencerts).
+func TestPostgresTLSVerify(t *testing.T) {
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		if e.engine != "postgres" {
+			t.Skip("PostgreSQL only (it runs with the generated certificates)")
+		}
+		ca, err := filepath.Abs(filepath.Join("..", "..", "test", "engines", ".certs", "ca.crt"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		withTLS := func(tls, caFile string) error {
+			db := database(t, e, "rid_reader", os.Getenv("RID_IT_READER_PASSWORD"))
+			db.TLS, db.CAFile = tls, caFile
+			d, _ := dialect.For(e.engine)
+			s, err := instant.Open(config.Service{Name: "afiliacion", Path: "/salud", Type: "instant", Instant: config.InstantSpec{
+				Title: "t", Version: "1.0.0", Database: db, Resources: []config.Resource{afiliados()}}}, d, slog.New(slog.DiscardHandler))
+			if err != nil {
+				return err
+			}
+			defer s.Close()
+			return s.Compile(context.Background())
+		}
+		if err := withTLS("verify", ca); err != nil {
+			t.Fatalf("verify with the CA: %v (%v)", err, errors_unwrap(err))
+		}
+		if err := withTLS("require", ""); err != nil {
+			t.Fatalf("require: %v", err)
+		}
+		if err := withTLS("verify", ""); err == nil {
+			t.Fatal("verify against the system's roots must refuse a certificate from the test CA")
+		}
 	})
 }

@@ -13,7 +13,7 @@ services:
       RID_READER_PASSWORD: ${RID_IT_READER_PASSWORD:?}
       RID_WRITER_PASSWORD: ${RID_IT_WRITER_PASSWORD:?}
     ports: ["127.0.0.1:55432:5432"]
-    volumes: ["./postgres:/docker-entrypoint-initdb.d:ro"]
+    volumes: ["./postgres:/docker-entrypoint-initdb.d:ro", "./.certs:/certs:ro"] # .certs: gencerts
     healthcheck:
       test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "entidad"]
       interval: 2s

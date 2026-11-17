@@ -64,4 +64,11 @@ INSERT INTO salud.codigos VALUES ('ABC', 'Uno');
 COMMIT;
 CREATE VIEW salud.v_codigos AS SELECT * FROM salud.codigos;
 
+CREATE TABLE salud.claves (clave VARCHAR2(20), nombre VARCHAR2(50));
+INSERT INTO salud.claves VALUES ('ABC-1', 'mayusculas');
+INSERT INTO salud.claves VALUES ('con espacio', 'espacio');
+INSERT INTO salud.claves VALUES (NULL, 'nulo');
+COMMIT;
+CREATE VIEW salud.v_claves AS SELECT * FROM salud.claves;
+
 CREATE TABLE salud.escritura (id NUMBER(10) PRIMARY KEY, nota VARCHAR2(100));
