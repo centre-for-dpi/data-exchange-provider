@@ -31,6 +31,14 @@ var dropHeaders = []string{"Authorization", "Cookie", "Forwarded", "X-Real-Ip", 
 // New builds the handler of one proxy service. It receives requests with servicePath already
 // stripped (server.NewHandler) and forwards them to the upstream's base path.
 func New(servicePath string, spec config.ProxySpec) (http.Handler, error) {
+	s, err := NewService(servicePath, spec)
+	if err != nil {
+		return nil, err
+	}
+	return s.Handler(), nil
+}
+
+func newHandler(servicePath string, spec config.ProxySpec, h *health) (http.Handler, error) {
 	target, err := url.Parse(spec.Upstream)
 	if err != nil {
 		return nil, fmt.Errorf("upstream %q: %w", spec.Upstream, err)
@@ -97,8 +105,16 @@ func New(servicePath string, spec config.ProxySpec) (http.Handler, error) {
 			ForceAttemptHTTP2:     true,
 		},
 		FlushInterval: -1, // stream: documents can be large
-		ErrorHandler:  errorHandler,
-		ErrorLog:      stdlog.New(slogWriter{}, "", 0),
+		ModifyResponse: func(res *http.Response) error {
+			h.record(upstreamError(res.StatusCode))
+			return nil
+		},
+		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if status := errorHandler(w, r, err); upstreamError(status) {
+				h.record(true)
+			}
+		},
+		ErrorLog: stdlog.New(slogWriter{}, "", 0),
 	}
 	limit := spec.MaxRequestBytes
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -118,16 +134,19 @@ func New(servicePath string, spec config.ProxySpec) (http.Handler, error) {
 
 // errorHandler answers upstream failures quickly and in Spanish. It never logs the error text:
 // a *url.Error carries the URL, and the URL can carry an identifier.
-func errorHandler(w http.ResponseWriter, r *http.Request, err error) {
+func errorHandler(w http.ResponseWriter, r *http.Request, err error) int {
 	var tooLarge *http.MaxBytesError
 	var netErr net.Error
 	switch {
 	case errors.As(err, &tooLarge):
 		server.Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+		return http.StatusRequestEntityTooLarge
 	case errors.Is(err, context.DeadlineExceeded) || errors.As(err, &netErr) && netErr.Timeout():
 		server.Problem(w, http.StatusGatewayTimeout, "upstream_timeout", "La API interna tardó demasiado en responder")
+		return http.StatusGatewayTimeout
 	default:
 		server.Problem(w, http.StatusBadGateway, "bad_gateway", "La API interna no respondió")
+		return http.StatusBadGateway
 	}
 }
 

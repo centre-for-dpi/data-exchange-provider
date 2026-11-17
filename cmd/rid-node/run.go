@@ -58,11 +58,11 @@ func runNode(ctx context.Context, o runOptions) error {
 			services = append(services, rt)
 			continue
 		}
-		h, err := proxy.New(s.Path, s.Proxy)
+		ps, err := proxy.NewService(s.Path, s.Proxy)
 		if err != nil {
 			return fmt.Errorf("servicio %q: %w", s.Name, err)
 		}
-		routes = append(routes, server.Route{Path: s.Path, Handler: h})
+		routes = append(routes, server.Route{Path: s.Path, Handler: ps.Handler()})
 		info := contract.ServiceInfo{Name: s.Name, Path: s.Path}
 		if s.Proxy.OpenAPI != "" {
 			if b, err := os.ReadFile(s.Proxy.OpenAPI); err == nil {
@@ -70,8 +70,7 @@ func runNode(ctx context.Context, o runOptions) error {
 				info.OpenAPISHA256 = hex.EncodeToString(sum[:])
 			}
 		}
-		spec := s.Proxy
-		services = append(services, agent.ServiceRuntime{Info: info, Probe: func(ctx context.Context) error { return proxy.Probe(ctx, spec) }})
+		services = append(services, agent.ServiceRuntime{Info: info, Probe: ps.Probe})
 	}
 	log.Info("starting", "version", buildinfo.Version, "variant", buildinfo.Variant(), "services", len(routes))
 

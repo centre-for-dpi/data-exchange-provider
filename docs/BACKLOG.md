@@ -75,7 +75,7 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 - Métricas.
 - Firma de imágenes y SBOM.
 - Prueba de carga del túnel.
-- Salud real de los servicios `proxy`: hoy es una prueba TCP. Un upstream que acepta la conexión y no responde sale `ok`, y con un solo servicio caído la salud es `failing`, no `degraded`. Hay que alimentar la salud con los 502 y 504 recientes del proxy.
+- ✅ Salud real de los servicios `proxy` (2026-11-16): además de la prueba TCP, cuentan las respuestas del último minuto. Con 3 o más errores (502, 503 o 504, del nodo o de la API) que sean al menos la mitad, el servicio sale con problemas, aunque acepte la conexión. Se mantiene la regla del nodo: `degraded` si fallan algunos servicios, `failing` si fallan todos.
 
 ## Pendientes del portal (se llevan a `../data-exchange`)
 

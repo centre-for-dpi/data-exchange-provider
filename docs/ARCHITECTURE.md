@@ -172,7 +172,9 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 - Tiene tiempos máximos de lectura y escritura, un tope de cabeceras y un límite de peticiones simultáneas por servicio, para proteger la base de la entidad.
 
 **Canal de control.**
-- Heartbeat cada `nextHeartbeatSeconds`, con *jitter* y backoff ante errores. Lleva los servicios con el SHA-256 de su OpenAPI y la salud: `ok`, `degraded` o `failing`, según un ping a la base o al upstream con tiempo máximo.
+- Heartbeat cada `nextHeartbeatSeconds`, con *jitter* y backoff ante errores. Lleva los servicios con el SHA-256 de su OpenAPI y la salud: `ok`, `degraded` (algunos servicios fallan) o `failing` (todos).
+  - Un servicio `instant` falla si la base no responde a un ping o su catálogo no compila.
+  - Un servicio `proxy` falla si el upstream no acepta TCP, o si en el último minuto hubo 3 o más respuestas 502, 503 o 504 y fueron al menos la mitad. Así se detecta una API que acepta la conexión y no contesta.
 - `GET /config` cada 10 minutos.
   - Si `minimumKitVersion` es mayor que la versión del kit, se registra un aviso y la salud pasa a `degraded`.
   - Si una versión publicada usa un `servicePath` que el nodo no sirve, se registra un aviso.
