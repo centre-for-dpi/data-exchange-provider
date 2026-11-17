@@ -464,39 +464,39 @@ async function installWithInstaller(token) {
   const svc = (name, path) =>
     onServer(`RID_INSTALL_SERVICE_NAME=${name} RID_INSTALL_SERVICE_PATH=${path} RID_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
       `RID_INSTALL_SERVICE_PLAIN_HTTP=s RID_INSTALL_SERVICE_CREDENTIAL=ninguna RID_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
-      `bash /opt/rid-node/install.sh servicio </dev/null`);
+      `bash /opt/rid-node/install.sh service </dev/null`);
   const added = svc('afiliacion', '/salud');
   info(`${added.stdout}`.trimEnd().split('\n').slice(-5).join('\n').replace(/^/gm, '  '));
   expect(added.status === 0, `servicio failed: ${added.stdout}${added.stderr}`);
   ok('Servicio "afiliacion" agregado, validado y aplicado');
 
   const dup = svc('otra', '/salud');
-  expect(dup.status !== 0 && !onServer('ls /opt/rid-node/config/services').stdout.includes('otra.yaml') && /repetida/.test(dup.stdout + dup.stderr),
+  expect(dup.status !== 0 && !onServer('ls /opt/rid-node/config/services').stdout.includes('otra.yaml') && /repeated/.test(dup.stdout + dup.stderr),
     `a duplicate service must be refused and undone: ${dup.stdout}${dup.stderr}`);
   ok('Un servicio con la ruta repetida se rechaza y no deja archivos');
 
-  expect(svc('temporal', '/temporal').status === 0 && op('servicio quitar temporal').status === 0 &&
-    !onServer('ls /opt/rid-node/config/services').stdout.includes('temporal'), 'servicio quitar did not remove the service');
-  ok('servicio quitar elimina un servicio');
+  expect(svc('temporal', '/temporal').status === 0 && op('service remove temporal').status === 0 &&
+    !onServer('ls /opt/rid-node/config/services').stdout.includes('temporal'), 'service remove did not remove the service');
+  ok('service remove elimina un servicio');
 
   const bad = op('update 9.9.9');
   const version = onServer("grep '^RID_NODE_VERSION=' /opt/rid-node/.env").stdout.trim();
   expect(bad.status !== 0 && version === 'RID_NODE_VERSION=0.1.0' && op('status').status === 0, `update to a missing version: ${bad.stdout}${bad.stderr} / ${version}`);
   ok('update a una versión que no existe falla sin tocar .env y el nodo sigue en línea');
 
-  const name = (op('status').stdout.match(/Nodo:\s+(\S+)/) ?? [])[1];
+  const name = (op('status').stdout.match(/Node:\s+(\S+)/) ?? [])[1];
   const backup = onServer('bash /opt/rid-node/install.sh backup >/dev/null && ls -t /opt/rid-node/backups/*.tar.gz | head -1');
   const file = backup.stdout.trim();
   expect(backup.status === 0 && file.endsWith('.tar.gz') && onServer(`stat -c %a ${file}`).stdout.trim() === '600', `backup: ${backup.stdout}${backup.stderr}`);
   onServer('cd /opt/rid-node && docker compose down -v >/dev/null 2>&1');
-  const restored = op(`restaurar ${file}`);
-  const after = (op('status').stdout.match(/Nodo:\s+(\S+)/) ?? [])[1];
+  const restored = op(`restore ${file}`);
+  const after = (op('status').stdout.match(/Node:\s+(\S+)/) ?? [])[1];
   expect(restored.status === 0 && after === name, `restore: ${restored.stdout}${restored.stderr} (${name} → ${after})`);
   ok(`Estado perdido y restaurado desde el respaldo: sigue siendo ${after}`);
 
   for (const mode of ['completo', 'canal']) {
-    const m = op(`modo ${mode}`);
-    expect(m.status === 0, `modo ${mode} failed: ${m.stdout}${m.stderr}`);
+    const m = op(`mode ${mode}`);
+    expect(m.status === 0, `mode ${mode} failed: ${m.stdout}${m.stderr}`);
   }
   ok('Cambio de modo completo → canal sin perder el estado');
 }
@@ -533,12 +533,12 @@ async function installInstant(token) {
     { timeoutMs: 120_000, everyMs: 2_000, what: "the entity's database is not ready" });
   ok('PostgreSQL bd-entidad con salud.v_afiliados; rid_reader solo tiene SELECT sobre las vistas');
 
-  step('Agregar la API instantánea con install.sh servicio', 'entidad');
+  step('Agregar la API instantánea con install.sh service', 'entidad');
   const added = onServer(`RID_INSTALL_SERVICE_TYPE=instant RID_INSTALL_SERVICE_NAME=afiliacion RID_INSTALL_SERVICE_PATH=/salud ` +
     `RID_INSTALL_SERVICE_ENGINE=postgres RID_INSTALL_SERVICE_DB_HOST=bd-entidad RID_INSTALL_SERVICE_DB_PORT=5432 ` +
     `RID_INSTALL_SERVICE_DB_NAME=entidad RID_INSTALL_SERVICE_DB_USER=rid_reader RID_INSTALL_SERVICE_DB_PASSWORD='${readerPassword}' ` +
     `RID_INSTALL_SERVICE_DB_TLS=disable RID_INSTALL_SERVICE_SOURCE=salud.v_afiliados RID_INSTALL_SERVICE_KEY=numero_documento ` +
-    `RID_INSTALL_SERVICE_SUBJECT=CC RID_INSTALL_SERVICE_MANY=n bash /opt/rid-node/install.sh servicio </dev/null`);
+    `RID_INSTALL_SERVICE_SUBJECT=CC RID_INSTALL_SERVICE_MANY=n bash /opt/rid-node/install.sh service </dev/null`);
   info(`${added.stdout}`.trimEnd().split('\n').slice(-14).join('\n').replace(/^/gm, '  '));
   expect(added.status === 0, `servicio instant failed: ${added.stdout}${added.stderr}`);
   const openapi = onServer('cat /opt/rid-node/config/services/afiliacion.openapi.json').stdout;
@@ -590,7 +590,7 @@ async function main() {
   if (INSTALLER) {
     // The container was recreated by `servicio` and `modo`: the enrollment line is in an older log.
     const st = onServer('bash /opt/rid-node/install.sh status').stdout;
-    expect(st.includes(`rid-node-${nodeId}`) && /Túnel:\s+último handshake hace/.test(st), `status: ${st}`);
+    expect(st.includes(`rid-node-${nodeId}`) && /Tunnel:\s+last handshake .* ago/.test(st), `status: ${st}`);
     ok(`Enrolado como rid-node-${nodeId}, con handshake reciente del túnel`);
   } else {
     const enrolled = events('enrolled')[0];

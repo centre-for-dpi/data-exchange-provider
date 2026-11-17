@@ -2,12 +2,12 @@ package proxy
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Recent upstream errors make a proxy service unhealthy: at least minFailures in the last minute,
@@ -96,7 +96,7 @@ func (s *Service) Probe(ctx context.Context) error {
 		return err
 	}
 	if total, failed := s.health.recent(); failed >= minFailures && failed*2 >= total {
-		return fmt.Errorf("la API interna respondió con error (502, 503 o 504) en %d de %d peticiones del último minuto", failed, total)
+		return i18n.Errorf("the internal API answered with an error (502, 503 or 504) in %d of %d requests in the last minute", failed, total)
 	}
 	return nil
 }

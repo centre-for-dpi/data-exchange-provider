@@ -68,9 +68,9 @@ func TestRejectUnknownField(t *testing.T) {
 }
 
 func TestRejectBadNameAndPath(t *testing.T) {
-	mustFail(t, strings.Replace(validProxy, "name: certificados", "name: Salud!", 1), `"Salud!"`, "nombre")
-	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: certificados", 1), "ruta")
-	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: /"+strings.Repeat("a", 200), 1), "ruta")
+	mustFail(t, strings.Replace(validProxy, "name: certificados", "name: Salud!", 1), `"Salud!"`, "the name")
+	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: certificados", 1), "path")
+	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: /"+strings.Repeat("a", 200), 1), "path")
 }
 
 func TestRejectDuplicateNameOrPath(t *testing.T) {
@@ -80,14 +80,14 @@ func TestRejectDuplicateNameOrPath(t *testing.T) {
     type: proxy
     upstream: https://api.interna.entidad/otra
 `
-	mustFail(t, two, "certificados", "repetido")
+	mustFail(t, two, "certificados", "is repeated")
 	two = validProxy + `
   - name: otro
     path: /certificados
     type: proxy
     upstream: https://api.interna.entidad/otra
 `
-	mustFail(t, two, "/certificados", "repetida")
+	mustFail(t, two, "/certificados", "is repeated")
 }
 
 func TestRejectOverlappingPaths(t *testing.T) {
@@ -124,14 +124,14 @@ func TestRejectTwoCredentialForms(t *testing.T) {
 	both := strings.Replace(validProxy,
 		"credential: { header: X-Api-Key, file: /run/secrets/certificados_credential }",
 		"credential: { header: X-Api-Key, file: /run/secrets/x, basic: { user: u, passwordFile: /run/secrets/p } }", 1)
-	mustFail(t, both, "credencial")
+	mustFail(t, both, "credential")
 }
 
 func TestRejectHalfCredential(t *testing.T) {
 	half := strings.Replace(validProxy,
 		"credential: { header: X-Api-Key, file: /run/secrets/certificados_credential }",
 		"credential: { header: X-Api-Key }", 1)
-	mustFail(t, half, "credencial")
+	mustFail(t, half, "credential")
 }
 
 func TestRejectInsecurePortal(t *testing.T) {
@@ -162,14 +162,14 @@ func TestReadSecretEmptyIsError(t *testing.T) {
 	if err := os.WriteFile(path, []byte("\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ReadSecret(path); err == nil || !strings.Contains(err.Error(), "vacío") {
+	if _, err := ReadSecret(path); err == nil || !strings.Contains(err.Error(), "empty") {
 		t.Fatalf("expected an empty-secret error, got %v", err)
 	}
 }
 
 // Final review: "/" was accepted but never routed.
 func TestRejectRootServicePath(t *testing.T) {
-	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: /", 1), "ruta")
+	mustFail(t, strings.Replace(validProxy, "path: /certificados", "path: /", 1), "path")
 }
 
 // Final review: credentials in the upstream URL were dropped silently and printed by doctor.
@@ -209,7 +209,7 @@ func TestServicesDirectoryDuplicatesNodeYaml(t *testing.T) {
 	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte(validProxy), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "services", "c.yaml"), []byte("name: certificados\npath: /otra\ntype: proxy\nupstream: https://api.interna/x\n"), 0o644)
-	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "repetido") {
+	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "is repeated") {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -237,7 +237,7 @@ func TestServiceFileWithSeveralDocumentsRefused(t *testing.T) {
 	_ = os.Mkdir(filepath.Join(dir, "services"), 0o755)
 	_ = os.WriteFile(filepath.Join(dir, "node.yaml"), []byte("portal: https://portal.red.example\n"), 0o644)
 	_ = os.WriteFile(filepath.Join(dir, "services", "dos.yaml"), []byte("name: a\npath: /a\ntype: proxy\nupstream: https://api.interna/a\n---\nname: b\npath: /b\ntype: proxy\nupstream: https://api.interna/b\n"), 0o644)
-	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "dos.yaml") || !strings.Contains(err.Error(), "un solo servicio") {
+	if _, err := Load(filepath.Join(dir, "node.yaml")); err == nil || !strings.Contains(err.Error(), "dos.yaml") || !strings.Contains(err.Error(), "a single service") {
 		t.Fatalf("got %v", err)
 	}
 }

@@ -16,30 +16,36 @@ import (
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
-const usage = `uso: rid-node <comando>
+const usage = `usage: rid-node <command>
 
-comandos:
-  run              arranca el nodo (punto de entrada del contenedor)
-  status [--json]  estado del nodo
-  doctor           revisa conectividad y configuración
-  validate         valida la configuración y los secretos de los servicios
-  identity         nombre del nodo si ya está enrolado (salida 3 si no tiene identidad)
-  version          versión del kit
+commands:
+  run              starts the node (the container's entry point)
+  status [--json]  the node's status
+  doctor           checks connectivity and configuration
+  validate         validates the configuration and the services' secrets
+  identity         the node's name if it is enrolled (exit 3 if it has no identity)
+  version          the kit's version
 
-APIs instantáneas (modo completo):
-  catalog --service-file <archivo>     vistas y tablas que el usuario de la base puede leer
-  scaffold --service-file <archivo> --source esquema.vista --key columna
-           [--resource nombre] [--entity Nombre] [--subject TIPO] [--many]
-                                       agrega un recurso con todas las columnas exponibles
-  openapi <servicio>                   imprime el OpenAPI generado
+Instant APIs (full mode):
+  catalog --service-file <file>        views and tables the database user can read
+  scaffold --service-file <file> --source schema.view --key column
+           [--resource name] [--entity Name] [--subject TYPE] [--many]
+                                       adds a resource with every column that can be exposed
+  openapi <service>                    prints the generated OpenAPI
 
 variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
-           RID_TOKEN_FILE (/run/secrets/enrollment_token), RID_HEARTBEAT_SECONDS (solo desarrollo)
+           RID_TOKEN_FILE (/run/secrets/enrollment_token), RID_HEARTBEAT_SECONDS (development only)
 `
 
-func main() { os.Exit(run(os.Args[1:], os.Stdout)) }
+func main() {
+	if w := i18n.FromEnv(); w != "" {
+		fmt.Fprintln(os.Stderr, w)
+	}
+	os.Exit(run(os.Args[1:], os.Stdout))
+}
 
 func env(name, fallback string) string {
 	if v := os.Getenv(name); v != "" {
@@ -60,7 +66,7 @@ func heartbeatOverride(s string) time.Duration {
 
 func run(args []string, out io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprint(out, usage)
+		fmt.Fprint(out, i18n.T(usage))
 		return 2
 	}
 	configPath := env("RID_CONFIG", "/etc/rid-node/node.yaml")
@@ -68,7 +74,7 @@ func run(args []string, out io.Writer) int {
 	tokenFile := env("RID_TOKEN_FILE", "/run/secrets/enrollment_token")
 	switch args[0] {
 	case "version":
-		fmt.Fprintf(out, "rid-node %s (%s), contrato de nodos v%s\n", buildinfo.Version, buildinfo.Variant(), buildinfo.ContractVersion)
+		i18n.Fprintf(out, "rid-node %s (%s), node contract v%s\n", buildinfo.Version, buildinfo.Variant(), buildinfo.ContractVersion)
 		return 0
 	case "run":
 		log := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -84,7 +90,7 @@ func run(args []string, out io.Writer) int {
 		return identity(stateDir, out)
 	case "import-state":
 		if len(args) < 2 {
-			fmt.Fprint(out, usage)
+			fmt.Fprint(out, i18n.T(usage))
 			return 2
 		}
 		return importState(args[1], stateDir, out)
@@ -98,7 +104,7 @@ func run(args []string, out io.Writer) int {
 		return doctor(context.Background(), doctorOptions{ConfigPath: configPath, StateDir: stateDir, TokenFile: tokenFile,
 			PortalHTTP: contract.NewPortalHTTPClient(nil), Now: time.Now}, out)
 	default:
-		fmt.Fprint(out, usage)
+		fmt.Fprint(out, i18n.T(usage))
 		return 2
 	}
 }

@@ -132,7 +132,7 @@ func TestWaitsForToken(t *testing.T) {
 	if _, err := e.LoadOrEnroll(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(logs.String(), "esperando el token") {
+	if !strings.Contains(logs.String(), "waiting for the enrollment token") {
 		t.Fatalf("log: %s", logs)
 	}
 }
@@ -151,7 +151,7 @@ func TestEnroll401Fatal(t *testing.T) {
 	p := fakeportal.New(t)
 	e, _ := enroller(t, p, "tok_wrong_wrong_wrong_wrong")
 	_, err := e.LoadOrEnroll(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "pide uno nuevo en el portal") || p.Count("/enroll") != 1 {
+	if err == nil || !strings.Contains(err.Error(), "ask for a new one in the portal") || p.Count("/enroll") != 1 {
 		t.Fatalf("err=%v calls=%d", err, p.Count("/enroll"))
 	}
 }
@@ -161,7 +161,7 @@ func TestEnroll409Fatal(t *testing.T) {
 	p.EnrollStatuses = []int{409}
 	e, _ := enroller(t, p, p.Token)
 	_, err := e.LoadOrEnroll(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "install.sh reenrolar") || p.Count("/enroll") != 1 {
+	if err == nil || !strings.Contains(err.Error(), "install.sh reenroll") || p.Count("/enroll") != 1 {
 		t.Fatalf("err=%v calls=%d", err, p.Count("/enroll"))
 	}
 }
@@ -205,7 +205,7 @@ func TestInvalidEnrollmentAnswerNotSaved(t *testing.T) {
 			breakIt(p)
 			e, _ := enroller(t, p, p.Token)
 			_, err := e.LoadOrEnroll(context.Background())
-			if err == nil || !strings.Contains(err.Error(), "respuesta de enrolamiento") {
+			if err == nil || !strings.Contains(err.Error(), "enrollment answer") {
 				t.Fatalf("got %v", err)
 			}
 			if _, err := e.Store.Load(); !errors.Is(err, state.ErrNoState) {

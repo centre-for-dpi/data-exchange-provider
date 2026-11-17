@@ -1,9 +1,10 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"strings"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // ReadSecret reads a secret file (Compose secrets are mounted under /run/secrets) and trims the
@@ -11,11 +12,11 @@ import (
 func ReadSecret(path string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo leer el secreto %s: %w", path, err)
+		return "", i18n.Errorf("cannot read the secret %s: %w", path, err)
 	}
 	s := strings.TrimRight(string(b), "\r\n")
 	if s == "" {
-		return "", fmt.Errorf("el secreto %s está vacío", path)
+		return "", i18n.Errorf("the secret %s is empty", path)
 	}
 	return s, nil
 }

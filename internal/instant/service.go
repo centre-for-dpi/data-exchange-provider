@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Service is one instant service: a pool to the entity's database and the resources compiled
@@ -56,7 +57,7 @@ const recompileAfter = 3
 func Open(svc config.Service, d Dialect, log *slog.Logger) (*Service, error) {
 	db := svc.Instant.Database
 	if db == nil {
-		return nil, errors.New("el servicio no tiene database")
+		return nil, i18n.New("the service has no database")
 	}
 	password, err := config.ReadSecret(db.PasswordFile)
 	if err != nil {
@@ -180,7 +181,7 @@ func (s *Service) Probe(ctx context.Context) error {
 		if err := s.Err(); err != nil {
 			return err
 		}
-		return errors.New("el catálogo todavía no se ha leído")
+		return i18n.New("the catalog has not been read yet")
 	}
 	ctx, cancel := context.WithTimeout(ctx, s.cfg.Instant.Database.QueryTimeout)
 	defer cancel()
@@ -197,7 +198,7 @@ func (s *Service) OpenAPI() ([]byte, error) {
 		if err := s.Err(); err != nil {
 			return nil, err
 		}
-		return nil, errors.New("el catálogo todavía no se ha leído")
+		return nil, i18n.New("the catalog has not been read yet")
 	}
 	return OpenAPI(s.cfg, set.list)
 }
@@ -234,13 +235,13 @@ type DBError struct {
 func (e *DBError) Error() string {
 	switch e.Class {
 	case "connection":
-		return "no se pudo conectar con la base de datos"
+		return i18n.T("cannot connect to the database")
 	case "timeout":
-		return "la base de datos no respondió a tiempo"
+		return i18n.T("the database did not answer in time")
 	case "canceled":
-		return "la consulta se canceló"
+		return i18n.T("the query was canceled")
 	}
-	return "la base de datos rechazó la consulta"
+	return i18n.T("the database rejected the query")
 }
 
 func (e *DBError) Unwrap() error { return e.err }
@@ -310,7 +311,7 @@ func (s *Service) probe(ctx context.Context, rs []Compiled) error {
 			if c := errorClass(err); c == "connection" || c == "timeout" || c == "canceled" {
 				return dbError(err)
 			}
-			errs = append(errs, fmt.Errorf("recurso %q: el usuario de la base no puede leer %s con SELECT (revisa sus permisos sobre la vista y sus columnas)", r.Name, r.Source))
+			errs = append(errs, i18n.Errorf("resource %q: the database user cannot read %s with SELECT (check its permissions on the view and its columns)", r.Name, r.Source))
 			continue
 		}
 		_ = rows.Close()

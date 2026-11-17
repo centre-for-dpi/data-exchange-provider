@@ -1,5 +1,7 @@
 # Propuestas del kit para el portal
 
+> English version (official): [docs/portal-proposals.md](../portal-proposals.md)
+
 Para el **equipo del portal** (`../data-exchange`). Salen de construir y probar el nodo contra el portal real (K0–K4). La frontera es el contrato de nodos v1: estos cambios se deciden y se versionan en el portal, no en el kit. Van ordenadas por el impacto que tienen en las entidades.
 
 ## 1. Entregar el slug de la entidad al nodo
@@ -50,4 +52,4 @@ La guía de proveedores tiene que decir cuál.
 
 ## 8. Guía de entidades: el servidor del nodo
 
-**Propuesta.** Escribir Ubuntu Server LTS con Docker como requisito del nodo (ADR-0002 del kit). La guía del kit (`docs/INSTALACION.md`) ya lo dice, y la del portal debería coincidir.
+**Propuesta.** Escribir Ubuntu Server LTS con Docker como requisito del nodo (ADR-0002 del kit). La guía del kit (`docs/es/INSTALL.md`) ya lo dice, y la del portal debería coincidir.

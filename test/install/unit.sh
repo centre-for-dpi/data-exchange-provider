@@ -163,7 +163,7 @@ t_instant_service_yaml() (
   src
   instant_env "$(mktemp -d)" ""
   instant_answers
-  cmd_servicio >/dev/null 2>&1 || return 1
+  cmd_service >/dev/null 2>&1 || return 1
   local f=$HOME_DIR/config/services/afiliacion.yaml s=$HOME_DIR/secrets/afiliacion_db_password
   grep -q "^type: instant" "$f" && grep -q "  engine: postgres" "$f" && grep -q "  port: 5432" "$f" &&
     grep -q "  passwordFile: /run/secrets/afiliacion_db_password" "$f" && grep -q "  - name: afiliados" "$f" &&
@@ -178,8 +178,8 @@ t_instant_needs_completo() (
   src
   instant_env "$(mktemp -d)" -canal
   instant_answers
-  out=$( (cmd_servicio) 2>&1 ) && return 1
-  [[ $out == *"modo completo"* && ! -e $HOME_DIR/config/services/afiliacion.yaml ]]
+  out=$( (cmd_service) 2>&1 ) && return 1
+  [[ $out == *"mode completo"* && ! -e $HOME_DIR/config/services/afiliacion.yaml ]]
 )
 check "servicio instant in canal points to modo completo" t_instant_needs_completo
 
@@ -188,7 +188,7 @@ t_instant_catalog_failure_undoes() (
   instant_env "$(mktemp -d)" ""
   touch "$HOME_DIR/catalog-fails"
   instant_answers
-  out=$( (cmd_servicio) 2>&1 ) && return 1
+  out=$( (cmd_service) 2>&1 ) && return 1
   [[ $out == *"no se pudo conectar"* && ! -e $HOME_DIR/config/services/afiliacion.yaml && ! -e $HOME_DIR/secrets/afiliacion_db_password ]]
 )
 check "a catalog that cannot be read undoes the service" t_instant_catalog_failure_undoes
@@ -201,7 +201,7 @@ t_instant_verify_ca_and_names() (
   ca=$(mktemp)
   printf -- '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n' >"$ca"
   export RID_INSTALL_SERVICE_DB_TLS=verify RID_INSTALL_SERVICE_DB_CA=$ca RID_INSTALL_SERVICE_RESOURCE=personas RID_INSTALL_SERVICE_ENTITY=Persona
-  cmd_servicio >/dev/null 2>&1 || return 1
+  cmd_service >/dev/null 2>&1 || return 1
   grep -q "  caFile: /run/secrets/afiliacion_db_ca.pem" "$HOME_DIR/config/services/afiliacion.yaml" &&
     [[ $(stat -c %a "$HOME_DIR/secrets/afiliacion_db_ca.pem") == 400 ]] &&
     grep -q -- "--resource personas --entity Persona" "$HOME_DIR/calls"
@@ -214,8 +214,8 @@ t_instant_ca_prompt_defaults_to_system() (
   instant_answers
   export RID_INSTALL_SERVICE_DB_TLS=verify
   # No CA given and no terminal: the question's default ("-") is the system's roots.
-  cmd_servicio </dev/null >"$HOME_DIR/out" 2>&1 || return 1
-  ! grep -q "caFile" "$HOME_DIR/config/services/afiliacion.yaml" && grep -q "CA de la base" "$HOME_DIR/out"
+  cmd_service </dev/null >"$HOME_DIR/out" 2>&1 || return 1
+  ! grep -q "caFile" "$HOME_DIR/config/services/afiliacion.yaml" && grep -q "Database CA" "$HOME_DIR/out"
 )
 check "the CA question defaults to the system's roots" t_instant_ca_prompt_defaults_to_system
 
@@ -224,14 +224,14 @@ t_instant_add_resource() (
   src
   instant_env "$(mktemp -d)" ""
   instant_answers
-  cmd_servicio >/dev/null 2>&1 || return 1
+  cmd_service >/dev/null 2>&1 || return 1
   export RID_INSTALL_SERVICE_SOURCE=salud.v_hogares RID_INSTALL_SERVICE_KEY=hogar_id RID_INSTALL_SERVICE_SUBJECT=ninguno \
     RID_INSTALL_SERVICE_MANY=s RID_INSTALL_SERVICE_RESOURCE=hogares RID_INSTALL_SERVICE_ENTITY=-
   : >"$HOME_DIR/calls"
-  cmd_servicio recurso afiliacion >"$HOME_DIR/out" 2>&1 || { cat "$HOME_DIR/out"; return 1; }
+  cmd_service resource afiliacion >"$HOME_DIR/out" 2>&1 || { cat "$HOME_DIR/out"; return 1; }
   grep -q -- "node scaffold --print --service-file /etc/rid-node/services/afiliacion.yaml --source salud.v_hogares --key hogar_id --resource hogares --many$" "$HOME_DIR/calls" &&
-    grep -q "node openapi afiliacion" "$HOME_DIR/calls" && grep -q "versión nueva" "$HOME_DIR/out" &&
-    ! compgen -G "$HOME_DIR/config/services/*.antes" >/dev/null
+    grep -q "node openapi afiliacion" "$HOME_DIR/calls" && grep -q "new version" "$HOME_DIR/out" &&
+    ! compgen -G "$HOME_DIR/config/services/*.before" >/dev/null
 )
 check "servicio recurso adds a view to an existing instant service" t_instant_add_resource
 
@@ -239,13 +239,13 @@ t_instant_add_resource_failure_restores() (
   src
   instant_env "$(mktemp -d)" ""
   instant_answers
-  cmd_servicio >/dev/null 2>&1 || return 1
+  cmd_service >/dev/null 2>&1 || return 1
   local f=$HOME_DIR/config/services/afiliacion.yaml before
   before=$(cat "$f" "$HOME_DIR/config/services/afiliacion.openapi.json")
   touch "$HOME_DIR/scaffold-fails"
   export RID_INSTALL_SERVICE_SOURCE=salud.no_existe RID_INSTALL_SERVICE_KEY=id
-  out=$( (cmd_servicio recurso afiliacion) 2>&1 ) && return 1
-  [[ $(cat "$f" "$HOME_DIR/config/services/afiliacion.openapi.json") == "$before" ]] && ! compgen -G "$HOME_DIR/config/services/*.antes" >/dev/null
+  out=$( (cmd_service resource afiliacion) 2>&1 ) && return 1
+  [[ $(cat "$f" "$HOME_DIR/config/services/afiliacion.openapi.json") == "$before" ]] && ! compgen -G "$HOME_DIR/config/services/*.before" >/dev/null
 )
 check "a failed servicio recurso leaves the service as it was" t_instant_add_resource_failure_restores
 
@@ -253,10 +253,85 @@ t_add_resource_to_proxy_refused() (
   src
   instant_env "$(mktemp -d)" ""
   printf 'name: certificados\npath: /certificados\ntype: proxy\nupstream: https://api\n' >"$HOME_DIR/config/services/certificados.yaml"
-  out=$( (cmd_servicio recurso certificados) 2>&1 ) && return 1
-  [[ $out == *"no es instant"* ]]
+  out=$( (cmd_service resource certificados) 2>&1 ) && return 1
+  [[ $out == *"is not instant"* ]]
 )
 check "servicio recurso refuses a proxy service" t_add_resource_to_proxy_refused
+
+# --- languages (ADR-0004) --------------------------------------------------------------------
+# Every message the installer prints has its Spanish, with the same %s in the same order, and the
+# catalog has nothing the installer no longer says. Messages are literals: a variable inside one
+# would never match the catalog.
+t_messages_translated() (
+  src
+  local bad=0 m q a b
+  declare -A used=()
+  while IFS= read -r q; do
+    if [[ $q == *'$'* || $q == *'`'* ]]; then echo "  a variable inside a message: $q"; bad=1; continue; fi
+    eval "m=$q"
+    used[$m]=1
+    if [[ -z ${MSG_ES[$m]+x} ]]; then echo "  no Spanish for: $m"; bad=1; continue; fi
+    a=$(grep -o '%[sd%]' <<<"$m" | tr -d '\n')
+    b=$(grep -o '%[sd%]' <<<"${MSG_ES[$m]}" | tr -d '\n')
+    [[ $a == "$b" ]] || { echo "  different %s in: $m"; bad=1; }
+  done < <(grep -oP '\b(?:info|ok|warn|fail|step|say|t) \K"(?:[^"\\]|\\.)*"|\b(?:ask|ask_secret|read_token) [a-z_]+ \K"(?:[^"\\]|\\.)*"|\byes_no [sn] \K"(?:[^"\\]|\\.)*"' "$ROOT/deploy/install.sh")
+  for m in "${!MSG_ES[@]}"; do [[ -n ${used[$m]+x} ]] || { echo "  unused translation: $m"; bad=1; }; done
+  [[ ${#used[@]} -gt 100 ]] || { echo "  only ${#used[@]} messages found: is the extraction broken?"; bad=1; }
+  return $bad
+)
+check "every installer message has its Spanish translation" t_messages_translated
+
+t_lang_choice() (
+  src
+  ENV_FILE=$(mktemp -u)
+  unset RID_LANG
+  set_lang; [[ $UI_LANG == en ]] || { echo "  new installation: $UI_LANG"; return 1; }
+  printf 'RID_NODE_VERSION=0.1.0\n' >"$ENV_FILE"
+  set_lang; [[ $UI_LANG == es ]] || { echo "  installation from before RID_LANG: $UI_LANG"; return 1; }
+  printf 'RID_NODE_VERSION=0.1.0\nRID_LANG=en\n' >"$ENV_FILE"
+  set_lang; [[ $UI_LANG == en ]] || { echo "  RID_LANG=en in .env: $UI_LANG"; return 1; }
+  RID_LANG=es_CO.UTF-8 set_lang; [[ $UI_LANG == es ]] || { echo "  RID_LANG=es_CO.UTF-8: $UI_LANG"; return 1; }
+  [[ $(RID_LANG=fr set_lang 2>&1) == *"not supported"* ]]
+)
+check "language: RID_LANG, else the installation's, else Spanish for old installations, else English" t_lang_choice
+
+t_spanish_messages() (
+  src
+  UI_LANG=es
+  instant_env "$(mktemp -d)" -canal
+  instant_answers
+  out=$( (cmd_service) 2>&1 ) && return 1
+  [[ $out == *"Las APIs instantáneas necesitan el modo completo: sudo $HOME_DIR/install.sh modo completo"* ]]
+)
+check "with RID_LANG=es the messages are the Spanish ones" t_spanish_messages
+
+t_english_answers_and_commands() (
+  src
+  instant_env "$(mktemp -d)" ""
+  instant_answers
+  cmd_service >/dev/null 2>&1 || return 1
+  # The English answers (none, y) and the English subcommand.
+  export RID_INSTALL_SERVICE_SOURCE=salud.v_hogares RID_INSTALL_SERVICE_KEY=hogar_id RID_INSTALL_SERVICE_SUBJECT=none \
+    RID_INSTALL_SERVICE_MANY=y RID_INSTALL_SERVICE_RESOURCE=hogares RID_INSTALL_SERVICE_ENTITY=-
+  : >"$HOME_DIR/calls"
+  cmd_service resource afiliacion >/dev/null 2>&1 || return 1
+  grep -q -- "--key hogar_id --resource hogares --many$" "$HOME_DIR/calls" || return 1
+  RID_INSTALL_YES=1 cmd_service remove afiliacion >/dev/null 2>&1 && [[ ! -e $HOME_DIR/config/services/afiliacion.yaml ]]
+)
+check "English answers (none, y) and subcommands (resource, remove)" t_english_answers_and_commands
+
+t_proxy_credential_english() (
+  src
+  instant_env "$(mktemp -d)" ""
+  write_secret() { printf '%s' "$2" >"$HOME_DIR/secrets/$1"; }
+  export RID_INSTALL_SERVICE_TYPE=proxy RID_INSTALL_SERVICE_NAME=certificados RID_INSTALL_SERVICE_PATH=/certificados \
+    RID_INSTALL_SERVICE_UPSTREAM=http://api.interna RID_INSTALL_SERVICE_PLAIN_HTTP=y RID_INSTALL_SERVICE_CREDENTIAL=header \
+    RID_INSTALL_SERVICE_HEADER=X-Api-Key RID_INSTALL_SERVICE_SECRET=s3cr3t RID_INSTALL_SERVICE_OPENAPI=-
+  cmd_service >/dev/null 2>&1 || return 1
+  local f=$HOME_DIR/config/services/certificados.yaml
+  grep -q "allowPlainHttp: true" "$f" && grep -q "  header: 'X-Api-Key'" "$f"
+)
+check "a proxy service with the English answers (y, header)" t_proxy_credential_english
 
 echo "passed $PASS, failed $FAILS"
 [[ $FAILS -eq 0 ]]

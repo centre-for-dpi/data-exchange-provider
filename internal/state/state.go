@@ -5,11 +5,12 @@ package state
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // State is the node's persistent identity (from enrollment) and its local secrets.
@@ -69,11 +70,11 @@ func (s Store) Load() (*State, error) {
 		return nil, ErrNoState
 	}
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo leer el estado del nodo: %w; si se perdió, usa install.sh reenrolar", err)
+		return nil, i18n.Errorf("cannot read the node's state: %w; if it was lost, use install.sh reenroll", err)
 	}
 	var st State
 	if err := json.Unmarshal(b, &st); err != nil {
-		return nil, fmt.Errorf("el estado del nodo (%s) está dañado: %w; restaura un respaldo o usa install.sh reenrolar", filepath.Join(s.Dir, stateFile), err)
+		return nil, i18n.Errorf("the node's state (%s) is damaged: %w; restore a backup or use install.sh reenroll", filepath.Join(s.Dir, stateFile), err)
 	}
 	return &st, nil
 }

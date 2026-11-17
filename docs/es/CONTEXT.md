@@ -1,5 +1,7 @@
 # Contexto para el kit: lo que el portal ya hace y lo que el kit debe cumplir
 
+> English version (official): [docs/CONTEXT.md](../CONTEXT.md)
+
 Escrito el 2026-11-16 desde el repositorio del portal (`../data-exchange`). Las rutas relativas apuntan a ese repositorio. Si algo de aquí contradice al portal, manda el portal: este documento es una foto.
 
 ## 1. Lo que ya existe del lado del portal

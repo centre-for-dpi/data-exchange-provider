@@ -15,6 +15,7 @@ services:
     environment:
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-}
+      RID_LANG: ${RID_LANG:-en} # the language of the node's CLI, errors and OpenAPI texts: en or es
     volumes:
       - rid-node-state:/var/lib/rid-node
       - ./config:/etc/rid-node:ro

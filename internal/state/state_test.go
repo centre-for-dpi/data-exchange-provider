@@ -86,8 +86,8 @@ func TestLoadCorruptIsNotErrNoState(t *testing.T) {
 	if err == nil || errors.Is(err, ErrNoState) {
 		t.Fatalf("a corrupt state must be an error other than ErrNoState, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "reenrolar") {
-		t.Fatalf("the error must point to install.sh reenrolar: %v", err)
+	if !strings.Contains(err.Error(), "reenroll") {
+		t.Fatalf("the error must point to install.sh reenroll: %v", err)
 	}
 }
 

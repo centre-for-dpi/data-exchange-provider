@@ -22,6 +22,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/agent"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/instant"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/instant/dialect"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
@@ -80,7 +81,7 @@ func quietLog() *slog.Logger { return slog.New(slog.DiscardHandler) }
 func validateInstant(ctx context.Context, s config.Service, out io.Writer) bool {
 	svc, err := openInstant(s, quietLog())
 	if err != nil {
-		fmt.Fprintf(out, "✘ servicio %q: %v\n", s.Name, err)
+		i18n.Fprintf(out, "✘ service %q: %v\n", s.Name, err)
 		return false
 	}
 	defer svc.Close()
@@ -92,12 +93,12 @@ func validateInstant(ctx context.Context, s config.Service, out io.Writer) bool 
 	var de *instant.DBError
 	switch err := svc.Compile(ctx); {
 	case errors.As(err, &de):
-		fmt.Fprintf(out, "⚠ servicio %q: no se pudo revisar contra la base: %s (el nodo reintentará al arrancar)\n", s.Name, detail(err))
+		i18n.Fprintf(out, "⚠ service %q: could not check against the database: %s (the node will retry when it starts)\n", s.Name, detail(err))
 	case err != nil:
-		fmt.Fprintf(out, "✘ servicio %q: la declaración no compila contra la base:\n%v\n", s.Name, err)
+		i18n.Fprintf(out, "✘ service %q: the declaration does not compile against the database:\n%v\n", s.Name, err)
 		return false
 	default:
-		fmt.Fprintf(out, "✔ servicio %q: compila contra la base (%d recursos)\n", s.Name, len(s.Instant.Resources))
+		i18n.Fprintf(out, "✔ service %q: compiles against the database (%d resources)\n", s.Name, len(s.Instant.Resources))
 	}
 	return true
 }
@@ -106,7 +107,7 @@ func validateInstant(ctx context.Context, s config.Service, out io.Writer) bool 
 func doctorInstant(ctx context.Context, s config.Service, c *checker) {
 	svc, err := openInstant(s, quietLog())
 	if err != nil {
-		c.fail("servicio %s: %v", s.Name, err)
+		c.fail(i18n.Sprintf("service %s: %v", s.Name, err))
 		return
 	}
 	defer svc.Close()
@@ -116,39 +117,39 @@ func doctorInstant(ctx context.Context, s config.Service, c *checker) {
 	var de *instant.DBError
 	err = svc.Compile(ctx)
 	if errors.As(err, &de) {
-		c.fail("servicio %s: %s en %s:%d", s.Name, detail(err), db.Host, db.Port)
+		c.fail(i18n.Sprintf("service %s: %s at %s:%d", s.Name, detail(err), db.Host, db.Port))
 		return
 	}
 	server := db.Engine
 	if v, err := svc.ServerVersion(ctx); err == nil && v != "" {
 		server = v
 	}
-	c.ok("servicio %s: conexión con la base de datos %s:%d (%s)", s.Name, db.Host, db.Port, server)
+	c.ok(i18n.Sprintf("service %s: connected to the database %s:%d (%s)", s.Name, db.Host, db.Port, server))
 	switch {
 	case len(s.Instant.Resources) == 0:
-		c.warn("servicio %s: todavía no tiene recursos (install.sh servicio)", s.Name)
+		c.warn(i18n.Sprintf("service %s: has no resources yet (install.sh service)", s.Name))
 		return
 	case err != nil:
-		c.fail("servicio %s: la declaración no compila contra la base:\n%v", s.Name, err)
+		c.fail(i18n.Sprintf("service %s: the declaration does not compile against the database:\n%v", s.Name, err))
 		return
 	}
-	c.ok("servicio %s: el catálogo compila (%d recursos)", s.Name, len(s.Instant.Resources))
+	c.ok(i18n.Sprintf("service %s: the catalog compiles (%d resources)", s.Name, len(s.Instant.Resources)))
 	writable, err := svc.WriteCheck(ctx)
 	switch {
 	case err != nil:
-		c.warn("servicio %s: no se pudo revisar si el usuario puede escribir: %s", s.Name, detail(err))
+		c.warn(i18n.Sprintf("service %s: could not check whether the user can write: %s", s.Name, detail(err)))
 	case len(writable) > 0:
-		c.fail("servicio %s: el usuario %s puede escribir en %s: usa un usuario de solo lectura (solo SELECT sobre las vistas)", s.Name, db.User, strings.Join(writable, ", "))
+		c.fail(i18n.Sprintf("service %s: the user %s can write to %s: use a read-only user (only SELECT on the views)", s.Name, db.User, strings.Join(writable, ", ")))
 	default:
-		c.ok("servicio %s: el usuario %s no puede escribir en las fuentes expuestas (%d)", s.Name, db.User, len(s.Instant.Resources))
+		c.ok(i18n.Sprintf("service %s: the user %s cannot write to the exposed sources (%d)", s.Name, db.User, len(s.Instant.Resources)))
 	}
 	switch err := svc.CheckReadOnly(ctx); {
 	case db.Engine == "sqlserver":
-		c.info("servicio %s: SQL Server no tiene transacciones de solo lectura; la garantía es el usuario de solo lectura", s.Name)
+		c.info(i18n.Sprintf("service %s: SQL Server has no read-only transactions; the guarantee is the read-only user", s.Name))
 	case err != nil:
-		c.fail("servicio %s: no se pudo abrir una transacción de solo lectura: %s", s.Name, detail(err))
+		c.fail(i18n.Sprintf("service %s: could not open a read-only transaction: %s", s.Name, detail(err)))
 	default:
-		c.ok("servicio %s: las consultas corren en una transacción de solo lectura (abierta y cerrada ahora)", s.Name)
+		c.ok(i18n.Sprintf("service %s: queries run in a read-only transaction (opened and closed just now)", s.Name))
 	}
 }
 
@@ -168,12 +169,12 @@ func instantCommand(name string, args []string, configPath string, out io.Writer
 }
 
 func serviceFileFlag(fs *flag.FlagSet) *string {
-	return fs.String("service-file", "", "archivo del servicio (config/services/<nombre>.yaml)")
+	return fs.String("service-file", "", i18n.T("the service's file (config/services/<name>.yaml)"))
 }
 
 func loadInstantFile(path string, out io.Writer) (config.Service, bool) {
 	if path == "" {
-		fmt.Fprintln(out, "✘ falta --service-file")
+		i18n.Fprintln(out, "✘ --service-file is missing")
 		return config.Service{}, false
 	}
 	s, err := config.LoadServiceFile(path)
@@ -182,7 +183,7 @@ func loadInstantFile(path string, out io.Writer) (config.Service, bool) {
 		return config.Service{}, false
 	}
 	if s.Type != "instant" {
-		fmt.Fprintf(out, "✘ %s no es un servicio instant\n", path)
+		i18n.Fprintf(out, "✘ %s is not an instant service\n", path)
 		return config.Service{}, false
 	}
 	return s, true
@@ -211,18 +212,18 @@ func catalogCmd(ctx context.Context, args []string, out io.Writer) int {
 		return 1
 	}
 	if v, err := svc.ServerVersion(ctx); err == nil && v != "" {
-		fmt.Fprintf(out, "base de datos: %s\n", v)
+		i18n.Fprintf(out, "database: %s\n", v)
 	}
 	if len(cat) == 0 {
-		fmt.Fprintf(out, "el usuario %s no puede leer ninguna vista ni tabla: dale SELECT sobre las vistas que vas a exponer\n", s.Instant.Database.User)
+		i18n.Fprintf(out, "the user %s cannot read any view or table: grant it SELECT on the views you will expose\n", s.Instant.Database.User)
 		return 1
 	}
 	for _, o := range cat {
-		fmt.Fprintf(out, "%s.%s (%s)\n", o.Schema, o.Name, map[string]string{"view": "vista", "table": "tabla"}[o.Kind])
+		fmt.Fprintf(out, "%s.%s (%s)\n", o.Schema, o.Name, map[string]string{"view": i18n.T("view"), "table": i18n.T("table")}[o.Kind])
 		for _, c := range o.Columns {
 			kind := string(c.Kind)
 			if c.Kind == instant.KindUnsupported {
-				kind = "✘ no se puede exponer"
+				kind = i18n.T("✘ cannot be exposed")
 			}
 			fmt.Fprintf(out, "  %-32s %-28s %s\n", c.Name, c.Native, kind)
 		}
@@ -235,18 +236,18 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 	fs.SetOutput(out)
 	file := serviceFileFlag(fs)
 	var o instant.ScaffoldOptions
-	fs.StringVar(&o.Source, "source", "", "vista o tabla, esquema.objeto")
-	fs.StringVar(&o.Key, "key", "", "columna que se busca con la clave")
-	fs.StringVar(&o.Resource, "resource", "", "nombre del recurso en la URL (por defecto, el del objeto)")
-	fs.StringVar(&o.Entity, "entity", "", "nombre de la entidad en el OpenAPI (por defecto, el del recurso)")
-	fs.StringVar(&o.Subject, "subject", "", "tipo de documento si la clave identifica a una persona")
-	fs.BoolVar(&o.Many, "many", false, "la clave puede traer varias filas")
-	printOnly := fs.Bool("print", false, "imprime el archivo resultante en vez de escribirlo (install.sh)")
+	fs.StringVar(&o.Source, "source", "", i18n.T("view or table, schema.object"))
+	fs.StringVar(&o.Key, "key", "", i18n.T("the column the key is looked up in"))
+	fs.StringVar(&o.Resource, "resource", "", i18n.T("the resource's name in the URL (default: the object's)"))
+	fs.StringVar(&o.Entity, "entity", "", i18n.T("the entity's name in the OpenAPI (default: the resource's)"))
+	fs.StringVar(&o.Subject, "subject", "", i18n.T("document type if the key identifies a person"))
+	fs.BoolVar(&o.Many, "many", false, i18n.T("the key may return several rows"))
+	printOnly := fs.Bool("print", false, i18n.T("prints the resulting file instead of writing it (install.sh)"))
 	if fs.Parse(args) != nil {
 		return 2
 	}
 	if o.Source == "" || o.Key == "" {
-		fmt.Fprintln(out, "✘ faltan --source y --key")
+		i18n.Fprintln(out, "✘ --source and --key are missing")
 		return 2
 	}
 	s, ok := loadInstantFile(*file, out)
@@ -276,7 +277,7 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 	}
 	for _, existing := range s.Instant.Resources {
 		if existing.Name == r.Name {
-			fmt.Fprintf(out, "✘ el servicio ya tiene un recurso %q: usa --resource con otro nombre\n", r.Name)
+			i18n.Fprintf(out, "✘ the service already has a resource %q: use --resource with another name\n", r.Name)
 			return 1
 		}
 	}
@@ -287,11 +288,11 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 	}
 	comment := ""
 	if len(skipped) > 0 {
-		comment = "Columnas omitidas por rid-node scaffold:\n- " + strings.Join(skipped, "\n- ")
+		comment = i18n.Sprintf("Columns skipped by rid-node scaffold:\n- %s", strings.Join(skipped, "\n- "))
 	}
 	updated, err := appendResource(raw, r, comment)
 	if err != nil {
-		fmt.Fprintf(out, "✘ no se pudo escribir el recurso: %v\n", err)
+		i18n.Fprintf(out, "✘ could not write the resource: %v\n", err)
 		return 1
 	}
 	// Check the result (configuration and catalog) before anything is written.
@@ -300,7 +301,7 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 		_, err = instant.Compile(next, cat, d)
 	}
 	if err != nil {
-		fmt.Fprintf(out, "✘ el recurso no es válido:\n%v\n", err)
+		i18n.Fprintf(out, "✘ the resource is not valid:\n%v\n", err)
 		return 1
 	}
 	if *printOnly {
@@ -321,9 +322,9 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 		fmt.Fprintf(out, "✘ %v\n", err)
 		return 1
 	}
-	fmt.Fprintf(out, "✔ recurso %q agregado: GET %s/%s/{%s} (%d columnas)\n", r.Name, s.Path, r.Name, r.Key.Column, len(r.Columns))
+	i18n.Fprintf(out, "✔ resource %q added: GET %s/%s/{%s} (%d columns)\n", r.Name, s.Path, r.Name, r.Key.Column, len(r.Columns))
 	for _, sk := range skipped {
-		fmt.Fprintf(out, "⚠ columna omitida: %s\n", sk)
+		i18n.Fprintf(out, "⚠ column skipped: %s\n", sk)
 	}
 	return 0
 }
@@ -336,7 +337,7 @@ func appendResource(raw []byte, r config.Resource, comment string) ([]byte, erro
 		return nil, err
 	}
 	if len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
-		return nil, errors.New("el archivo no es un mapa YAML")
+		return nil, i18n.New("the file is not a YAML map")
 	}
 	var rn yaml.Node
 	if err := rn.Encode(r); err != nil {
@@ -370,7 +371,7 @@ func appendResource(raw []byte, r config.Resource, comment string) ([]byte, erro
 
 func openapiCmd(ctx context.Context, args []string, configPath string, out io.Writer) int {
 	if len(args) != 1 {
-		fmt.Fprintln(out, "uso: rid-node openapi <servicio>")
+		i18n.Fprintln(out, "usage: rid-node openapi <service>")
 		return 2
 	}
 	cfg, err := config.Load(configPath)
@@ -383,7 +384,7 @@ func openapiCmd(ctx context.Context, args []string, configPath string, out io.Wr
 			continue
 		}
 		if s.Type != "instant" {
-			fmt.Fprintf(out, "✘ el servicio %q no es instant: su OpenAPI lo escribe la entidad\n", s.Name)
+			i18n.Fprintf(out, "✘ service %q is not instant: the entity writes its OpenAPI\n", s.Name)
 			return 1
 		}
 		svc, err := openInstant(s, quietLog())
@@ -404,6 +405,6 @@ func openapiCmd(ctx context.Context, args []string, configPath string, out io.Wr
 		_, _ = out.Write(b)
 		return 0
 	}
-	fmt.Fprintf(out, "✘ no hay un servicio %q\n", args[0])
+	i18n.Fprintf(out, "✘ there is no service %q\n", args[0])
 	return 1
 }

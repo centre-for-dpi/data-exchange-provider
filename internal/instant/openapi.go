@@ -9,16 +9,35 @@ import (
 	"strings"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Problem titles, shared by the handler and the OpenAPI.
 const (
-	titleQueryNotAllowed = "Esta operación no acepta parámetros en la URL"
-	titleInvalidKey      = "La clave no tiene el formato esperado"
-	titleNotFound        = "No existe un registro con esa clave"
-	titleUnavailable     = "La fuente de datos no está disponible"
-	titleNonUnique       = "La clave declarada no es única en la fuente"
+	titleQueryNotAllowed = "This operation does not accept parameters in the URL"
+	titleInvalidKey      = "The key does not have the expected format"
+	titleNotFound        = "There is no record with that key"
+	titleUnavailable     = "The data source is not available"
+	titleNonUnique       = "The declared key is not unique in the source"
 )
+
+// sharedTitle is one of the shared problem titles in the current language. It names each title
+// here, in the file that declares it, so the catalog check can read it as a constant.
+func sharedTitle(title string) string {
+	switch title {
+	case titleQueryNotAllowed:
+		return i18n.T(titleQueryNotAllowed)
+	case titleInvalidKey:
+		return i18n.T(titleInvalidKey)
+	case titleNotFound:
+		return i18n.T(titleNotFound)
+	case titleUnavailable:
+		return i18n.T(titleUnavailable)
+	case titleNonUnique:
+		return i18n.T(titleNonUnique)
+	}
+	return title
+}
 
 // OpenAPI generates the service's OpenAPI 3.1 document: deterministic (sorted keys, indented),
 // with one GET by key per resource, operationId get<Entity> and x-rid-data-subject.
@@ -26,7 +45,7 @@ func OpenAPI(svc config.Service, rs []Compiled) ([]byte, error) {
 	schemas := map[string]any{
 		"Problem": map[string]any{
 			"type":        "object",
-			"description": "Error en formato problem+json (RFC 9457)",
+			"description": i18n.T("Error in problem+json format (RFC 9457)"),
 			"properties": map[string]any{
 				"type": map[string]any{"type": "string"}, "title": map[string]any{"type": "string"},
 				"status": map[string]any{"type": "integer"}, "code": map[string]any{"type": "string"},
@@ -63,10 +82,10 @@ func OpenAPI(svc config.Service, rs []Compiled) ([]byte, error) {
 		schemas[r.Entity] = schema
 
 		var body any = map[string]any{"$ref": "#/components/schemas/" + r.Entity}
-		ok := "El registro con esa clave"
+		ok := i18n.T("The record with that key")
 		if r.Many {
 			body = map[string]any{"type": "array", "items": body, "maxItems": r.MaxRows}
-			ok = fmt.Sprintf("Los registros con esa clave (máximo %d)", r.MaxRows)
+			ok = i18n.Sprintf("The records with that key (at most %d)", r.MaxRows)
 		}
 		keySchema := jsonSchema(r.KeyColumn, r.KeyColumn.Kind)
 		keySchema["pattern"] = r.Key.Pattern
@@ -80,16 +99,16 @@ func OpenAPI(svc config.Service, rs []Compiled) ([]byte, error) {
 		}
 		op := map[string]any{
 			"operationId":        "get" + r.Entity,
-			"summary":            fmt.Sprintf("Consultar %s por %s", strings.ToLower(r.Entity), r.Key.Column),
+			"summary":            i18n.Sprintf("Get %s by %s", strings.ToLower(r.Entity), r.Key.Column),
 			"tags":               []string{r.Name},
 			"parameters":         []any{param},
 			"x-rid-data-subject": subject,
 			"responses": map[string]any{
 				"200": map[string]any{"description": ok, "content": map[string]any{"application/json": map[string]any{"schema": body}}},
-				"400": problem(titleInvalidKey + ", o la URL trae parámetros"),
-				"404": problem(titleNotFound),
-				"500": problem("La clave declarada no es única en la fuente, la respuesta pasa de los registros o del tamaño que el servicio entrega, o un valor de la fuente no cabe en su tipo"),
-				"503": problem(titleUnavailable),
+				"400": problem(i18n.T(titleInvalidKey + ", or the URL has parameters")),
+				"404": problem(sharedTitle(titleNotFound)),
+				"500": problem(i18n.T("The declared key is not unique in the source, the response exceeds the records or the size the service delivers, or a source value does not fit its type")),
+				"503": problem(sharedTitle(titleUnavailable)),
 			},
 		}
 		if r.Description != "" {

@@ -7,7 +7,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"time"
 
 	"golang.org/x/net/http/httpproxy"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // APIError is a non-2xx answer from the portal (RFC 9457 problem details).
@@ -26,7 +27,7 @@ type APIError struct {
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("el portal respondió %d %s: %s", e.Status, e.Code, e.Title)
+	return i18n.Sprintf("the portal answered %d %s: %s", e.Status, e.Code, e.Title)
 }
 
 // StatusOf returns the HTTP status of an APIError, or 0 for any other error.
@@ -149,7 +150,7 @@ func do(ctx context.Context, hc *http.Client, method, target string, body any, w
 		return apiErr
 	}
 	if err := json.Unmarshal(raw, out); err != nil {
-		return fmt.Errorf("respuesta del portal ilegible: %w", err)
+		return i18n.Errorf("unreadable answer from the portal: %w", err)
 	}
 	return nil
 }

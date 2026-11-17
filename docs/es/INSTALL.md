@@ -1,5 +1,7 @@
 # Guía de instalación del nodo
 
+> English version (official): [docs/INSTALL.md](../INSTALL.md)
+
 Para el **equipo de infraestructura** de una entidad proveedora que quiere publicar datos en la red de intercambio de datos: con sus propias APIs, o con APIs instantáneas sobre vistas de sus bases de datos.
 
 ## 1. Qué es el nodo
@@ -71,8 +73,10 @@ Dentro del paquete, el instalador verifica además cada archivo contra `SHA256SU
 ```bash
 tar -xzf rid-node-kit-<versión>.tar.gz
 cd rid-node-kit-<versión>
-sudo ./install.sh
+sudo RID_LANG=es ./install.sh
 ```
+
+El instalador y el nodo hablan inglés por defecto; `RID_LANG=es` los pone en español. La instalación recuerda el idioma: lo usan los comandos siguientes, los mensajes del nodo, los títulos de error de sus APIs y el OpenAPI que genera para los servicios instant. Un nodo instalado antes de que existieran los idiomas sigue en español. Los comandos en español (`servicio`, `restaurar`, `modo`, `reenrolar`) siguen funcionando, igual que sus equivalentes en inglés (`service`, `restore`, `mode`, `reenroll`).
 
 El instalador:
 
@@ -184,7 +188,7 @@ sudo docker compose restart rid-node
 
 Si el OpenAPI cambió, hay que publicar una versión nueva en el portal.
 
-Los comandos para preparar la base en cada motor, todos los campos del archivo del servicio, los tipos, las respuestas y cómo agregar un segundo recurso están en [APIs instantáneas: uso y configuración](APIS-INSTANTANEAS.md).
+Los comandos para preparar la base en cada motor, todos los campos del archivo del servicio, los tipos, las respuestas y cómo agregar un segundo recurso están en [APIs instantáneas: uso y configuración](INSTANT-APIS.md).
 
 ## 6. Publicar la versión en el portal
 

@@ -159,7 +159,7 @@ func TestQueryUsesOnlyCatalogIdentifiers(t *testing.T) {
 	for _, source := range []string{`salud."v_afiliados"`, "salud.v_afiliados;drop", `salud.v_afiliados" --`} {
 		r := afiliados()
 		r.Source = source
-		if _, err := Compile(service(r), upperCatalog(), fakeDialect{}); err == nil || !strings.Contains(err.Error(), "no puede leer") {
+		if _, err := Compile(service(r), upperCatalog(), fakeDialect{}); err == nil || !strings.Contains(err.Error(), "cannot read") {
 			t.Fatalf("source %q is not in the catalog: %v", source, err)
 		}
 	}

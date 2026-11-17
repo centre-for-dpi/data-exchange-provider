@@ -1,0 +1,699 @@
+<meta charset="utf-8">
+<title>RID provider guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a sticky contents rail beside one reading column; the two planes of the network carry
+   their own hue (governance = indigo, data = teal) through every diagram, chip and card. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #15202b;
+  --muted: #586575;
+  --line: #d8dee6;
+  --gov: #3a4cc0;
+  --gov-tint: #eceffd;
+  --data: #0a7569;
+  --data-tint: #e2f3f0;
+  --ok: #1d7139;
+  --ok-tint: #e5f4ea;
+  --warn: #9a5200;
+  --warn-tint: #fdf1e1;
+  --bad: #b0222b;
+  --bad-tint: #fcebed;
+  --code-bg: #edf0f4;
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --step: 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+    --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+    --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+    --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+  --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+  --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+  --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; scroll-padding-top: 72px; }
+html.big { font-size: 19px; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  font-size: 1rem; line-height: 1.6; margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+table { font-size: inherit; }
+a { color: var(--gov); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--gov); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.topbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.brand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand small { font-weight: 500; color: var(--muted); font-family: var(--font-body); }
+.topbar .spacer { flex: 1; }
+.tool {
+  font: inherit; font-size: 0.85rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+.tool[aria-pressed="true"] { background: var(--gov); border-color: var(--gov); color: var(--surface); }
+
+.hero {
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 28px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.hero-inner { max-width: 1180px; margin: 0 auto; display: grid; gap: 14px; }
+.eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 700; max-width: 22ch; }
+.lede { font-size: 1.12rem; max-width: 64ch; color: var(--muted); margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.shell {
+  max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 80px;
+}
+.toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow-y: auto; font-size: 0.9rem; }
+.toc p { margin: 18px 0 6px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.toc p:first-child { margin-top: 0; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); }
+.toc a.active { color: var(--ink); border-left-color: var(--gov); font-weight: 600; }
+.toc-mobile { display: none; }
+
+main { min-width: 0; display: grid; gap: 64px; }
+section { display: grid; gap: 18px; min-width: 0; }
+section > p, section > ul, .prose { max-width: 70ch; margin: 0; }
+.part {
+  font-family: var(--font-display); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); border-top: 2px solid var(--ink); padding-top: 10px; font-weight: 600;
+}
+h2 { font-size: 1.65rem; font-weight: 700; }
+h2 .num { color: var(--muted); font-weight: 500; margin-right: 0.35em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+ul.ticks { padding-left: 1.2em; display: grid; gap: 8px; }
+
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.principle { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.principle b { font-family: var(--font-display); font-size: 1.02rem; }
+.principle span { color: var(--muted); font-size: 0.93rem; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.figscroll { overflow-x: auto; }
+figure svg { display: block; width: 100%; height: auto; min-width: 640px; color: var(--ink); }
+figcaption { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+
+/* SVG classes, themed through the page tokens */
+.d-box { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+.d-gov { fill: var(--gov-tint); stroke: var(--gov); stroke-width: 1.2; }
+.d-data { fill: var(--data-tint); stroke: var(--data); stroke-width: 1.2; }
+.d-panel-gov { fill: var(--gov-tint); fill-opacity: 0.45; stroke: var(--gov); stroke-dasharray: 5 4; }
+.d-panel-data { fill: var(--data-tint); fill-opacity: 0.45; stroke: var(--data); stroke-dasharray: 5 4; }
+.d-edge { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.d-ent { fill: var(--bg); stroke: var(--muted); stroke-dasharray: 3 3; }
+.d-line { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+.d-thin { stroke: var(--muted); stroke-width: 1; fill: none; }
+.d-dash { stroke: var(--ink); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.d-strong { stroke: var(--data); stroke-width: 2.6; fill: none; }
+.d-life { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 4; }
+.d-t { fill: var(--ink); font-family: var(--font-body); font-size: 13px; }
+.d-tb { fill: var(--ink); font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.d-ts { fill: var(--muted); font-family: var(--font-body); font-size: 11.5px; }
+.d-lab { fill: var(--ink); font-family: var(--font-mono); font-size: 11.5px; }
+.d-cap { fill: var(--muted); font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; }
+.d-capgov { fill: var(--gov); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-capdata { fill: var(--data); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-ah { fill: var(--ink); }
+.d-ahd { fill: var(--data); }
+.d-ahm { fill: var(--muted); }
+
+/* Tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table.t { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; background: var(--bg); }
+table.t td:first-child { font-weight: 600; white-space: nowrap; }
+table.t td.wrap { white-space: normal; }
+
+/* Role cards */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.role header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; justify-content: space-between; }
+.role code { font-weight: 500; }
+.role .who { font-size: 0.82rem; color: var(--muted); }
+.role p { margin: 0; font-size: 0.93rem; }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.tag.mfa { background: var(--warn-tint); color: var(--warn); }
+.tag.gov { background: var(--gov-tint); color: var(--gov); }
+.tag.data { background: var(--data-tint); color: var(--data); }
+.tag.ok { background: var(--ok-tint); color: var(--ok); }
+.tag.warn { background: var(--warn-tint); color: var(--warn); }
+.tag.bad { background: var(--bad-tint); color: var(--bad); }
+.tag.plain { background: var(--code-bg); color: var(--muted); }
+
+/* Component cards */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.85rem; color: var(--muted); align-items: center; }
+.comps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.comp {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid;
+  gap: 10px; align-content: start; min-width: 0;
+}
+.comp.g { border-top: 3px solid var(--gov); }
+.comp.d { border-top: 3px solid var(--data); }
+.comp.e { border-top: 3px solid var(--ink); }
+.comp h4 { font-size: 1.08rem; }
+.comp .tech { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+.comp p { margin: 0; font-size: 0.93rem; }
+.comp dl { margin: 0; display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: 6px 10px; font-size: 0.88rem; border-top: 1px solid var(--line); padding-top: 10px; }
+.comp dt { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.comp dd { margin: 0; display: grid; gap: 4px; justify-items: start; }
+
+.comp ul.ticks { margin: 0; font-size: 0.93rem; gap: 4px; }
+/* State pipelines */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.st { font-family: var(--font-mono); font-size: 0.84rem; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.st.opt { border-style: dashed; color: var(--muted); }
+.st.goal { border-color: var(--ok); color: var(--ok); background: var(--ok-tint); font-weight: 500; }
+.st.end { border-color: var(--muted); color: var(--muted); }
+.arrow { color: var(--muted); font-size: 0.9rem; }
+.flowcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; max-width: 72ch; }
+ol.steps > li::before {
+  content: counter(s); font-family: var(--font-display); font-weight: 700; width: 1.75rem; height: 1.75rem;
+  border-radius: 50%; display: grid; place-items: center; background: var(--code-bg); font-size: 0.88rem;
+}
+
+/* Guarantees */
+.guar { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.guar div { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.guar b { font-family: var(--font-display); }
+.guar span { font-size: 0.92rem; color: var(--muted); }
+
+/* Spec sheet */
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.spec div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.spec .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.spec .v { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.spec .s { font-size: 0.85rem; color: var(--muted); }
+.ports { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.port { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.port .pn { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 500; }
+.port span { font-size: 0.9rem; color: var(--muted); }
+
+/* Checklist */
+.check { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; display: grid; }
+.check label { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 10px; padding: 8px 16px; cursor: pointer; align-items: start; }
+.check input { width: 1.05rem; height: 1.05rem; margin-top: 0.25em; accent-color: var(--ok); }
+.check input:checked + span { color: var(--muted); text-decoration: line-through; }
+
+/* Code */
+.code { position: relative; background: var(--code-bg); border-radius: 8px; border: 1px solid var(--line); min-width: 0; }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code .copy { position: absolute; top: 8px; right: 8px; }
+.copy { font: inherit; font-size: 0.75rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 9px; border-radius: 5px; cursor: pointer; }
+.cmds { display: grid; gap: 8px; }
+.cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.cmd code { background: none; padding: 0; font-size: 0.9rem; font-weight: 500; }
+.cmd span { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
+
+/* Install stepper */
+.qs { display: grid; gap: 10px; counter-reset: q; }
+.q { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.q .qn { font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: grid; align-content: start; gap: 2px; }
+.q .qn b { font-size: 1.6rem; color: var(--ink); line-height: 1; }
+.q h4 { font-size: 1.02rem; margin-bottom: 4px; }
+.q p { margin: 0; font-size: 0.93rem; }
+.q .auto { color: var(--muted); }
+.opts { display: grid; gap: 6px; margin-top: 8px; }
+.opts div { font-size: 0.9rem; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 6px; }
+.opts kbd { font-weight: 600; background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; text-align: center; height: 1.5rem; line-height: 1.45rem; }
+
+.callout { border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; max-width: 80ch; }
+.callout.warn { background: var(--warn-tint); border: 1px solid var(--warn); }
+.callout.info { background: var(--gov-tint); border: 1px solid var(--gov); }
+.callout b { font-family: var(--font-display); }
+.callout p { margin: 0; }
+
+details.faq { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+details.faq + details.faq { margin-top: -8px; }
+details.faq summary { cursor: pointer; padding: 12px 16px; font-weight: 600; list-style-position: outside; }
+details.faq p { margin: 0; padding: 0 16px 14px; max-width: 72ch; color: var(--muted); }
+details.faq[open] summary { color: var(--gov); }
+
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .toc { display: none; }
+  .toc-mobile { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .toc-mobile summary { cursor: pointer; font-weight: 600; }
+  .toc-mobile ol { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+  .brand small { display: none; }
+}
+@media (max-width: 520px) {
+  .q { grid-template-columns: minmax(0, 1fr); }
+  .q .qn { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: 8px; }
+  .comp dl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="5" cy="13" r="3.2" fill="var(--gov)"></circle>
+        <circle cx="21" cy="5.5" r="3.2" fill="var(--data)"></circle>
+        <circle cx="21" cy="20.5" r="3.2" fill="var(--data)"></circle>
+        <path d="M8 13 H13 M13 13 L18 7 M13 13 L18 19" stroke="var(--ink)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <span>Data Exchange Network <small>· guide for provider entities</small></span>
+    </div>
+    <span class="spacer"></span>
+    <button class="tool" id="bigtext" type="button" aria-pressed="false" title="Larger text for projecting">Presentation mode</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Onboarding day · Wednesday, November 18, 2026</span>
+    <h1>What a provider entity designates, provides and does to publish its data</h1>
+    <p class="lede">The central platform (portal and gateway) is run by the national operator. The only thing the provider installs is the <b>node</b>, inside its own network. What a consumer entity does is covered in the portal's entities guide.</p>
+    <div class="meta">
+      <span><b>For</b> the IT, data and infrastructure teams of each provider entity</span>
+      <span><b>Version</b> 2.0 · November 2026</span>
+      <span><a href="../es/guides/providers.html" hreflang="es">Versión en español</a></span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <p>Before the day</p>
+    <ol>
+      <li><a href="#que-significa">1. What it means</a></li>
+      <li><a href="#personas">2. People to designate</a></li>
+      <li><a href="#nodo">3. The node</a></li>
+      <li><a href="#disponer">4. What to provide</a></li>
+      <li><a href="#preparacion">5. Readiness checklist</a></li>
+    </ol>
+    <p>During the day</p>
+    <ol>
+      <li><a href="#verificar">6. Check the network</a></li>
+      <li><a href="#alta">7. Register the entity</a></li>
+      <li><a href="#instalar">8. Install the node</a></li>
+      <li><a href="#publicar">9. Publish an API</a></li>
+    </ol>
+    <p>Reference</p>
+    <ol>
+      <li><a href="#cabeceras">10. What the service receives</a></li>
+      <li><a href="#recomendaciones">11. Recommendations</a></li>
+      <li><a href="#compromisos">12. Commitments</a></li>
+      <li><a href="#operacion">13. Operating the node</a></li>
+      <li><a href="#contactos">14. Contacts</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#que-significa">What it means</a></li>
+        <li><a href="#personas">People to designate</a></li>
+        <li><a href="#nodo">The node</a></li>
+        <li><a href="#disponer">What to provide</a></li>
+        <li><a href="#preparacion">Readiness checklist</a></li>
+        <li><a href="#verificar">Check the network</a></li>
+        <li><a href="#alta">Register the entity</a></li>
+        <li><a href="#instalar">Install the node</a></li>
+        <li><a href="#publicar">Publish an API</a></li>
+        <li><a href="#cabeceras">What the service receives</a></li>
+        <li><a href="#recomendaciones">Recommendations</a></li>
+        <li><a href="#compromisos">Commitments</a></li>
+        <li><a href="#operacion">Operating the node</a></li>
+        <li><a href="#contactos">Contacts</a></li>
+      </ol>
+    </details>
+
+    <section id="que-significa">
+      <div class="part">Before the day</div>
+      <h2><span class="num">1</span>What being a provider means</h2>
+      <div class="principles">
+        <div class="principle"><b>It publishes an API</b><span>Over its data. Its <b>data steward</b> decides who gets access, for what purpose, to which operations and for how long.</span></div>
+        <div class="principle"><b>It knows who is querying</b><span>On every call, the gateway tells it the entity, the application, the authorization and the purpose.</span></div>
+        <div class="principle"><b>The data stays</b><span>It is never copied to the platform: each query reaches the entity, and the response passes through the gateway without being stored.</span></div>
+        <div class="principle"><b>Accountable to citizens</b><span>Citizens can see which entity queried their data and why.</span></div>
+      </div>
+    </section>
+
+    <section id="personas">
+      <h2><span class="num">2</span>People the entity must designate</h2>
+      <div class="roles">
+        <div class="role"><header><code>entity_admin</code></header><span class="who">Head of IT or of the data office</span><p>Requests the entity's registration, invites its people, assigns roles and registers the node.</p></div>
+        <div class="role"><header><code>data_steward</code><span class="tag mfa">2nd factor required</span></header><span class="who">Data steward (formal designation)</span><p>Approves, rejects, suspends and revokes access to the entity's APIs.</p></div>
+        <div class="role"><header><code>api_publisher</code></header><span class="who">Technical lead</span><p>Registers the APIs and submits them for review.</p></div>
+        <div class="role"><header><b>Infrastructure</b><span class="tag plain">no portal account</span></header><span class="who">Server and network administrator</span><p>Installs and operates the node.</p></div>
+      </div>
+      <ul class="ticks">
+        <li>Everyone with an account needs <b>their own institutional email address</b>: the account is verified by email, and invitations are sent to that address.</li>
+        <li>The second factor is set up with an authenticator app (FreeOTP, Aegis, Google Authenticator or any other TOTP app) on the person's phone.</li>
+        <li><b>Document:</b> the formal act designating the data steward and the technical lead, as a PDF. It is attached to the registration request.</li>
+        <li>If the entity will also <b>consume</b>, it additionally needs an <code>app_developer</code> (portal's entities guide).</li>
+      </ul>
+    </section>
+
+    <section id="nodo">
+      <h2><span class="num">3</span>How the service connects: the node</h2>
+      <p>Every provider entity connects through the <b>node</b>: a small service installed <b>inside the entity's network</b> that opens the tunnel outward. The entity opens no inbound ports.</p>
+      <figure>
+        <div class="figscroll">
+          <svg viewBox="0 0 960 340" role="img" aria-label="The consumer calls the network's gateway. The gateway reaches the WireGuard hub. The node, inside the entity's network, opens an outbound tunnel over 51820/udp to the hub, and queries reach the node through that tunnel with mTLS. The node hands the query to the entity's API in canal mode, or answers it from views in the database with a read-only user in completo mode.">
+            <defs>
+              <marker id="n-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ah"></path></marker>
+              <marker id="n-ahd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ahd"></path></marker>
+              <marker id="n-ahm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ahm"></path></marker>
+            </defs>
+            <!-- consumer -->
+            <rect x="16" y="80" width="140" height="46" rx="6" class="d-box"></rect>
+            <text x="86" y="100" text-anchor="middle" class="d-tb">Consumer</text>
+            <text x="86" y="117" text-anchor="middle" class="d-ts">another entity</text>
+            <line x1="156" y1="103" x2="212" y2="103" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <!-- platform -->
+            <rect x="190" y="30" width="230" height="270" rx="10" class="d-panel-data"></rect>
+            <text x="204" y="50" class="d-capdata">NETWORK PLATFORM</text>
+            <rect x="215" y="80" width="180" height="46" rx="6" class="d-data"></rect>
+            <text x="305" y="100" text-anchor="middle" class="d-tb">Gateway</text>
+            <text x="305" y="117" text-anchor="middle" class="d-ts">authorizes each query</text>
+            <line x1="305" y1="126" x2="305" y2="196" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <rect x="215" y="200" width="180" height="46" rx="6" class="d-data"></rect>
+            <text x="305" y="220" text-anchor="middle" class="d-tb">WireGuard hub</text>
+            <text x="305" y="237" text-anchor="middle" class="d-ts">endpoint of the tunnels</text>
+            <!-- firewall -->
+            <line x1="465" y1="30" x2="465" y2="300" class="d-thin" stroke-dasharray="6 4"></line>
+            <text x="465" y="322" text-anchor="middle" class="d-ts">entity firewall: outbound only</text>
+            <!-- entity -->
+            <rect x="505" y="30" width="440" height="270" rx="10" class="d-ent"></rect>
+            <text x="519" y="50" class="d-cap">ENTITY NETWORK</text>
+            <rect x="530" y="200" width="150" height="46" rx="6" class="d-edge"></rect>
+            <text x="605" y="220" text-anchor="middle" class="d-tb">Node</text>
+            <text x="605" y="237" text-anchor="middle" class="d-ts">serves only the gateway</text>
+            <!-- tunnel -->
+            <line x1="528" y1="212" x2="399" y2="212" class="d-line" marker-end="url(#n-ah)"></line>
+            <text x="463" y="176" text-anchor="middle" class="d-ts">the node opens the tunnel</text>
+            <text x="463" y="192" text-anchor="middle" class="d-lab">51820/udp outbound</text>
+            <line x1="397" y1="236" x2="526" y2="236" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <text x="463" y="262" text-anchor="middle" class="d-ts">queries through the tunnel</text>
+            <text x="463" y="277" text-anchor="middle" class="d-ts">end-to-end mTLS</text>
+            <!-- backends -->
+            <rect x="760" y="80" width="165" height="50" rx="6" class="d-box"></rect>
+            <text x="842" y="101" text-anchor="middle" class="d-tb">Entity API</text>
+            <text x="842" y="119" text-anchor="middle" class="d-ts">internal URL</text>
+            <line x1="680" y1="208" x2="758" y2="112" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <text x="700" y="140" class="d-lab">canal</text>
+            <rect x="760" y="226" width="165" height="50" rx="6" class="d-box"></rect>
+            <text x="842" y="247" text-anchor="middle" class="d-tb">Database</text>
+            <text x="842" y="265" text-anchor="middle" class="d-ts">views · read-only</text>
+            <line x1="680" y1="236" x2="758" y2="248" class="d-strong" marker-end="url(#n-ahd)"></line>
+            <text x="690" y="290" class="d-lab">completo</text>
+          </svg>
+        </div>
+        <figcaption>The green arrow is the direction of the queries. The node opens the connection, outward: that is why the entity needs no inbound ports. Behind the node there is an entity API (<code>canal</code> mode, secure channel only) or the instant APIs over its database (<code>completo</code> mode, full: channel plus instant APIs).</figcaption>
+      </figure>
+
+      <div class="guar">
+        <div><b>Outbound, not inbound</b><span>The node opens the encrypted tunnel (WireGuard) to the network's hub. No inbound ports.</span></div>
+        <div><b>Serves only the gateway</b><span>It accepts only the gateway certificate issued for the entity. Any other client is rejected.</span></div>
+        <div><b>The credential stays inside</b><span>If the internal API requires a credential, the node adds it. It never leaves the entity.</span></div>
+        <div><b>Stores no content</b><span>Its logs hold only metadata: which operation, when, with what result.</span></div>
+        <div><b>Renews itself</b><span>Its certificate is renewed before it expires, and the portal sees whether it is online.</span></div>
+      </div>
+
+      <div class="comps">
+        <article class="comp d">
+          <div><h4>canal mode</h4><span class="tech">available</span></div>
+          <p>The entity already has a REST API, its own or built with any tool.</p>
+          <ul class="ticks">
+            <li>The node provides the secure channel and hands each query to the API, at its internal URL.</li>
+            <li>Image without database drivers. The mode can be changed later without losing the node's identity.</li>
+            <li>The entity is accountable for its API and for its OpenAPI contract.</li>
+          </ul>
+          <span class="tag ok" style="justify-self:start">Available</span>
+        </article>
+        <article class="comp d">
+          <div><h4>completo mode</h4><span class="tech">instant APIs</span></div>
+          <p>The entity has no API, or has both.</p>
+          <ul class="ticks">
+            <li>The node answers by-key queries over the views the entity chooses, with a read-only user: SQL Server, PostgreSQL, MySQL or Oracle.</li>
+            <li>It generates the API and its OpenAPI. The entity decides which columns go out by creating the view.</li>
+            <li>It also serves the entity's own APIs.</li>
+          </ul>
+          <span class="tag ok" style="justify-self:start">Available</span>
+        </article>
+        <article class="comp g">
+          <div><h4>Other connections</h4><span class="tech">without a node</span></div>
+          <ul class="ticks">
+            <li><b>X-Road:</b> if the entity already publishes on X-Road, the gateway reaches it through the operator's Security Server.</li>
+            <li><b>Directly exposed API:</b> an exception agreed with the operator. It requires HTTPS with a public certificate, inbound traffic from the gateway's IP and, preferably, mTLS with <code>CN=rid-gateway.&lt;slug&gt;</code>.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="disponer">
+      <h2><span class="num">4</span>What the entity must provide</h2>
+      <h3>Server for the node</h3>
+      <div class="spec">
+        <div><span class="k">System</span><span class="v">Ubuntu</span><span class="s">Server 22.04 or 24.04 LTS, amd64 or arm64, dedicated to the node. With only Windows Server, a VM running Ubuntu</span></div>
+        <div><span class="k">Size</span><span class="v">1 · 1 · 5</span><span class="s">vCPU, GB of RAM and GB of disk</span></div>
+        <div><span class="k">Docker</span><span class="v">Engine</span><span class="s">If it is missing, the installer installs it from <code>download.docker.com</code>. The <i>snap</i> version does not work</span></div>
+        <div><span class="k">Access and time</span><span class="v">sudo · NTP</span><span class="s">With a skewed clock, certificates fail</span></div>
+      </div>
+      <p>The server must reach the entity's internal API (<code>canal</code> mode) or its database (<code>completo</code> mode).</p>
+
+      <h3>Network: outbound only</h3>
+      <div class="ports">
+        <div class="port"><span class="pn">51820/udp</span><b>To the network's hub</b><span>The tunnel. Essential; it does not go through an HTTP proxy.</span></div>
+        <div class="port"><span class="pn">443/tcp</span><b>To the portal and the gateway</b><span>Enrollment, heartbeat and renewal. It can go through the corporate proxy, if the proxy accepts <code>CONNECT</code> without a username or password.</span></div>
+        <div class="port"><span class="pn">internal</span><b>To the entity's API</b><span>What the node publishes with an own API, inside the entity's network.</span></div>
+        <div class="port"><span class="pn" style="font-size:0.95rem;overflow-wrap:anywhere">1433 · 5432 · 3306 · 1521</span><b>To the database</b><span>The instant APIs: SQL Server, PostgreSQL, MySQL or Oracle, or whatever port the entity uses.</span></div>
+      </div>
+      <p>No inbound port is opened. The operator provides the names of the portal and the gateway.</p>
+
+      <h3>The service being published</h3>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>What</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>OpenAPI 3 contract</td><td class="wrap">The portal checks it when the version is registered: an <code>operationId</code> on every operation, with no duplicates; at least one success response; only local <code>$ref</code>; in APIs with personal or sensitive data, each operation declares its data subject (<code>x-rid-data-subject</code>) or <code>none</code>.</td></tr>
+            <tr><td>Identifiers</td><td class="wrap"><b>Never in the query string.</b> Document numbers go in the path (<code>/personas/{documento}</code>) or in the body of a POST, not in <code>?documento=…</code>.</td></tr>
+            <tr><td>Own API</td><td class="wrap">The API's internal URL and, if it requires one, its credential: a header, a username and password, or a client certificate.</td></tr>
+            <tr><td>Instant API</td><td class="wrap">One <b>view</b> per query, with only the columns that will be shared, and a <b>read-only user</b> with <code>SELECT</code> on those views and nothing else. The node generates the OpenAPI. The commands for each engine are in <a href="../INSTANT-APIS.md"><code>docs/INSTANT-APIS.md</code></a>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout info">
+        <b>A sandbox is advisable</b>
+        <p>The same service with <b>synthetic data</b>, published through the same node as one more service. The portal uses it to test the contract when the API is submitted for review, and consumers integrate without touching real data.</p>
+      </div>
+    </section>
+
+    <section id="preparacion">
+      <h2><span class="num">5</span>Readiness checklist</h2>
+      <p>The portal keeps this checklist for each entity (My entity → Bootcamp readiness) and the operator sees everyone's progress. You can tick it here for your own tracking.</p>
+      <div class="check" id="pre">
+        <label><input type="checkbox" id="pre-1"><span><b>Server for the node</b> available, meeting the requirements in section 4.</span></label>
+        <label><input type="checkbox" id="pre-2"><span><b>Read-only user</b> in the database, with the view to expose. Only with instant APIs; with an own API, tick it when the internal API and its OpenAPI are ready.</span></label>
+        <label><input type="checkbox" id="pre-3"><span><b>Outbound 443 and UDP 51820</b> to the gateway and its hub.</span></label>
+        <label><input type="checkbox" id="pre-4"><span><b>Designated people.</b> The portal ticks it automatically when there is an active <code>api_publisher</code> and an active <code>data_steward</code>.</span></label>
+        <label><input type="checkbox" id="pre-5"><span><b>Use case</b> defined: what data, for what purpose, under what legal basis and between which entities.</span></label>
+      </div>
+    </section>
+
+    <section id="verificar">
+      <div class="part">During the day</div>
+      <h2><span class="num">6</span>Check the network from the node server</h2>
+      <p>The operator hands out the platform's two names, the <b>portal</b>'s and the <b>gateway</b>'s, the node bundle with its SHA-256 checksum, and the <code>entity-check.sh</code> script, which only needs <code>bash</code>, <code>curl</code> and <code>openssl</code>.</p>
+      <div class="code"><button class="copy" type="button">Copy</button><pre><code>chmod +x entity-check.sh
+./entity-check.sh check &lt;portal&gt; &lt;gateway&gt;</code></pre></div>
+      <p>It checks DNS, outbound HTTPS to the portal and the gateway, and that the gateway's certificate verifies against the network's root.</p>
+      <div class="callout warn">
+        <b>The tunnel cannot be tested yet</b>
+        <p>The script does not test UDP 51820 without a node. The node itself checks it after it is installed, with <code>sudo /opt/rid-node/install.sh doctor</code>.</p>
+      </div>
+    </section>
+
+    <section id="alta">
+      <h2><span class="num">7</span>Registering the entity and its people</h2>
+      <ol class="steps">
+        <li><span>The future <code>entity_admin</code> goes to <code>https://&lt;portal&gt;</code>, creates an account and confirms the email address.</span></li>
+        <li><span>They request the entity's registration: details, designated people and the designation document. The operator reviews and approves it. If the entity has already been onboarded by a formal act, the operator registers it directly.</span></li>
+        <li><span>The <code>entity_admin</code> invites each person by email and assigns them roles. Each invitee creates an account with <b>that same email address</b> and accepts the invitation.</span></li>
+        <li><span>The <code>data_steward</code> sets up their second factor the first time the portal asks for it.</span></li>
+      </ol>
+    </section>
+
+    <section id="instalar">
+      <h2><span class="num">8</span>Install the node</h2>
+      <ol class="steps">
+        <li><span>The <code>entity_admin</code> goes to <b>My entity → Kit nodes</b>, registers the node and copies the <b>enrollment token</b>. It is shown only once, works for a single node and expires in <b>72 hours</b>. They pass it to the infrastructure team through a secure channel.</span></li>
+        <li><span>The infrastructure team <b>verifies the bundle</b> against the checksum published by the operator and installs it. The installer asks for the mode (<code>canal</code> or <code>completo</code>), the proxy, the portal URL and the token.
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>sha256sum rid-node-kit-&lt;version&gt;.tar.gz
+tar -xzf rid-node-kit-&lt;version&gt;.tar.gz
+cd rid-node-kit-&lt;version&gt;
+sudo ./install.sh</code></pre></div></span></li>
+        <li><span>Add the service, and its sandbox if there is one. With an <b>own API</b> (<code>proxy</code>) it asks for the name, the <b>path on the node</b> (for example <code>/certificados</code>), the internal URL, the credential and the OpenAPI. With an <b>instant API</b> (<code>instant</code>) it asks for the database connection with the read-only user, shows the views it can read, asks for the view and the key column, and generates the OpenAPI in <code>/opt/rid-node/config/services/&lt;name&gt;.openapi.json</code>.
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>sudo /opt/rid-node/install.sh service</code></pre></div></span></li>
+        <li><span>In the portal, the node shows as <b>Online</b>.</span></li>
+      </ol>
+      <div class="callout info">
+        <b>Node installation guide</b>
+        <p>The details of each question, the corporate proxy, backup, updates and common problems are in <a href="../INSTALL.md"><code>docs/INSTALL.md</code></a>, which also ships inside the bundle. Preparing the database, the service file, the types and the responses of the instant APIs are in <a href="../INSTANT-APIS.md"><code>docs/INSTANT-APIS.md</code></a>.</p>
+      </div>
+    </section>
+
+    <section id="publicar">
+      <h2><span class="num">9</span>Publish an API</h2>
+      <div class="flow" aria-label="States of an API">
+        <span class="st">draft</span><span class="arrow">→</span>
+        <span class="st">in review</span><span class="arrow">→</span>
+        <span class="st">approved by the operator</span><span class="arrow">→</span>
+        <span class="st opt">approved by the regulator · if sensitive</span><span class="arrow">→</span>
+        <span class="st goal">published</span>
+      </div>
+      <ol class="steps">
+        <li><span>The <code>api_publisher</code> creates the API and its version: uploads the service's OpenAPI (the same one given to the node for an own API, or the one the node generated for an instant API); under <b>Where does the service live?</b> chooses <b>Node of the instant-APIs kit</b> (<code>canal</code> mode uses the same option), the node and the <b>Service path on the node</b>; under <b>Test service (sandbox)</b>, the same node and the sandbox path; fills in the classification (public, internal, personal or sensitive), the exposed data, the legal basis and the permitted purposes.</span></li>
+        <li><span><b>Submits it for review.</b> The portal tests connectivity through the gateway and the node, and the contract against the sandbox. If anything fails, the publisher fixes the service and clicks <b>Run validations again</b>.</span></li>
+        <li><span>The operator reviews and approves; if the API is <b>sensitive</b>, the regulator does too. The API is published and its route exists on the gateway within seconds, closed until there is approved access.</span></li>
+        <li><span>The <code>data_steward</code> receives the consumers' access requests and decides each one: purpose, operations and validity period.</span></li>
+        <li><span>The printable sheet (Catalogue → the API → Service sheet) serves for the records.</span></li>
+      </ol>
+      <div class="callout warn">
+        <b>Does it fail with 502 right after the node is installed?</b>
+        <p>The network takes a few seconds to learn about a new node. Wait a minute and click <b>Run validations again</b>.</p>
+      </div>
+    </section>
+
+    <section id="cabeceras">
+      <div class="part">Reference</div>
+      <h2><span class="num">10</span>What the service receives on each query</h2>
+      <p>The gateway sets these headers and removes any the consumer tries to send. The node passes them unchanged to the entity's API. The consumer's credential (<code>Authorization</code>) never reaches the API: it stays at the gateway.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Header</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>X-RID-Consumer-Entity</code><br><code>X-RID-Consumer-App</code></td><td class="wrap">Consumer entity and application</td></tr>
+            <tr><td><code>X-RID-Subscription</code></td><td class="wrap">The authorization under which the query was made</td></tr>
+            <tr><td><code>X-RID-Purpose</code></td><td class="wrap">Declared purpose</td></tr>
+            <tr><td><code>X-RID-Operation</code></td><td class="wrap">Contract operation (<code>operationId</code>)</td></tr>
+            <tr><td><code>X-RID-End-User-Hash</code></td><td class="wrap">Hash of the official making the query, if the API requires it</td></tr>
+            <tr><td><code>X-RID-Subject-Ref</code></td><td class="wrap">Pseudonym of the data subject, if the operation declares one</td></tr>
+            <tr><td><code>X-Request-Id</code></td><td class="wrap">Correlation identifier, the same as in the network's log</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Later on, the gateway will sign each call in an <code>X-RID-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway.</p>
+    </section>
+
+    <section id="recomendaciones">
+      <h2><span class="num">11</span>Recommendations for the entity's service</h2>
+      <p>The network cannot verify what happens inside the entity. These practices are <b>recommendations</b>, and the node's <code>completo</code> mode meets them by design.</p>
+      <div class="guar">
+        <div><b>Minimization</b><span>Return only the fields that the service sheet declares.</span></div>
+        <div><b>No content in the logs</b><span>No request or response bodies. Paths and query strings masked: they can contain identification numbers.</span></div>
+        <div><b>Read-only</b><span>The API reads the data with a read-only user.</span></div>
+        <div><b>Only through the node</b><span>The API is not exposed outside the internal network: the node is its only door to the network.</span></div>
+        <div><b>Keep traceability</b><span>Logging <code>X-Request-Id</code>, <code>X-RID-Consumer-Entity</code> and <code>X-RID-Purpose</code> with each query lets you answer an audit.</span></div>
+      </div>
+    </section>
+
+    <section id="compromisos">
+      <h2><span class="num">12</span>The entity's commitments</h2>
+      <div class="guar">
+        <div><b>Decide on access</b><span>The <code>data_steward</code> approves only legitimate purposes with a legal basis, and revokes access when it is no longer appropriate.</span></div>
+        <div><b>Node online</b><span>With no signals for 5 minutes, the portal marks it <b>Offline</b> and alerts the administrators. If the portal requires a minimum kit version, update.</span></div>
+        <div><b>Node backed up</b><span>The backup contains the node's keys: copy it off the server and keep it as a secret.</span></div>
+        <div><b>Announce changes</b><span>An incompatible change in a published API requires a new major version. The previous one is deprecated with a retirement date.</span></div>
+      </div>
+    </section>
+
+    <section id="operacion">
+      <h2><span class="num">13</span>Operating the node</h2>
+      <div class="cmds">
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh status</code><button class="copy" type="button">Copy</button><span>Status: portal, tunnel, certificate, health of each service and warnings.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh doctor</code><button class="copy" type="button">Copy</button><span>Checks the configuration, secrets, DNS, portal, clock, internal APIs and tunnel.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh logs</code><button class="copy" type="button">Copy</button><span>The node's latest logs (metadata only). With <code>-f</code> it follows them live.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh backup</code><button class="copy" type="button">Copy</button><span>Backup in <code>/opt/rid-node/backups/</code>, with the node's keys.</span></div>
+      </div>
+      <p>To report a problem to the operator, attach the output of <code>status</code> and <code>doctor</code>: it contains no secrets and no personal data.</p>
+    </section>
+
+    <section id="contactos">
+      <h2><span class="num">14</span>Contacts and support</h2>
+      <div class="roles">
+        <div class="role"><header><b>Operator (AND)</b></header><p>Entity registrations, API reviews, the node bundle and connection problems with the gateway.</p></div>
+        <div class="role"><header><b>Regulator (MinTIC)</b></header><p>Approvals of sensitive data and regulatory framework.</p></div>
+        <div class="role"><header><b>Within the entity</b></header><p>The <code>entity_admin</code> manages its people and its node; the <code>data_steward</code> decides on access; infrastructure operates the node.</p></div>
+      </div>
+      <p class="footer">Markdown version: <code>docs/guides/providers.md</code> in the kit repository.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var big = document.getElementById('bigtext');
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function setBig(on) { root.classList.toggle('big', on); big.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  setBig(load('ridp-big') === '1');
+  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('ridp-big', on ? '1' : '0'); });
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var box = btn.closest('.code, .cmd');
+      var text = box.querySelector('pre, code').innerText.trim();
+      var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(box.querySelector('pre, code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Selected'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    });
+  });
+
+  document.querySelectorAll('#pre input').forEach(function (box) {
+    box.checked = load('ridp-' + box.id) === '1';
+    box.addEventListener('change', function () { store('ridp-' + box.id, box.checked ? '1' : '0'); });
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  if ('IntersectionObserver' in window) {
+    var seen = {};
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+      var first = links.find(function (a) { return seen[a.getAttribute('href').slice(1)]; });
+      if (first) links.forEach(function (a) { a.classList.toggle('active', a === first); });
+    }, { rootMargin: '-80px 0px -55% 0px' });
+    links.forEach(function (a) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) io.observe(s); });
+  }
+})();
+</script>

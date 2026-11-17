@@ -1,13 +1,34 @@
 #!/usr/bin/env bash
 # Installer of the data exchange network's provider node (rid-node) on Ubuntu Server LTS with
-# Docker Engine (ADR-0002, docs/INSTALACION.md). Everything lives in /opt/rid-node; after the
+# Docker Engine (ADR-0002, docs/INSTALL.md). Everything lives in /opt/rid-node; after the
 # first run the script is also at /opt/rid-node/install.sh for day-to-day operation.
 # Non-interactive runs (tests, automation): RID_INSTALL_YES=1, RID_INSTALL_MODE, RID_INSTALL_PORTAL,
-# RID_INSTALL_TOKEN, RID_INSTALL_PROXY and, for `servicio`, RID_INSTALL_SERVICE_*.
-# Messages are in Spanish: the people running this are the entities' infrastructure teams.
+# RID_INSTALL_TOKEN, RID_INSTALL_PROXY and, for `service`, RID_INSTALL_SERVICE_*.
+# Messages are in English by default; RID_LANG=es switches them (and the node's) to Spanish
+# (ADR-0004). Each message is written in English and MSG_ES holds its Spanish; test/install/unit.sh
+# checks that every message has its translation.
 set -euo pipefail
 
-USAGE="Uso: sudo ./install.sh [comando]
+USAGE_EN="Usage: sudo ./install.sh [command]
+
+  (no command)            installs the node, or repairs it without losing its identity or secrets
+  status                  status: portal, tunnel, certificate, services and notices
+  doctor                  checks configuration, secrets, DNS, portal, clock, internal APIs and tunnel
+  service                 adds a service: the entity's own API, or an instant API over a
+                          database view (completo mode)
+  service resource NAME   adds another view to an instant service
+  service remove NAME     removes a service
+  logs [-f]               the node's logs (metadata only)
+  backup                  backs up the state (keys, certificate, tunnel), configuration and secrets
+  restore FILE            restores a backup
+  update [VERSION]        backs up and switches to another version (by default, this bundle's)
+  mode canal|completo     changes the mode without losing the identity
+  reenroll                backs up, forgets the identity and enrolls with a new token
+  stop | start            stops or starts the node
+
+Language: RID_LANG=en (default) or es, for example: sudo RID_LANG=es ./install.sh"
+
+USAGE_ES="Uso: sudo ./install.sh [comando]
 
   (sin comando)          instala el nodo, o lo repara sin perder su identidad ni sus secretos
   status                 estado: portal, túnel, certificado, servicios y avisos
@@ -22,7 +43,9 @@ USAGE="Uso: sudo ./install.sh [comando]
   update [VERSIÓN]       respalda y cambia a otra versión (por defecto, la de este paquete)
   modo canal|completo    cambia el modo sin perder la identidad
   reenrolar              respalda, olvida la identidad y enrola con un token nuevo
-  stop | start           detiene o arranca el nodo"
+  stop | start           detiene o arranca el nodo
+
+Idioma: RID_LANG=en (por defecto) o es, p. ej.: sudo RID_LANG=es ./install.sh"
 
 KIT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOME_DIR="${RID_NODE_HOME:-/opt/rid-node}"
@@ -31,40 +54,250 @@ STATE_VOLUME="rid-node_rid-node-state"
 NODE_UID=65532
 KIT_VERSION="$(cat "$KIT_DIR/VERSION" 2>/dev/null || echo "${RID_INSTALL_VERSION:-0.1.0-dev}")"
 
+# --- language -----------------------------------------------------------------------------------
+# English message (as written in the calls below) → Spanish. Same %s, in the same order.
+declare -gA MSG_ES=(
+  ["Missing answer: %s"]="Falta la respuesta: %s"
+  ["RID_LANG=%s is not supported (en or es): using English"]="RID_LANG=%s no está soportado (en o es): se usa inglés"
+  ["Run as root (sudo)"]="Ejecuta como root (sudo)"
+  ["No node is installed in %s. Run: sudo ./install.sh"]="No hay un nodo instalado en %s. Ejecuta: sudo ./install.sh"
+  ["Server"]="Servidor"
+  ["Could not read /etc/os-release"]="No se pudo leer /etc/os-release"
+  ["Ubuntu %s"]="Ubuntu %s"
+  ["The kit is tested on Ubuntu Server 22.04 and 24.04 LTS; this server is %s"]="El kit se prueba en Ubuntu Server 22.04 y 24.04 LTS; este servidor es %s"
+  ["Continue anyway?"]="¿Continuar de todas formas?"
+  ["Architecture %s is not supported (amd64 or arm64)"]="Arquitectura %s no soportada (amd64 o arm64)"
+  ["Architecture %s"]="Arquitectura %s"
+  ["Clock synchronized (NTP)"]="Hora sincronizada (NTP)"
+  ["Could not confirm that the clock is synchronized: certificates fail when the clock is off (timedatectl set-ntp true)"]="No se pudo confirmar que la hora esté sincronizada: los certificados fallan con el reloj desfasado (timedatectl set-ntp true)"
+  ["Docker"]="Docker"
+  ["Docker is installed as a snap (%s): the snap cannot mount /opt/rid-node. Remove it (snap remove docker) and install Docker Engine: https://docs.docker.com/engine/install/ubuntu/"]="Docker está instalado como snap (%s): el snap no puede montar /opt/rid-node. Quítalo (snap remove docker) e instala Docker Engine: https://docs.docker.com/engine/install/ubuntu/"
+  ["Docker is installed but its service does not respond"]="Docker está instalado pero su servicio no responde"
+  ["Start the Docker service (systemctl start docker)?"]="¿Arrancar el servicio de Docker (systemctl start docker)?"
+  ["The node needs the Docker service"]="El nodo necesita el servicio de Docker"
+  ["Docker does not start with the server: systemctl enable docker"]="Docker no arranca solo con el servidor: systemctl enable docker"
+  ["The Docker service did not start: check journalctl -u docker"]="El servicio de Docker no arrancó: revisa journalctl -u docker"
+  ["Docker's Compose plugin is missing"]="Falta el plugin Compose de Docker"
+  ["Install it?"]="¿Instalarlo?"
+  ["The node needs Docker Compose"]="El nodo necesita Docker Compose"
+  ["Compose was installed but does not respond"]="Compose quedó instalado pero no responde"
+  ["Docker %s with Compose %s"]="Docker %s con Compose %s"
+  ["Docker Engine is not installed"]="Docker Engine no está instalado"
+  ["No access to download.docker.com (no internet, or is the proxy needed? use sudo -E with https_proxy). Install Docker Engine first: https://docs.docker.com/engine/install/ubuntu/"]="No hay acceso a download.docker.com (¿sin internet, o hace falta el proxy? usa sudo -E con https_proxy). Instala Docker Engine antes: https://docs.docker.com/engine/install/ubuntu/"
+  ["Install Docker Engine from Docker's official repository (download.docker.com)?"]="¿Instalar Docker Engine desde el repositorio oficial de Docker (download.docker.com)?"
+  ["The node needs Docker Engine and Compose: https://docs.docker.com/engine/install/ubuntu/"]="El nodo necesita Docker Engine y Compose: https://docs.docker.com/engine/install/ubuntu/"
+  ["Docker was installed but Compose does not respond"]="Docker quedó instalado pero Compose no responde"
+  ["Docker installed"]="Docker instalado"
+  ["Node folder (%s)"]="Carpeta del nodo (%s)"
+  ["compose.yaml, .env, config/, secrets/ (read only by the node) and backups/"]="compose.yaml, .env, config/, secrets/ (solo el nodo los lee) y backups/"
+  ["Mode %s (existing installation)"]="Modo %s (instalación existente)"
+  ["Mode"]="Modo"
+  ["  canal     the entity already has its own APIs: the node only provides the secure channel (tunnel, mTLS, renewal)"]="  canal     la entidad ya tiene APIs propias: el nodo solo da el canal seguro (túnel, mTLS, renovación)"
+  ["  completo  also instant APIs over database views"]="  completo  además, APIs instantáneas sobre vistas de bases de datos"
+  ["Mode? (canal or completo)"]="¿Modo? (canal o completo)"
+  ["Unknown mode \"%s\": canal or completo"]="Modo \"%s\" desconocido: canal o completo"
+  ["Mode %s"]="Modo %s"
+  ["Corporate proxy: %s"]="Proxy corporativo: %s"
+  ["Does outbound internet traffic go through a proxy? URL (http://proxy:port) or \"no\""]="¿La salida a internet pasa por un proxy? URL (http://proxy:puerto) o \"no\""
+  ["The proxy must not include a user or password (they would end up in the container's configuration); ask the network team for an exception without credentials for the portal and the gateway"]="El proxy no debe llevar usuario ni contraseña (quedarían en la configuración del contenedor); pide al área de redes una excepción sin credenciales para el portal y el gateway"
+  ["Corporate proxy: %s (the UDP 51820 tunnel does not use it)"]="Proxy corporativo: %s (el túnel UDP 51820 no lo usa)"
+  ["Cannot read %s"]="No se puede leer %s"
+  ["The node is already enrolled as %s: no token needed"]="El nodo ya está enrolado como %s: no hace falta token"
+  ["Network portal"]="Portal de la red"
+  ["Is the portal URL %s?"]="¿La URL del portal es %s?"
+  ["Portal URL (given by the network operator, e.g. https://portal.network.example)"]="URL del portal (la da el operador de la red, p. ej. https://portal.red.example)"
+  ["The portal URL must be https://name (no path)"]="La URL del portal debe ser https://nombre (sin ruta)"
+  ["Portal: %s"]="Portal: %s"
+  ["Enrollment token"]="Token de enrolamiento"
+  ["The entity's administrator issues it in the portal: My entity → Kit nodes. It is single-use and expires in 72 h."]="Lo emite el administrador de la entidad en el portal: Mi entidad → Nodos del kit. Es de un solo uso y vence en 72 h."
+  ["Using the token already saved"]="Se usa el token ya guardado"
+  ["There is a token saved from a previous attempt: if the enrollment failed, paste a new one."]="Hay un token guardado de un intento anterior: si el enrolamiento falló, pega uno nuevo."
+  ["Paste the token (not shown)"]="Pega el token (no se muestra)"
+  ["The token is empty"]="El token está vacío"
+  ["Token saved in %s (it can be deleted after the enrollment)"]="Token guardado en %s (se puede borrar después del enrolamiento)"
+  ["The bundle is damaged (SHA256SUMS does not match)"]="El paquete está dañado (SHA256SUMS no coincide)"
+  ["Could not load %s"]="No se pudo cargar %s"
+  ["Image %s (%s) loaded from the bundle"]="Imagen %s (%s) cargada desde el paquete"
+  ["Image %s already present"]="Imagen %s ya presente"
+  ["Image %s downloaded"]="Imagen %s descargada"
+  ["Image %s is missing: it is not in this bundle and could not be downloaded. Use that version's bundle."]="No está la imagen %s: no viene en este paquete ni se pudo descargar. Usa el paquete de esa versión."
+  ["Waiting for the node to come online in the portal (up to 3 minutes)…"]="Esperando a que el nodo quede en línea en el portal (hasta 3 minutos)…"
+  ["The node is online"]="El nodo está en línea"
+  ["Start"]="Arranque"
+  ["The node is not online yet. Diagnosis:"]="El nodo no quedó en línea todavía. Diagnóstico:"
+  ["Check the logs with: sudo %s/install.sh logs"]="Revisa los logs con: sudo %s/install.sh logs"
+  ["Data exchange network node — installation (kit %s)"]="Nodo de la red de intercambio de datos — instalación (kit %s)"
+  ["Image"]="Imagen"
+  ["Done"]="Listo"
+  ["Node %s in %s"]="Nodo %s en %s"
+  ["  Next steps (the installer stays in %s/install.sh):"]="  Siguientes pasos (el instalador quedó en %s/install.sh):"
+  ["    1. sudo %s/install.sh service   — adds the entity's own API"]="    1. sudo %s/install.sh servicio   — agrega la API propia de la entidad"
+  ["    2. In the portal, register the version: Where does the service live? → Kit node, this node and the service path"]="    2. En el portal, registra la versión: ¿Dónde vive el servicio? → Nodo del kit, este nodo y la ruta del servicio"
+  ["    3. Submit the version for review"]="    3. Envía la versión a revisión"
+  ["    4. sudo %s/install.sh backup, and copy the backup off the server"]="    4. sudo %s/install.sh backup, y copia el respaldo fuera del servidor"
+  ["Node stopped (its state is kept)"]="Nodo detenido (el estado se conserva)"
+  ["New service"]="Nuevo servicio"
+  ["  proxy    the entity's own API: the node gives it the secure channel"]="  proxy    una API propia de la entidad: el nodo le da el canal seguro"
+  ["  instant  an instant API: GET by key over a database view (completo mode)"]="  instant  una API instantánea: GET por clave sobre una vista de una base de datos (modo completo)"
+  ["Type? (proxy or instant)"]="¿Tipo? (proxy o instant)"
+  ["Unknown type \"%s\": proxy or instant"]="Tipo \"%s\" desconocido: proxy o instant"
+  ["Instant APIs need completo mode: sudo %s/install.sh mode completo"]="Las APIs instantáneas necesitan el modo completo: sudo %s/install.sh modo completo"
+  ["Service name (lowercase letters, digits and hyphens, e.g. certificates)"]="Nombre del servicio (minúsculas, números y guiones, p. ej. certificados)"
+  ["Invalid name \"%s\": use lowercase letters, digits and hyphens"]="Nombre \"%s\" inválido: usa minúsculas, números y guiones"
+  ["Service \"%s\" already exists (%s). To change it: sudo %s/install.sh service remove %s"]="Ya existe el servicio \"%s\" (%s). Para cambiarlo: sudo %s/install.sh servicio quitar %s"
+  ["Path on the node (the portal's \"service path on the node\")"]="Ruta en el nodo (es la \"ruta del servicio en el nodo\" del portal)"
+  ["Invalid path \"%s\": it starts with / and uses letters, digits and . _ ~ - /"]="Ruta \"%s\" inválida: empieza con / y usa letras, números y . _ ~ - /"
+  ["Internal URL of the API (e.g. https://api.internal.entity/v1)"]="URL interna de la API (p. ej. https://api.interna.entidad/v1)"
+  ["The internal URL must start with http:// or https://"]="La URL interna debe empezar con http:// o https://"
+  ["The internal API uses unencrypted http"]="La API interna usa http sin cifrar"
+  ["Accept it as is (only inside the entity's network)?"]="¿Aceptarla así (solo dentro de la red de la entidad)?"
+  ["Use https:// for the internal API, or accept http explicitly"]="Usa https:// para la API interna, o acepta http explícitamente"
+  ["Credential the internal API requires (none, header, basic, certificate)"]="Credencial que pide la API interna (ninguna, cabecera, basic, certificado)"
+  ["Header name (e.g. X-Api-Key)"]="Nombre de la cabecera (p. ej. X-Api-Key)"
+  ["Invalid header name \"%s\""]="Nombre de cabecera \"%s\" inválido"
+  ["Header value (not shown)"]="Valor de la cabecera (no se muestra)"
+  ["User"]="Usuario"
+  ["Password (not shown)"]="Contraseña (no se muestra)"
+  ["Path of the client certificate (PEM)"]="Ruta del certificado de cliente (PEM)"
+  ["Path of its private key (PEM)"]="Ruta de su clave privada (PEM)"
+  ["Unknown credential \"%s\": none, header, basic or certificate"]="Credencial \"%s\" desconocida: ninguna, cabecera, basic o certificado"
+  ["Path of the API's OpenAPI (the same one uploaded to the portal; \"-\" to skip)"]="Ruta del OpenAPI de la API (el mismo que se sube al portal; \"-\" para omitir)"
+  ["%s does not exist"]="No existe %s"
+  ["The OpenAPI must be .yaml, .yml or .json"]="El OpenAPI debe ser .yaml, .yml o .json"
+  ["The service configuration is not valid; no change was applied"]="La configuración del servicio no es válida; no se aplicó ningún cambio"
+  ["The node did not confirm it is online; check sudo %s/install.sh doctor"]="El nodo no confirmó estar en línea; revisa sudo %s/install.sh doctor"
+  ["Service %s ready"]="Servicio %s listo"
+  ["  In the portal, when registering the version:"]="  En el portal, al registrar la versión:"
+  ["    Where does the service live?  Kit node"]="    ¿Dónde vive el servicio?      Nodo del kit"
+  ["    Kit node:                     %s"]="    Nodo del kit:                 %s"
+  ["    Service path on the node:     %s"]="    Ruta del servicio en el nodo: %s"
+  ["    OpenAPI:                      upload the same file (SHA-256 %s)"]="    OpenAPI:                      sube el mismo archivo (SHA-256 %s)"
+  ["Database"]="Base de datos"
+  ["Engine (sqlserver, postgres, mysql, oracle)"]="Motor (sqlserver, postgres, mysql, oracle)"
+  ["Unknown engine \"%s\": sqlserver, postgres, mysql or oracle"]="Motor \"%s\" desconocido: sqlserver, postgres, mysql u oracle"
+  ["Database server (name or IP inside the entity's network)"]="Servidor de la base (nombre o IP dentro de la red de la entidad)"
+  ["Port"]="Puerto"
+  ["Invalid port \"%s\""]="Puerto \"%s\" inválido"
+  ["Oracle service name (e.g. ORCLPDB1)"]="Nombre del servicio de Oracle (p. ej. ORCLPDB1)"
+  ["Database name"]="Nombre de la base de datos"
+  ["Read-only user (only SELECT on the exposed views)"]="Usuario de solo lectura (solo SELECT sobre las vistas que se exponen)"
+  ["That user's password (not shown)"]="Contraseña de ese usuario (no se muestra)"
+  ["TLS to the database (require: encrypted; verify: encrypted and certificate verified; disable: unencrypted)"]="TLS hacia la base (require: cifrado; verify: cifrado y certificado verificado; disable: sin cifrar)"
+  ["Unknown TLS \"%s\": require, verify or disable"]="TLS \"%s\" desconocido: require, verify o disable"
+  ["The database connection will be unencrypted (only inside the entity's network)"]="La conexión con la base irá sin cifrar (solo dentro de la red de la entidad)"
+  ["Certificate of the CA that signed the database's certificate (PEM; \"-\" to use the system's CAs)"]="Certificado de la CA que firmó el de la base (PEM; \"-\" para usar las CA del sistema)"
+  ["Database CA: the system's"]="CA de la base: las del sistema"
+  ["With Oracle, verify uses the system's CAs: do not give a CA file"]="Con Oracle, verify usa las CA del sistema: no indiques un archivo de CA"
+  ["Could not read the database catalog with that user; no change was applied"]="No se pudo leer el catálogo de la base con ese usuario; no se aplicó ningún cambio"
+  ["Views and tables the user can read"]="Vistas y tablas que el usuario puede leer"
+  ["View or table to expose (schema.object)"]="Vista o tabla a exponer (esquema.objeto)"
+  ["Key column (the one in the URL)"]="Columna clave (la que viene en la URL)"
+  ["If the key identifies a person, their document type (e.g. CC); otherwise, none"]="Si la clave identifica a una persona, su tipo de documento (p. ej. CC); si no, ninguno"
+  ["Can one key return several rows (e.g. a household with several people)?"]="¿Una misma clave puede traer varias filas (p. ej. un hogar con varias personas)?"
+  ["Resource name in the URL (\"-\": the view's, without v_)"]="Nombre del recurso en la URL (\"-\": el de la vista, sin v_)"
+  ["Entity name in the OpenAPI (\"-\": the resource's, e.g. Afiliados)"]="Nombre de la entidad en el OpenAPI (\"-\": el del recurso, p. ej. Afiliados)"
+  ["Could not create the resource; no change was applied"]="No se pudo crear el recurso; no se aplicó ningún cambio"
+  ["Could not generate the OpenAPI; no change was applied"]="No se pudo generar el OpenAPI; no se aplicó ningún cambio"
+  ["  The API answers GET %s/<resource>/<key>; the resources and their columns are in %s"]="  La API responde GET %s/<recurso>/<clave>; los recursos y sus columnas están en %s"
+  ["    OpenAPI:                      upload %s (SHA-256 %s)"]="    OpenAPI:                      sube %s (SHA-256 %s)"
+  ["Service \"%s\" does not exist"]="No existe el servicio \"%s\""
+  ["Service \"%s\" is not instant: its resources are those of its own API"]="El servicio \"%s\" no es instant: sus recursos son los de su propia API"
+  ["New resource in service %s"]="Nuevo recurso en el servicio %s"
+  ["Resource added to service %s"]="Recurso agregado al servicio %s"
+  ["  The OpenAPI changed: publish a new version of the API in the portal with this file."]="  El OpenAPI cambió: publica una versión nueva de la API en el portal con este archivo."
+  ["Remove service %s? The portal versions that use it will stop answering"]="¿Quitar el servicio %s? Las versiones del portal que lo usan dejarán de responder"
+  ["The configuration became invalid; check %s/config"]="La configuración quedó inválida; revisa %s/config"
+  ["Service %s removed"]="Servicio %s quitado"
+  ["Could not copy the node's state: the backup does not include its identity"]="No se pudo copiar el estado del nodo: el respaldo no incluye su identidad"
+  ["Backup: %s"]="Respaldo: %s"
+  ["It contains the node's keys: copy it off this server and keep it as a secret."]="Contiene las claves del nodo: cópialo fuera de este servidor y guárdalo como un secreto."
+  ["Old backups deleted: the %s most recent are kept (RID_BACKUPS_KEEP)"]="Respaldos antiguos borrados: se conservan los %s más recientes (RID_BACKUPS_KEEP)"
+  ["Give the backup: sudo %s/install.sh restore %s/backups/rid-node-<date>.tar.gz"]="Indica el respaldo: sudo %s/install.sh restaurar %s/backups/rid-node-<fecha>.tar.gz"
+  ["The backup does not contain the node's state (state/state.json)"]="El respaldo no contiene el estado del nodo (state/state.json)"
+  ["Restore %s"]="Restaurar %s"
+  ["The node's current identity, configuration and secrets are replaced"]="Se reemplazan la identidad, la configuración y los secretos actuales del nodo"
+  ["Continue?"]="¿Continuar?"
+  ["Could not delete the volume %s"]="No se pudo borrar el volumen %s"
+  ["Could not restore the state"]="No se pudo restaurar el estado"
+  ["Restored: %s"]="Restaurado: %s"
+  ["Update %s → %s"]="Actualizar %s → %s"
+  ["Version %s did not come online. To go back: sudo %s/install.sh update %s (if the image is gone, from the folder of the %s bundle)"]="La versión %s no quedó en línea. Para volver: sudo %s/install.sh update %s (si la imagen ya no está, desde la carpeta del paquete %s)"
+  ["Updated to %s"]="Actualizado a %s"
+  ["Re-enroll the node"]="Re-enrolar el nodo"
+  ["The node will forget its identity: it will need a new token, and the new node chosen in the portal's versions"]="El nodo olvidará su identidad: hará falta un token nuevo y elegir el nodo nuevo en las versiones del portal"
+  ["Could not delete the volume %s: is another container using it?"]="No se pudo borrar el volumen %s: ¿hay otro contenedor usándolo?"
+  ["Unknown command: %s (see: ./install.sh help)"]="Comando desconocido: %s (ver: ./install.sh ayuda)"
+)
+
+UI_LANG=en
+# set_lang: RID_LANG chooses (en or es, with or without a region such as es_CO). Without it, the
+# one the installation was made with; an installation from before RID_LANG (a .env without it)
+# was in Spanish and stays so.
+set_lang() {
+  local l=${RID_LANG:-}
+  if [[ -z $l && -r $ENV_FILE ]]; then
+    l=$(env_get RID_LANG)
+    [[ -n $l ]] || l=es
+  fi
+  l=${l,,}
+  l=${l%%[_.-]*}
+  case "$l" in
+    es) UI_LANG=es ;;
+    en | "") UI_LANG=en ;;
+    *) UI_LANG=en; warn "RID_LANG=%s is not supported (en or es): using English" "$RID_LANG" ;;
+  esac
+}
+# _t FORMAT [ARGS...]: the message in the chosen language, printf-formatted. The callers below
+# pass a literal message; variables go as arguments, never inside the message.
+_t() {
+  local f=$1
+  shift
+  if [[ $UI_LANG == es && -n $f && -n ${MSG_ES[$f]+x} ]]; then f=${MSG_ES[$f]}; fi
+  # shellcheck disable=SC2059 # the format is a message of the catalog
+  printf -- "$f" "$@"
+}
+t() { _t "$@"; }
+# w EN ES: a word that changes with the language (the defaults of some questions)
+w() { if [[ $UI_LANG == es ]]; then printf '%s' "$2"; else printf '%s' "$1"; fi; }
+
 # --- output -------------------------------------------------------------------------------------
 if [[ -t 1 ]]; then
   B=$'\e[1m'; G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; C=$'\e[36m'; N=$'\e[0m'
 else
   B=''; G=''; Y=''; R=''; C=''; N=''
 fi
-info() { printf '%s\n' "${C}›${N} $*"; }
-ok() { printf '%s\n' "${G}✔${N} $*"; }
-warn() { printf '%s\n' "${Y}⚠${N} $*"; }
-fail() { printf '%s\n' "${R}✘ $*${N}" >&2; exit 1; }
-step() { printf '\n%s\n' "${B}── $* ──${N}"; }
+info() { printf '%s\n' "${C}›${N} $(_t "$@")"; }
+ok() { printf '%s\n' "${G}✔${N} $(_t "$@")"; }
+warn() { printf '%s\n' "${Y}⚠${N} $(_t "$@")"; }
+fail() { printf '%s\n' "${R}✘ $(_t "$@")${N}" >&2; exit 1; }
+step() { printf '\n%s\n' "${B}── $(_t "$@") ──${N}"; }
+say() { printf '%s\n' "$(_t "$@")"; }
 
 # ask VAR "question" [default]: keeps VAR if it already has a value; an empty answer with no
 # default is an error (also when there is no terminal to ask).
 ask() {
-  local __var=$1 __q=$2 __def=${3-} __ans=""
+  local __var=$1 __q __def=${3-} __ans=""
+  __q=$(_t "$2")
   [[ -n ${!__var-} ]] && return 0
   if [[ -n $__def ]]; then IFS= read -r -p "  $__q [$__def]: " __ans || true; else IFS= read -r -p "  $__q: " __ans || true; fi
   __ans=${__ans:-$__def}
-  [[ -n $__ans ]] || fail "Falta la respuesta: $__q"
+  [[ -n $__ans ]] || fail "Missing answer: %s" "$__q"
   printf -v "$__var" '%s' "$__ans"
 }
 # ask_secret VAR "question": not echoed; spaces kept
 ask_secret() {
-  local __var=$1 __q=$2 __ans=""
+  local __var=$1 __q __ans=""
+  __q=$(_t "$2")
   [[ -n ${!__var-} ]] && return 0
   IFS= read -r -s -p "  $__q: " __ans || true
   echo
-  [[ -n $__ans ]] || fail "Falta la respuesta: $__q"
+  [[ -n $__ans ]] || fail "Missing answer: %s" "$__q"
   printf -v "$__var" '%s' "$__ans"
 }
 # read_token VAR "question": a token pasted over several lines is joined; spaces are dropped
 read_token() {
-  local __var=$1 __q=$2 __line="" __more="" __all=""
+  local __var=$1 __q __line="" __more="" __all=""
+  __q=$(_t "$2")
   if [[ -z ${!__var-} ]]; then
     IFS= read -r -s -p "  $__q: " __line || true
     __all=$__line
@@ -76,14 +309,19 @@ read_token() {
   __all=$(printf '%s' "$__all" | tr -d '[:space:]')
   printf -v "$__var" '%s' "$__all"
 }
-# yes_no "question" default(s|n) → status 0 for yes; RID_INSTALL_YES=1 answers yes
+# yes_no DEFAULT(s|n) "question" [ARGS...] → status 0 for yes (y, s); RID_INSTALL_YES=1 answers yes
 yes_no() {
-  local __q=$1 __def=${2:-s} __ans=""
+  local __def=$1 __q __ans="" __hint
+  shift
+  __q=$(_t "$@")
   [[ ${RID_INSTALL_YES:-} == 1 ]] && return 0
-  IFS= read -r -p "  $__q [$([[ $__def == s ]] && echo 'S/n' || echo 's/N')]: " __ans || true
+  if [[ $__def == s ]]; then __hint=$(w Y/n S/n); else __hint=$(w y/N s/N); fi
+  IFS= read -r -p "  $__q [$__hint]: " __ans || true
   __ans=${__ans:-$__def}
   [[ $__ans =~ ^[sSyY] ]]
 }
+# is_yes VALUE: s, si, y, yes (the answers of RID_INSTALL_SERVICE_PLAIN_HTTP and _MANY)
+is_yes() { [[ ${1:-} =~ ^[sSyY] ]]; }
 # yq VALUE: a single-quoted YAML scalar
 yq() { local v=${1//\'/\'\'}; printf "'%s'" "$v"; }
 
@@ -98,11 +336,15 @@ env_set() {
   mv "$tmp" "$ENV_FILE"
 }
 dc() { docker compose --project-directory "$HOME_DIR" -f "$HOME_DIR/compose.yaml" --env-file "$ENV_FILE" "$@"; }
-require_root() { [[ $EUID -eq 0 ]] || fail "Ejecuta como root (sudo)"; }
-require_install() { [[ -f $ENV_FILE && -f $HOME_DIR/compose.yaml ]] || fail "No hay un nodo instalado en $HOME_DIR. Ejecuta: sudo ./install.sh"; }
+require_root() { [[ $EUID -eq 0 ]] || fail "Run as root (sudo)"; }
+require_install() { [[ -f $ENV_FILE && -f $HOME_DIR/compose.yaml ]] || fail "No node is installed in %s. Run: sudo ./install.sh" "$HOME_DIR"; }
 running() { [[ -n $(dc ps -q --status running rid-node 2>/dev/null) ]]; }
-node() { # the node's CLI: in the running container, or in a throwaway one
-  if running; then dc exec -T rid-node /rid-node "$@"; else dc run --rm --no-deps -T --entrypoint /rid-node rid-node "$@"; fi
+node() { # the node's CLI, in the installer's language: in the running container, or in a throwaway one
+  if running; then
+    dc exec -T -e RID_LANG="$UI_LANG" rid-node /rid-node "$@"
+  else
+    dc run --rm --no-deps -T -e RID_LANG="$UI_LANG" --entrypoint /rid-node rid-node "$@"
+  fi
 }
 node_status_json() { node status --json 2>/dev/null || true; }
 status_field() { node_status_json | sed -n "s/.*\"$1\": \"\\(.*\\)\".*/\\1/p" | head -n 1; }
@@ -118,22 +360,22 @@ docker_path() { command -v docker; }
 
 # --- checks -------------------------------------------------------------------------------------
 check_system() {
-  step "Servidor"
-  [[ -r /etc/os-release ]] || fail "No se pudo leer /etc/os-release"
+  step "Server"
+  [[ -r /etc/os-release ]] || fail "Could not read /etc/os-release"
   # shellcheck disable=SC1091
   . /etc/os-release
   if [[ ${ID:-} == ubuntu && (${VERSION_ID:-} == 22.04 || ${VERSION_ID:-} == 24.04) ]]; then
-    ok "Ubuntu ${VERSION_ID}"
+    ok "Ubuntu %s" "${VERSION_ID}"
   else
-    warn "El kit se prueba en Ubuntu Server 22.04 y 24.04 LTS; este servidor es ${PRETTY_NAME:-desconocido}"
-    yes_no "¿Continuar de todas formas?" n || exit 1
+    warn "The kit is tested on Ubuntu Server 22.04 and 24.04 LTS; this server is %s" "${PRETTY_NAME:-?}"
+    yes_no n "Continue anyway?" || exit 1
   fi
-  [[ $(image_arch) != unsupported ]] || fail "Arquitectura $(uname -m) no soportada (amd64 o arm64)"
-  ok "Arquitectura $(image_arch)"
+  [[ $(image_arch) != unsupported ]] || fail "Architecture %s is not supported (amd64 or arm64)" "$(uname -m)"
+  ok "Architecture %s" "$(image_arch)"
   if command -v timedatectl >/dev/null && [[ $(timedatectl show -p NTPSynchronized --value 2>/dev/null) == yes ]]; then
-    ok "Hora sincronizada (NTP)"
+    ok "Clock synchronized (NTP)"
   else
-    warn "No se pudo confirmar que la hora esté sincronizada: los certificados fallan con el reloj desfasado (timedatectl set-ntp true)"
+    warn "Could not confirm that the clock is synchronized: certificates fail when the clock is off (timedatectl set-ntp true)"
   fi
 }
 
@@ -141,32 +383,32 @@ ensure_docker() {
   step "Docker"
   local dp
   if dp=$(docker_path); then
-    [[ $dp == /snap/* ]] && fail "Docker está instalado como snap ($dp): el snap no puede montar /opt/rid-node. Quítalo (snap remove docker) e instala Docker Engine: https://docs.docker.com/engine/install/ubuntu/"
+    [[ $dp == /snap/* ]] && fail "Docker is installed as a snap (%s): the snap cannot mount /opt/rid-node. Remove it (snap remove docker) and install Docker Engine: https://docs.docker.com/engine/install/ubuntu/" "$dp"
     if ! docker info >/dev/null 2>&1; then
-      warn "Docker está instalado pero su servicio no responde"
-      yes_no "¿Arrancar el servicio de Docker (systemctl start docker)?" s || fail "El nodo necesita el servicio de Docker"
+      warn "Docker is installed but its service does not respond"
+      yes_no s "Start the Docker service (systemctl start docker)?" || fail "The node needs the Docker service"
       systemctl start docker
-      [[ $(systemctl is-enabled docker 2>/dev/null) == enabled ]] || { systemctl enable docker >/dev/null 2>&1 || warn "Docker no arranca solo con el servidor: systemctl enable docker"; }
-      docker info >/dev/null 2>&1 || fail "El servicio de Docker no arrancó: revisa journalctl -u docker"
+      [[ $(systemctl is-enabled docker 2>/dev/null) == enabled ]] || { systemctl enable docker >/dev/null 2>&1 || warn "Docker does not start with the server: systemctl enable docker"; }
+      docker info >/dev/null 2>&1 || fail "The Docker service did not start: check journalctl -u docker"
     fi
     if ! docker compose version >/dev/null 2>&1; then
-      warn "Falta el plugin Compose de Docker"
-      yes_no "¿Instalarlo?" s || fail "El nodo necesita Docker Compose"
+      warn "Docker's Compose plugin is missing"
+      yes_no s "Install it?" || fail "The node needs Docker Compose"
       if dpkg -s docker.io >/dev/null 2>&1; then
         apt-get install -y -qq docker-compose-v2 >/dev/null # Ubuntu's Docker: keep it, add its Compose
       else
         apt-get install -y -qq docker-compose-plugin >/dev/null # Docker's repository
       fi
-      docker compose version >/dev/null 2>&1 || fail "Compose quedó instalado pero no responde"
+      docker compose version >/dev/null 2>&1 || fail "Compose was installed but does not respond"
     fi
-    ok "Docker $(docker version --format '{{.Server.Version}}' 2>/dev/null) con Compose $(docker compose version --short 2>/dev/null)"
+    ok "Docker %s with Compose %s" "$(docker version --format '{{.Server.Version}}' 2>/dev/null)" "$(docker compose version --short 2>/dev/null)"
     return
   fi
-  warn "Docker Engine no está instalado"
+  warn "Docker Engine is not installed"
   curl -fsS --max-time 15 -o /dev/null https://download.docker.com/linux/ubuntu/gpg ||
-    fail "No hay acceso a download.docker.com (¿sin internet, o hace falta el proxy? usa sudo -E con https_proxy). Instala Docker Engine antes: https://docs.docker.com/engine/install/ubuntu/"
-  yes_no "¿Instalar Docker Engine desde el repositorio oficial de Docker (download.docker.com)?" s ||
-    fail "El nodo necesita Docker Engine y Compose: https://docs.docker.com/engine/install/ubuntu/"
+    fail "No access to download.docker.com (no internet, or is the proxy needed? use sudo -E with https_proxy). Install Docker Engine first: https://docs.docker.com/engine/install/ubuntu/"
+  yes_no s "Install Docker Engine from Docker's official repository (download.docker.com)?" ||
+    fail "The node needs Docker Engine and Compose: https://docs.docker.com/engine/install/ubuntu/"
   # shellcheck disable=SC1091
   . /etc/os-release
   apt-get update -qq
@@ -179,13 +421,13 @@ ensure_docker() {
   apt-get update -qq
   DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin >/dev/null
   systemctl enable --now docker >/dev/null
-  docker compose version >/dev/null 2>&1 || fail "Docker quedó instalado pero Compose no responde"
-  ok "Docker instalado"
+  docker compose version >/dev/null 2>&1 || fail "Docker was installed but Compose does not respond"
+  ok "Docker installed"
 }
 
 # --- layout -------------------------------------------------------------------------------------
 prepare_home() {
-  step "Carpeta del nodo ($HOME_DIR)"
+  step "Node folder (%s)" "$HOME_DIR"
   install -d -m 0755 "$HOME_DIR" "$HOME_DIR/config" "$HOME_DIR/config/services"
   install -d -m 0700 "$HOME_DIR/backups"
   install -d -m 0750 -o root -g "$NODE_UID" "$HOME_DIR/secrets"
@@ -198,13 +440,15 @@ prepare_home() {
         echo "RID_NODE_IMAGE=rid-node"
         echo "RID_NODE_VERSION=$KIT_VERSION"
         echo "RID_NODE_TAG_SUFFIX=-canal"
+        echo "RID_LANG=$UI_LANG"
         echo "HTTPS_PROXY="
         echo "NO_PROXY="
       } >"$ENV_FILE"
     )
   fi
   chmod 0600 "$ENV_FILE"
-  ok "compose.yaml, .env, config/, secrets/ (solo el nodo los lee) y backups/"
+  env_set RID_LANG "$UI_LANG"
+  ok "compose.yaml, .env, config/, secrets/ (read only by the node) and backups/"
 }
 
 # The script and compose.yaml stay in /opt/rid-node, so operating the node never depends on the
@@ -221,33 +465,33 @@ choose_mode() {
   local mode=${RID_INSTALL_MODE:-}
   if [[ -z $mode && ${1:-} != ask && -n $(env_get RID_NODE_VERSION) && -f $HOME_DIR/config/node.yaml ]]; then
     [[ $(env_get RID_NODE_TAG_SUFFIX) == -canal ]] && mode=canal || mode=completo
-    ok "Modo $mode (instalación existente)"
+    ok "Mode %s (existing installation)" "$mode"
     return
   fi
   if [[ -z $mode ]]; then
-    step "Modo"
-    echo "  canal     la entidad ya tiene APIs propias: el nodo solo da el canal seguro (túnel, mTLS, renovación)"
-    echo "  completo  además, APIs instantáneas sobre vistas de bases de datos"
-    ask mode "¿Modo? (canal o completo)" canal
+    step "Mode"
+    say "  canal     the entity already has its own APIs: the node only provides the secure channel (tunnel, mTLS, renewal)"
+    say "  completo  also instant APIs over database views"
+    ask mode "Mode? (canal or completo)" canal
   fi
   case "$mode" in
     canal) env_set RID_NODE_TAG_SUFFIX -canal ;;
     completo) env_set RID_NODE_TAG_SUFFIX "" ;;
-    *) fail "Modo \"$mode\" desconocido: canal o completo" ;;
+    *) fail "Unknown mode \"%s\": canal or completo" "$mode" ;;
   esac
-  ok "Modo $mode"
+  ok "Mode %s" "$mode"
 }
 
 configure_proxy() {
-  [[ -n $(env_get HTTPS_PROXY) && -z ${RID_INSTALL_PROXY:-} ]] && { ok "Proxy corporativo: $(env_get HTTPS_PROXY)"; return; }
+  [[ -n $(env_get HTTPS_PROXY) && -z ${RID_INSTALL_PROXY:-} ]] && { ok "Corporate proxy: %s" "$(env_get HTTPS_PROXY)"; return; }
   local proxy=${RID_INSTALL_PROXY:-}
   if [[ -z $proxy && ${RID_INSTALL_YES:-} != 1 ]]; then
-    ask proxy "¿La salida a internet pasa por un proxy? URL (http://proxy:puerto) o \"no\"" no
+    ask proxy "Does outbound internet traffic go through a proxy? URL (http://proxy:port) or \"no\"" no
   fi
   [[ -z $proxy || $proxy == no ]] && return 0
-  [[ $proxy == *@* ]] && fail "El proxy no debe llevar usuario ni contraseña (quedarían en la configuración del contenedor); pide al área de redes una excepción sin credenciales para el portal y el gateway"
+  [[ $proxy == *@* ]] && fail "The proxy must not include a user or password (they would end up in the container's configuration); ask the network team for an exception without credentials for the portal and the gateway"
   env_set HTTPS_PROXY "$proxy"
-  ok "Proxy corporativo: $proxy (el túnel UDP 51820 no lo usa)"
+  ok "Corporate proxy: %s (the UDP 51820 tunnel does not use it)" "$proxy"
 }
 
 write_secret() { # write_secret <file name> <value>
@@ -257,7 +501,7 @@ write_secret() { # write_secret <file name> <value>
   chmod 0400 "$f"
 }
 copy_secret() { # copy_secret <source file> <file name>
-  [[ -r $1 && -s $1 ]] || fail "No se puede leer $1"
+  [[ -r $1 && -s $1 ]] || fail "Cannot read %s" "$1"
   install -m 0400 -o "$NODE_UID" -g "$NODE_UID" "$1" "$HOME_DIR/secrets/$2"
 }
 
@@ -269,41 +513,41 @@ enrolled() { NODE_NAME=$(node identity 2>/dev/null) && [[ -n $NODE_NAME ]]; }
 RECREATE=""
 configure_identity() {
   if enrolled; then
-    ok "El nodo ya está enrolado como $NODE_NAME: no hace falta token"
+    ok "The node is already enrolled as %s: no token needed" "$NODE_NAME"
     return
   fi
   local current="" portal=${RID_INSTALL_PORTAL:+$(normalize_portal "$RID_INSTALL_PORTAL")}
   [[ -f $HOME_DIR/config/node.yaml ]] && current=$(sed -n "s/^portal: *'\{0,1\}\([^']*\)'\{0,1\}$/\1/p" "$HOME_DIR/config/node.yaml")
-  step "Portal de la red"
+  step "Network portal"
   if [[ -n $current && -z $portal ]]; then
-    if [[ ${RID_INSTALL_YES:-} == 1 ]] || yes_no "¿La URL del portal es $current?" s; then portal=$current; fi
+    if [[ ${RID_INSTALL_YES:-} == 1 ]] || yes_no s "Is the portal URL %s?" "$current"; then portal=$current; fi
   fi
   if [[ -z $portal ]]; then
-    ask portal "URL del portal (la da el operador de la red, p. ej. https://portal.red.example)"
+    ask portal "Portal URL (given by the network operator, e.g. https://portal.network.example)"
     portal=$(normalize_portal "$portal")
   fi
-  [[ $portal =~ ^https://[^/[:space:]]+$ ]] || fail "La URL del portal debe ser https://nombre (sin ruta)"
+  [[ $portal =~ ^https://[^/[:space:]]+$ ]] || fail "The portal URL must be https://name (no path)"
   if [[ $portal != "$current" ]]; then
-    printf '# Written by install.sh. Services live in services/<name>.yaml (install.sh servicio).\nportal: %s\nservices: []\n' \
+    printf '# Written by install.sh. Services live in services/<name>.yaml (install.sh service).\nportal: %s\nservices: []\n' \
       "$(yq "$portal")" >"$HOME_DIR/config/node.yaml"
     chmod 0644 "$HOME_DIR/config/node.yaml"
     RECREATE=1
   fi
-  ok "Portal: $portal"
+  ok "Portal: %s" "$portal"
 
-  step "Token de enrolamiento"
-  info "Lo emite el administrador de la entidad en el portal: Mi entidad → Nodos del kit. Es de un solo uso y vence en 72 h."
+  step "Enrollment token"
+  info "The entity's administrator issues it in the portal: My entity → Kit nodes. It is single-use and expires in 72 h."
   local token=${RID_INSTALL_TOKEN:-}
   if [[ -z $token && -s $HOME_DIR/secrets/enrollment_token && ${RID_INSTALL_YES:-} == 1 ]]; then
-    ok "Se usa el token ya guardado"
+    ok "Using the token already saved"
     return
   fi
-  [[ -s $HOME_DIR/secrets/enrollment_token ]] && info "Hay un token guardado de un intento anterior: si el enrolamiento falló, pega uno nuevo."
-  read_token token "Pega el token (no se muestra)"
-  [[ -n $token ]] || fail "El token está vacío"
+  [[ -s $HOME_DIR/secrets/enrollment_token ]] && info "There is a token saved from a previous attempt: if the enrollment failed, paste a new one."
+  read_token token "Paste the token (not shown)"
+  [[ -n $token ]] || fail "The token is empty"
   write_secret enrollment_token "$token"
   RECREATE=1
-  ok "Token guardado en $HOME_DIR/secrets/enrollment_token (se puede borrar después del enrolamiento)"
+  ok "Token saved in %s (it can be deleted after the enrollment)" "$HOME_DIR/secrets/enrollment_token"
 }
 
 # load_image <version> <tag suffix>: loads (from the kit) or pulls the image; never touches .env
@@ -313,20 +557,20 @@ load_image() {
   tar="$KIT_DIR/images/rid-node-$version$suffix-$(image_arch).tar"
   if [[ -f $tar ]]; then
     if [[ -f $KIT_DIR/SHA256SUMS ]]; then
-      (cd "$KIT_DIR" && sha256sum -c --ignore-missing --quiet SHA256SUMS) || fail "El paquete está dañado (SHA256SUMS no coincide)"
+      (cd "$KIT_DIR" && sha256sum -c --ignore-missing --quiet SHA256SUMS) || fail "The bundle is damaged (SHA256SUMS does not match)"
     fi
-    docker load -q -i "$tar" >/dev/null || fail "No se pudo cargar $tar"
-    ok "Imagen $ref ($(image_arch)) cargada desde el paquete"
+    docker load -q -i "$tar" >/dev/null || fail "Could not load %s" "$tar"
+    ok "Image %s (%s) loaded from the bundle" "$ref" "$(image_arch)"
   elif docker image inspect "$ref" >/dev/null 2>&1; then
-    ok "Imagen $ref ya presente"
+    ok "Image %s already present" "$ref"
   elif docker pull -q "$ref" >/dev/null 2>&1; then
-    ok "Imagen $ref descargada"
+    ok "Image %s downloaded" "$ref"
   else
-    fail "No está la imagen $ref: no viene en este paquete ni se pudo descargar. Usa el paquete de esa versión."
+    fail "Image %s is missing: it is not in this bundle and could not be downloaded. Use that version's bundle." "$ref"
   fi
 }
 
-# load_variants <version>: also loads the other variant from the kit, so `modo` works later
+# load_variants <version>: also loads the other variant from the kit, so `mode` works later
 # from /opt/rid-node without the kit or a registry.
 load_variants() {
   local version=$1 s tar
@@ -338,12 +582,12 @@ load_variants() {
 }
 
 wait_online() {
-  info "Esperando a que el nodo quede en línea en el portal (hasta 3 minutos)…"
+  info "Waiting for the node to come online in the portal (up to 3 minutes)…"
   local out
   for _ in $(seq 1 36); do
     out=$(node_status_json)
     if [[ $out == *'"portalState": "online"'* ]]; then
-      ok "El nodo está en línea"
+      ok "The node is online"
       return 0
     fi
     sleep 5
@@ -352,122 +596,132 @@ wait_online() {
 }
 
 start_node() {
-  step "Arranque"
+  step "Start"
   if [[ -n $RECREATE ]]; then dc up -d --force-recreate >/dev/null; else dc up -d >/dev/null; fi
   RECREATE=""
   if wait_online; then
     node status || true
     return 0
   fi
-  warn "El nodo no quedó en línea todavía. Diagnóstico:"
+  warn "The node is not online yet. Diagnosis:"
   node doctor || true
-  info "Revisa los logs con: sudo $HOME_DIR/install.sh logs"
+  info "Check the logs with: sudo %s/install.sh logs" "$HOME_DIR"
   return 1
 }
 
 # --- commands -----------------------------------------------------------------------------------
 cmd_install() {
-  printf '%s\n' "${B}Nodo de la red de intercambio de datos — instalación (kit $KIT_VERSION)${N}"
+  printf '%s\n' "${B}$(t "Data exchange network node — installation (kit %s)" "$KIT_VERSION")${N}"
   check_system
   ensure_docker
   prepare_home
   choose_mode
   configure_proxy
-  step "Imagen"
+  step "Image"
   load_image "$(env_get RID_NODE_VERSION)" "$(env_get RID_NODE_TAG_SUFFIX)"
   load_variants "$(env_get RID_NODE_VERSION)"
   configure_identity
   start_node || exit 1
-  step "Listo"
-  ok "Nodo $(status_field nodeName) en $HOME_DIR"
-  echo "  Siguientes pasos (el instalador quedó en $HOME_DIR/install.sh):"
-  echo "    1. sudo $HOME_DIR/install.sh servicio   — agrega la API propia de la entidad"
-  echo "    2. En el portal, registra la versión: ¿Dónde vive el servicio? → Nodo del kit, este nodo y la ruta del servicio"
-  echo "    3. Envía la versión a revisión"
-  echo "    4. sudo $HOME_DIR/install.sh backup, y copia el respaldo fuera del servidor"
+  step "Done"
+  ok "Node %s in %s" "$(status_field nodeName)" "$HOME_DIR"
+  say "  Next steps (the installer stays in %s/install.sh):" "$HOME_DIR"
+  say "    1. sudo %s/install.sh service   — adds the entity's own API" "$HOME_DIR"
+  say "    2. In the portal, register the version: Where does the service live? → Kit node, this node and the service path"
+  say "    3. Submit the version for review"
+  say "    4. sudo %s/install.sh backup, and copy the backup off the server" "$HOME_DIR"
 }
 
 cmd_status() { require_install; node status; }
 cmd_doctor() { require_install; node doctor; }
 cmd_logs() { require_install; dc logs --tail 200 "$@" rid-node; }
-cmd_stop() { require_install; dc stop rid-node; ok "Nodo detenido (el estado se conserva)"; }
+cmd_stop() { require_install; dc stop rid-node; ok "Node stopped (its state is kept)"; }
 cmd_start() { require_install; start_node; }
 
-# servicio: RID_INSTALL_SERVICE_TYPE (proxy|instant), _NAME, _PATH and, for proxy, _UPSTREAM,
-# _PLAIN_HTTP (s/n), _CREDENTIAL (ninguna|cabecera|basic|certificado), _HEADER, _SECRET, _USER,
-# _CERT, _KEY, _OPENAPI ("-" omits). For instant, see service_instant.
+# portal_summary PATH [SHA]: what the publisher fills in the portal for a proxy service.
+portal_summary() {
+  say "  In the portal, when registering the version:"
+  say "    Where does the service live?  Kit node"
+  say "    Kit node:                     %s" "$(status_field nodeName)"
+  say "    Service path on the node:     %s" "$1"
+}
+
+# service: RID_INSTALL_SERVICE_TYPE (proxy|instant), _NAME, _PATH and, for proxy, _UPSTREAM,
+# _PLAIN_HTTP (y/n), _CREDENTIAL (none|header|basic|certificate, or ninguna|cabecera|basic|certificado),
+# _HEADER, _SECRET, _USER, _CERT, _KEY, _OPENAPI ("-" omits). For instant, see service_instant.
 CREATED=()
 undo_service() { [[ ${#CREATED[@]} -gt 0 ]] && rm -f "${CREATED[@]}"; return 0; }
-cmd_servicio() {
+cmd_service() {
   require_install
-  [[ ${1:-} == quitar ]] && { cmd_servicio_quitar "${2:-}"; return; }
-  [[ ${1:-} == recurso ]] && { cmd_servicio_recurso "${2:-}"; return; }
-  step "Nuevo servicio"
+  case "${1:-}" in
+    remove | quitar) cmd_service_remove "${2:-}"; return ;;
+    resource | recurso) cmd_service_resource "${2:-}"; return ;;
+  esac
+  step "New service"
   local type=${RID_INSTALL_SERVICE_TYPE:-}
-  echo "  proxy    una API propia de la entidad: el nodo le da el canal seguro"
-  echo "  instant  una API instantánea: GET por clave sobre una vista de una base de datos (modo completo)"
-  ask type "¿Tipo? (proxy o instant)" proxy
-  [[ $type == proxy || $type == instant ]] || fail "Tipo \"$type\" desconocido: proxy o instant"
+  say "  proxy    the entity's own API: the node gives it the secure channel"
+  say "  instant  an instant API: GET by key over a database view (completo mode)"
+  ask type "Type? (proxy or instant)" proxy
+  [[ $type == proxy || $type == instant ]] || fail "Unknown type \"%s\": proxy or instant" "$type"
   if [[ $type == instant && $(env_get RID_NODE_TAG_SUFFIX) == -canal ]]; then
-    fail "Las APIs instantáneas necesitan el modo completo: sudo $HOME_DIR/install.sh modo completo"
+    fail "Instant APIs need completo mode: sudo %s/install.sh mode completo" "$HOME_DIR"
   fi
   local name=${RID_INSTALL_SERVICE_NAME:-} path=${RID_INSTALL_SERVICE_PATH:-} upstream=${RID_INSTALL_SERVICE_UPSTREAM:-}
   local cred=${RID_INSTALL_SERVICE_CREDENTIAL:-} header=${RID_INSTALL_SERVICE_HEADER:-} secret=${RID_INSTALL_SERVICE_SECRET:-}
   local user=${RID_INSTALL_SERVICE_USER:-} cert=${RID_INSTALL_SERVICE_CERT:-} key=${RID_INSTALL_SERVICE_KEY:-}
   local openapi=${RID_INSTALL_SERVICE_OPENAPI:-} plain=${RID_INSTALL_SERVICE_PLAIN_HTTP:-}
-  ask name "Nombre del servicio (minúsculas, números y guiones, p. ej. certificados)"
-  [[ $name =~ ^[a-z0-9][a-z0-9-]{0,79}$ ]] || fail "Nombre \"$name\" inválido: usa minúsculas, números y guiones"
+  ask name "Service name (lowercase letters, digits and hyphens, e.g. certificates)"
+  [[ $name =~ ^[a-z0-9][a-z0-9-]{0,79}$ ]] || fail "Invalid name \"%s\": use lowercase letters, digits and hyphens" "$name"
   local file="$HOME_DIR/config/services/$name.yaml"
-  [[ -e $file ]] && fail "Ya existe el servicio \"$name\" ($file). Para cambiarlo: sudo $HOME_DIR/install.sh servicio quitar $name"
-  ask path "Ruta en el nodo (es la \"ruta del servicio en el nodo\" del portal)" "/$name"
-  [[ $path =~ ^/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$ ]] || fail "Ruta \"$path\" inválida: empieza con / y usa letras, números y . _ ~ - /"
+  [[ -e $file ]] && fail "Service \"%s\" already exists (%s). To change it: sudo %s/install.sh service remove %s" "$name" "$file" "$HOME_DIR" "$name"
+  ask path "Path on the node (the portal's \"service path on the node\")" "/$name"
+  [[ $path =~ ^/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$ ]] || fail "Invalid path \"%s\": it starts with / and uses letters, digits and . _ ~ - /" "$path"
   if [[ $type == instant ]]; then
     service_instant "$name" "$path" "$file"
     return
   fi
-  ask upstream "URL interna de la API (p. ej. https://api.interna.entidad/v1)"
-  [[ $upstream =~ ^https?://[^[:space:]]+$ ]] || fail "La URL interna debe empezar con http:// o https://"
+  ask upstream "Internal URL of the API (e.g. https://api.internal.entity/v1)"
+  [[ $upstream =~ ^https?://[^[:space:]]+$ ]] || fail "The internal URL must start with http:// or https://"
   trap undo_service EXIT
   CREATED=("$file")
   local yaml
   yaml="name: $(yq "$name")"$'\n'"path: $(yq "$path")"$'\n'"type: proxy"$'\n'"upstream: $(yq "$upstream")"$'\n'
   if [[ $upstream == http://* ]]; then
-    warn "La API interna usa http sin cifrar"
-    if [[ -z $plain ]]; then yes_no "¿Aceptarla así (solo dentro de la red de la entidad)?" n && plain=s; fi
-    [[ $plain == s ]] || fail "Usa https:// para la API interna, o acepta http explícitamente"
+    warn "The internal API uses unencrypted http"
+    if [[ -z $plain ]]; then yes_no n "Accept it as is (only inside the entity's network)?" && plain=y; fi
+    is_yes "$plain" || fail "Use https:// for the internal API, or accept http explicitly"
     yaml+="allowPlainHttp: true"$'\n'
   fi
-  ask cred "Credencial que pide la API interna (ninguna, cabecera, basic, certificado)" ninguna
+  ask cred "Credential the internal API requires (none, header, basic, certificate)" "$(w none ninguna)"
   case "$cred" in
-    ninguna) ;;
-    cabecera)
-      ask header "Nombre de la cabecera (p. ej. X-Api-Key)"
-      [[ $header =~ ^[A-Za-z0-9-]+$ ]] || fail "Nombre de cabecera \"$header\" inválido"
-      ask_secret secret "Valor de la cabecera (no se muestra)"
+    none | ninguna) ;;
+    header | cabecera)
+      ask header "Header name (e.g. X-Api-Key)"
+      [[ $header =~ ^[A-Za-z0-9-]+$ ]] || fail "Invalid header name \"%s\"" "$header"
+      ask_secret secret "Header value (not shown)"
       write_secret "${name}_credential" "$secret"; CREATED+=("$HOME_DIR/secrets/${name}_credential")
       yaml+="credential:"$'\n'"  header: $(yq "$header")"$'\n'"  file: /run/secrets/${name}_credential"$'\n'
       ;;
     basic)
-      ask user "Usuario"
-      ask_secret secret "Contraseña (no se muestra)"
+      ask user "User"
+      ask_secret secret "Password (not shown)"
       write_secret "${name}_password" "$secret"; CREATED+=("$HOME_DIR/secrets/${name}_password")
       yaml+="credential:"$'\n'"  basic:"$'\n'"    user: $(yq "$user")"$'\n'"    passwordFile: /run/secrets/${name}_password"$'\n'
       ;;
-    certificado)
-      ask cert "Ruta del certificado de cliente (PEM)"
-      ask key "Ruta de su clave privada (PEM)"
+    certificate | certificado)
+      ask cert "Path of the client certificate (PEM)"
+      ask key "Path of its private key (PEM)"
       copy_secret "$cert" "${name}_client.crt"; CREATED+=("$HOME_DIR/secrets/${name}_client.crt")
       copy_secret "$key" "${name}_client.key"; CREATED+=("$HOME_DIR/secrets/${name}_client.key")
       yaml+="credential:"$'\n'"  clientCert: /run/secrets/${name}_client.crt"$'\n'"  clientKey: /run/secrets/${name}_client.key"$'\n'
       ;;
-    *) fail "Credencial \"$cred\" desconocida: ninguna, cabecera, basic o certificado" ;;
+    *) fail "Unknown credential \"%s\": none, header, basic or certificate" "$cred" ;;
   esac
-  ask openapi "Ruta del OpenAPI de la API (el mismo que se sube al portal; \"-\" para omitir)" "-"
+  ask openapi "Path of the API's OpenAPI (the same one uploaded to the portal; \"-\" to skip)" "-"
   local sha=""
   if [[ $openapi != - ]]; then
-    [[ -f $openapi ]] || fail "No existe $openapi"
+    [[ -f $openapi ]] || fail "%s does not exist" "$openapi"
     local ext=${openapi##*.}
-    [[ $ext =~ ^(yaml|yml|json)$ ]] || fail "El OpenAPI debe ser .yaml, .yml o .json"
+    [[ $ext =~ ^(yaml|yml|json)$ ]] || fail "The OpenAPI must be .yaml, .yml or .json"
     local dest="$HOME_DIR/config/services/$name.openapi.$ext"
     install -m 0644 "$openapi" "$dest"; CREATED+=("$dest")
     yaml+="openapi: /etc/rid-node/services/$name.openapi.$ext"$'\n'
@@ -475,24 +729,21 @@ cmd_servicio() {
   fi
   printf '%s' "$yaml" >"$file"
   chmod 0644 "$file"
-  node validate || fail "La configuración del servicio no es válida; no se aplicó ningún cambio"
+  node validate || fail "The service configuration is not valid; no change was applied"
   trap - EXIT
   CREATED=()
   dc up -d --force-recreate rid-node >/dev/null
-  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
-  step "Servicio $name listo"
-  echo "  En el portal, al registrar la versión:"
-  echo "    ¿Dónde vive el servicio?      Nodo del kit"
-  echo "    Nodo del kit:                 $(status_field nodeName)"
-  echo "    Ruta del servicio en el nodo: $path"
-  [[ -n $sha ]] && echo "    OpenAPI:                      sube el mismo archivo (SHA-256 $sha)"
+  wait_online || warn "The node did not confirm it is online; check sudo %s/install.sh doctor" "$HOME_DIR"
+  step "Service %s ready" "$name"
+  portal_summary "$path"
+  [[ -n $sha ]] && say "    OpenAPI:                      upload the same file (SHA-256 %s)" "$sha"
   return 0
 }
 
 # service_instant NAME PATH FILE: RID_INSTALL_SERVICE_ENGINE (sqlserver|postgres|mysql|oracle),
 # _DB_HOST, _DB_PORT, _DB_NAME, _DB_USER, _DB_PASSWORD, _DB_TLS (require|verify|disable), _DB_CA
-# (verify, not Oracle; "-": the system's roots), _SOURCE (esquema.vista), _KEY, _SUBJECT (tipo de
-# documento o ninguno), _MANY (s/n), _RESOURCE and _ENTITY ("-": derived from the view). The
+# (verify, not Oracle; "-": the system's roots), _SOURCE (schema.view), _KEY, _SUBJECT (document
+# type, or none/ninguno), _MANY (y/n), _RESOURCE and _ENTITY ("-": derived from the view). The
 # connection is written first and checked against the catalog; any failure removes everything
 # this run created.
 service_instant() {
@@ -500,32 +751,32 @@ service_instant() {
   local engine=${RID_INSTALL_SERVICE_ENGINE:-} host=${RID_INSTALL_SERVICE_DB_HOST:-} port=${RID_INSTALL_SERVICE_DB_PORT:-}
   local db=${RID_INSTALL_SERVICE_DB_NAME:-} user=${RID_INSTALL_SERVICE_DB_USER:-} password=${RID_INSTALL_SERVICE_DB_PASSWORD:-}
   local tls=${RID_INSTALL_SERVICE_DB_TLS:-} ca=${RID_INSTALL_SERVICE_DB_CA:-}
-  step "Base de datos"
-  ask engine "Motor (sqlserver, postgres, mysql, oracle)"
+  step "Database"
+  ask engine "Engine (sqlserver, postgres, mysql, oracle)"
   local default_port
   case "$engine" in
     sqlserver) default_port=1433 ;;
     postgres) default_port=5432 ;;
     mysql) default_port=3306 ;;
     oracle) default_port=1521 ;;
-    *) fail "Motor \"$engine\" desconocido: sqlserver, postgres, mysql u oracle" ;;
+    *) fail "Unknown engine \"%s\": sqlserver, postgres, mysql or oracle" "$engine" ;;
   esac
-  ask host "Servidor de la base (nombre o IP dentro de la red de la entidad)"
-  ask port "Puerto" "$default_port"
-  [[ $port =~ ^[0-9]{1,5}$ ]] || fail "Puerto \"$port\" inválido"
+  ask host "Database server (name or IP inside the entity's network)"
+  ask port "Port" "$default_port"
+  [[ $port =~ ^[0-9]{1,5}$ ]] || fail "Invalid port \"%s\"" "$port"
   if [[ $engine == oracle ]]; then
-    ask db "Nombre del servicio de Oracle (p. ej. ORCLPDB1)"
+    ask db "Oracle service name (e.g. ORCLPDB1)"
   else
-    ask db "Nombre de la base de datos"
+    ask db "Database name"
   fi
-  ask user "Usuario de solo lectura (solo SELECT sobre las vistas que se exponen)"
-  ask_secret password "Contraseña de ese usuario (no se muestra)"
-  ask tls "TLS hacia la base (require: cifrado; verify: cifrado y certificado verificado; disable: sin cifrar)" require
-  [[ $tls =~ ^(require|verify|disable)$ ]] || fail "TLS \"$tls\" desconocido: require, verify o disable"
-  [[ $tls == disable ]] && warn "La conexión con la base irá sin cifrar (solo dentro de la red de la entidad)"
+  ask user "Read-only user (only SELECT on the exposed views)"
+  ask_secret password "That user's password (not shown)"
+  ask tls "TLS to the database (require: encrypted; verify: encrypted and certificate verified; disable: unencrypted)" require
+  [[ $tls =~ ^(require|verify|disable)$ ]] || fail "Unknown TLS \"%s\": require, verify or disable" "$tls"
+  [[ $tls == disable ]] && warn "The database connection will be unencrypted (only inside the entity's network)"
   if [[ $tls == verify && $engine != oracle ]]; then
-    ask ca "Certificado de la CA que firmó el de la base (PEM; \"-\" para usar las CA del sistema)" -
-    [[ $ca == - ]] && info "CA de la base: las del sistema"
+    ask ca "Certificate of the CA that signed the database's certificate (PEM; \"-\" to use the system's CAs)" -
+    [[ $ca == - ]] && info "Database CA: the system's"
   fi
 
   trap undo_service EXIT
@@ -537,7 +788,7 @@ service_instant() {
   write_secret "${name}_db_password" "$password"
   CREATED+=("$HOME_DIR/secrets/${name}_db_password")
   if [[ $tls == verify && -n $ca && $ca != - ]]; then
-    [[ $engine != oracle ]] || fail "Con Oracle, verify usa las CA del sistema: no indiques un archivo de CA"
+    [[ $engine != oracle ]] || fail "With Oracle, verify uses the system's CAs: do not give a CA file"
     copy_secret "$ca" "${name}_db_ca.pem"
     CREATED+=("$HOME_DIR/secrets/${name}_db_ca.pem")
     yaml+="  caFile: /run/secrets/${name}_db_ca.pem"$'\n'
@@ -550,8 +801,9 @@ service_instant() {
   trap - EXIT
   CREATED=()
   dc up -d --force-recreate rid-node >/dev/null
-  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
-  instant_summary "$name" "$path" "$file" "Servicio $name listo"
+  wait_online || warn "The node did not confirm it is online; check sudo %s/install.sh doctor" "$HOME_DIR"
+  step "Service %s ready" "$name"
+  instant_summary "$name" "$path" "$file"
   return 0
 }
 
@@ -566,91 +818,88 @@ instant_add_resource() {
   local cfile=/etc/rid-node/services/$name.yaml catalog
   if ! catalog=$(node catalog --service-file "$cfile" 2>&1); then
     printf '%s\n' "$catalog" >&2
-    fail "No se pudo leer el catálogo de la base con ese usuario; no se aplicó ningún cambio"
+    fail "Could not read the database catalog with that user; no change was applied"
   fi
-  step "Vistas y tablas que el usuario puede leer"
+  step "Views and tables the user can read"
   printf '%s\n' "$catalog" | sed 's/^/  /'
-  ask source "Vista o tabla a exponer (esquema.objeto)"
-  ask key "Columna clave (la que viene en la URL)"
-  ask subject "Si la clave identifica a una persona, su tipo de documento (p. ej. CC); si no, ninguno" ninguno
+  ask source "View or table to expose (schema.object)"
+  ask key "Key column (the one in the URL)"
+  ask subject "If the key identifies a person, their document type (e.g. CC); otherwise, none" "$(w none ninguno)"
   if [[ -z $many ]]; then
-    if yes_no "¿Una misma clave puede traer varias filas (p. ej. un hogar con varias personas)?" n; then many=s; else many=n; fi
+    if yes_no n "Can one key return several rows (e.g. a household with several people)?"; then many=y; else many=n; fi
   fi
-  ask resource "Nombre del recurso en la URL (\"-\": el de la vista, sin v_)" -
-  ask entity "Nombre de la entidad en el OpenAPI (\"-\": el del recurso, p. ej. Afiliados)" -
+  ask resource "Resource name in the URL (\"-\": the view's, without v_)" -
+  ask entity "Entity name in the OpenAPI (\"-\": the resource's, e.g. Afiliados)" -
   local args=(scaffold --print --service-file "$cfile" --source "$source" --key "$key")
   [[ $resource != - ]] && args+=(--resource "$resource")
   [[ $entity != - ]] && args+=(--entity "$entity")
-  [[ $subject != ninguno ]] && args+=(--subject "$subject")
-  [[ $many == s ]] && args+=(--many)
+  [[ $subject != none && $subject != ninguno ]] && args+=(--subject "$subject")
+  is_yes "$many" && args+=(--many)
   local updated
   if ! updated=$(node "${args[@]}"); then
     printf '%s\n' "$updated" >&2
-    fail "No se pudo crear el recurso; no se aplicó ningún cambio"
+    fail "Could not create the resource; no change was applied"
   fi
   printf '%s\n' "$updated" >"$file"
-  node validate || fail "La configuración del servicio no es válida; no se aplicó ningún cambio"
+  node validate || fail "The service configuration is not valid; no change was applied"
   local openapi="$HOME_DIR/config/services/$name.openapi.json"
   # Through a temporary file: a failure never leaves a truncated OpenAPI behind.
   if ! node openapi "$name" >"$openapi.tmp"; then
     rm -f "$openapi.tmp"
-    fail "No se pudo generar el OpenAPI; no se aplicó ningún cambio"
+    fail "Could not generate the OpenAPI; no change was applied"
   fi
   chmod 0644 "$openapi.tmp"
   mv -f "$openapi.tmp" "$openapi"
 }
 
-# instant_summary NAME PATH FILE TITLE: what the publisher needs in the portal.
+# instant_summary NAME PATH FILE: what the publisher needs in the portal.
 instant_summary() {
-  local name=$1 path=$2 file=$3 openapi="$HOME_DIR/config/services/$1.openapi.json" sha
+  local path=$2 file=$3 openapi="$HOME_DIR/config/services/$1.openapi.json" sha
   sha=$(sha256sum "$openapi" | cut -d' ' -f1)
-  step "$4"
-  echo "  La API responde GET $path/<recurso>/<clave>; los recursos y sus columnas están en $file"
-  echo "  En el portal, al registrar la versión:"
-  echo "    ¿Dónde vive el servicio?      Nodo del kit"
-  echo "    Nodo del kit:                 $(status_field nodeName)"
-  echo "    Ruta del servicio en el nodo: $path"
-  echo "    OpenAPI:                      sube $openapi (SHA-256 $sha)"
+  say "  The API answers GET %s/<resource>/<key>; the resources and their columns are in %s" "$path" "$file"
+  portal_summary "$path"
+  say "    OpenAPI:                      upload %s (SHA-256 %s)" "$openapi" "$sha"
 }
 
-# servicio recurso NAME: another view in an existing instant service. The service file and its
+# service resource NAME: another view in an existing instant service. The service file and its
 # OpenAPI are restored if anything fails. The OpenAPI changes: the portal needs a new version.
 RESTORE=()
 restore_service() {
   local f
-  for f in "${RESTORE[@]}"; do [[ -f $f.antes ]] && mv -f "$f.antes" "$f"; done
+  for f in "${RESTORE[@]}"; do [[ -f $f.before ]] && mv -f "$f.before" "$f"; done
   return 0
 }
-cmd_servicio_recurso() {
+cmd_service_resource() {
   local name=$1 file="$HOME_DIR/config/services/$1.yaml" openapi="$HOME_DIR/config/services/$1.openapi.json" path
-  [[ $name =~ ^[a-z0-9][a-z0-9-]*$ && -f $file ]] || fail "No existe el servicio \"$name\""
-  grep -q '^type: instant' "$file" || fail "El servicio \"$name\" no es instant: sus recursos son los de su propia API"
-  [[ $(env_get RID_NODE_TAG_SUFFIX) != -canal ]] || fail "Las APIs instantáneas necesitan el modo completo: sudo $HOME_DIR/install.sh modo completo"
+  [[ $name =~ ^[a-z0-9][a-z0-9-]*$ && -f $file ]] || fail "Service \"%s\" does not exist" "$name"
+  grep -q '^type: instant' "$file" || fail "Service \"%s\" is not instant: its resources are those of its own API" "$name"
+  [[ $(env_get RID_NODE_TAG_SUFFIX) != -canal ]] || fail "Instant APIs need completo mode: sudo %s/install.sh mode completo" "$HOME_DIR"
   path=$(sed -n "s/^path: '\(.*\)'$/\1/p; s/^path: \([^'].*\)$/\1/p" "$file" | head -n 1)
-  step "Nuevo recurso en el servicio $name"
+  step "New resource in service %s" "$name"
   RESTORE=("$file" "$openapi")
-  cp -p "$file" "$file.antes"
-  [[ -f $openapi ]] && cp -p "$openapi" "$openapi.antes"
+  cp -p "$file" "$file.before"
+  [[ -f $openapi ]] && cp -p "$openapi" "$openapi.before"
   trap restore_service EXIT
   instant_add_resource "$name" "$file"
   trap - EXIT
-  rm -f "$file.antes" "$openapi.antes"
+  rm -f "$file.before" "$openapi.before"
   RESTORE=()
   dc up -d --force-recreate rid-node >/dev/null
-  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
-  instant_summary "$name" "$path" "$file" "Recurso agregado al servicio $name"
-  echo "  El OpenAPI cambió: publica una versión nueva de la API en el portal con este archivo."
+  wait_online || warn "The node did not confirm it is online; check sudo %s/install.sh doctor" "$HOME_DIR"
+  step "Resource added to service %s" "$name"
+  instant_summary "$name" "$path" "$file"
+  say "  The OpenAPI changed: publish a new version of the API in the portal with this file."
   return 0
 }
 
-cmd_servicio_quitar() {
+cmd_service_remove() {
   local name=$1
-  [[ $name =~ ^[a-z0-9][a-z0-9-]*$ && -f $HOME_DIR/config/services/$name.yaml ]] || fail "No existe el servicio \"$name\""
-  yes_no "¿Quitar el servicio $name? Las versiones del portal que lo usan dejarán de responder" n || exit 1
+  [[ $name =~ ^[a-z0-9][a-z0-9-]*$ && -f $HOME_DIR/config/services/$name.yaml ]] || fail "Service \"%s\" does not exist" "$name"
+  yes_no n "Remove service %s? The portal versions that use it will stop answering" "$name" || exit 1
   rm -f "$HOME_DIR/config/services/$name.yaml" "$HOME_DIR/config/services/$name.openapi."* "$HOME_DIR/secrets/${name}_"*
-  node validate >/dev/null || fail "La configuración quedó inválida; revisa $HOME_DIR/config"
+  node validate >/dev/null || fail "The configuration became invalid; check %s/config" "$HOME_DIR"
   dc up -d --force-recreate rid-node >/dev/null
-  ok "Servicio $name quitado"
+  ok "Service %s removed" "$name"
 }
 
 cmd_backup() {
@@ -664,15 +913,15 @@ cmd_backup() {
   if [[ -n $(dc ps -aq rid-node 2>/dev/null) ]] && dc cp rid-node:/var/lib/rid-node "$tmp/state" >/dev/null 2>&1; then
     chown -R "$NODE_UID:$NODE_UID" "$tmp/state"
   else
-    warn "No se pudo copiar el estado del nodo: el respaldo no incluye su identidad"
+    warn "Could not copy the node's state: the backup does not include its identity"
   fi
   cp -a "$HOME_DIR/config" "$HOME_DIR/secrets" "$ENV_FILE" "$tmp/"
   (umask 077 && tar -C "$tmp" -czpf "$out" .)
   chmod 0600 "$out"
   rm -rf "$tmp"
   trap - EXIT
-  ok "Respaldo: $out"
-  info "Contiene las claves del nodo: cópialo fuera de este servidor y guárdalo como un secreto."
+  ok "Backup: %s" "$out"
+  info "It contains the node's keys: copy it off this server and keep it as a secret."
   rotate_backups
 }
 
@@ -680,43 +929,41 @@ cmd_backup() {
 rotate_backups() {
   local keep=${RID_BACKUPS_KEEP:-10} old
   [[ $keep =~ ^[0-9]+$ && $keep -ge 1 ]] || keep=10
-  old=$(find "$HOME_DIR/backups" -maxdepth 1 -name 'rid-node-*.tar.gz' -printf '%T@ %p
-' 2>/dev/null |
+  old=$(find "$HOME_DIR/backups" -maxdepth 1 -name 'rid-node-*.tar.gz' -printf '%T@ %p\n' 2>/dev/null |
     sort -rn | tail -n +$((keep + 1)) | cut -d' ' -f2-)
   [[ -z $old ]] && return 0
-  printf '%s
-' "$old" | xargs -r rm -f
-  info "Respaldos antiguos borrados: se conservan los $keep más recientes (RID_BACKUPS_KEEP)"
+  printf '%s\n' "$old" | xargs -r rm -f
+  info "Old backups deleted: the %s most recent are kept (RID_BACKUPS_KEEP)" "$keep"
 }
 
-cmd_restaurar() {
+cmd_restore() {
   require_install
   local file=${1:-}
-  [[ -f $file ]] || fail "Indica el respaldo: sudo $HOME_DIR/install.sh restaurar $HOME_DIR/backups/rid-node-<fecha>.tar.gz"
+  [[ -f $file ]] || fail "Give the backup: sudo %s/install.sh restore %s/backups/rid-node-<date>.tar.gz" "$HOME_DIR" "$HOME_DIR"
   local tmp
   tmp=$(mktemp -d)
   # shellcheck disable=SC2064
   trap "rm -rf '$tmp'" EXIT
   tar -C "$tmp" -xzpf "$file"
-  [[ -f $tmp/state/state.json ]] || fail "El respaldo no contiene el estado del nodo (state/state.json)"
-  step "Restaurar $file"
-  warn "Se reemplazan la identidad, la configuración y los secretos actuales del nodo"
-  yes_no "¿Continuar?" n || exit 1
+  [[ -f $tmp/state/state.json ]] || fail "The backup does not contain the node's state (state/state.json)"
+  step "Restore %s" "$file"
+  warn "The node's current identity, configuration and secrets are replaced"
+  yes_no n "Continue?" || exit 1
   dc down >/dev/null 2>&1 || true
   docker volume rm "$STATE_VOLUME" >/dev/null 2>&1 || true
-  docker volume inspect "$STATE_VOLUME" >/dev/null 2>&1 && fail "No se pudo borrar el volumen $STATE_VOLUME"
+  docker volume inspect "$STATE_VOLUME" >/dev/null 2>&1 && fail "Could not delete the volume %s" "$STATE_VOLUME"
   rm -rf "$HOME_DIR/config" && cp -a "$tmp/config" "$HOME_DIR/config"
   find "$HOME_DIR/secrets" -mindepth 1 -delete && cp -a "$tmp/secrets/." "$HOME_DIR/secrets/"
   cp -a "$tmp/.env" "$ENV_FILE" && chmod 0600 "$ENV_FILE"
   load_image "$(env_get RID_NODE_VERSION)" "$(env_get RID_NODE_TAG_SUFFIX)"
   chown -R "$NODE_UID:$NODE_UID" "$tmp/state"
   chmod 0700 "$tmp/state"
-  dc run --rm --no-deps -T -v "$tmp/state:/restore:ro" --entrypoint /rid-node rid-node import-state /restore ||
-    fail "No se pudo restaurar el estado"
+  dc run --rm --no-deps -T -e RID_LANG="$UI_LANG" -v "$tmp/state:/restore:ro" --entrypoint /rid-node rid-node import-state /restore ||
+    fail "Could not restore the state"
   rm -rf "$tmp"
   trap - EXIT
   start_node || exit 1
-  ok "Restaurado: $(status_field nodeName)"
+  ok "Restored: %s" "$(status_field nodeName)"
 }
 
 cmd_update() {
@@ -725,48 +972,54 @@ cmd_update() {
   previous=$(env_get RID_NODE_VERSION)
   target=${1:-$KIT_VERSION}
   suffix=$(env_get RID_NODE_TAG_SUFFIX)
-  step "Actualizar $previous → $target"
+  step "Update %s → %s" "$previous" "$target"
   load_image "$target" "$suffix" # first: a missing image leaves everything as it was
   load_variants "$target"
   cmd_backup
   refresh_kit_files
   env_set RID_NODE_VERSION "$target"
+  env_set RID_LANG "$UI_LANG" # an installation from before RID_LANG keeps its Spanish
   if ! start_node; then
-    warn "La versión $target no quedó en línea. Para volver: sudo $HOME_DIR/install.sh update $previous (si la imagen ya no está, desde la carpeta del paquete $previous)"
+    warn "Version %s did not come online. To go back: sudo %s/install.sh update %s (if the image is gone, from the folder of the %s bundle)" "$target" "$HOME_DIR" "$previous" "$previous"
     exit 1
   fi
-  ok "Actualizado a $target"
+  ok "Updated to %s" "$target"
 }
 
-cmd_modo() {
+cmd_mode() {
   require_install
   local mode=${1:-${RID_INSTALL_MODE:-}} suffix
-  [[ -n $mode ]] || ask mode "¿Modo? (canal o completo)" canal
-  case "$mode" in canal) suffix=-canal ;; completo) suffix="" ;; *) fail "Modo \"$mode\" desconocido: canal o completo" ;; esac
+  [[ -n $mode ]] || ask mode "Mode? (canal or completo)" canal
+  case "$mode" in canal) suffix=-canal ;; completo) suffix="" ;; *) fail "Unknown mode \"%s\": canal or completo" "$mode" ;; esac
   load_image "$(env_get RID_NODE_VERSION)" "$suffix"
   RID_INSTALL_MODE=$mode choose_mode ask
   start_node || exit 1
 }
 
-cmd_reenrolar() {
+cmd_reenroll() {
   require_install
-  step "Re-enrolar el nodo"
-  warn "El nodo olvidará su identidad: hará falta un token nuevo y elegir el nodo nuevo en las versiones del portal"
-  yes_no "¿Continuar?" n || exit 1
+  step "Re-enroll the node"
+  warn "The node will forget its identity: it will need a new token, and the new node chosen in the portal's versions"
+  yes_no n "Continue?" || exit 1
   cmd_backup
   dc down >/dev/null
   docker volume rm "$STATE_VOLUME" >/dev/null 2>&1 || true
-  docker volume inspect "$STATE_VOLUME" >/dev/null 2>&1 && fail "No se pudo borrar el volumen $STATE_VOLUME: ¿hay otro contenedor usándolo?"
+  docker volume inspect "$STATE_VOLUME" >/dev/null 2>&1 && fail "Could not delete the volume %s: is another container using it?" "$STATE_VOLUME"
   rm -f "$HOME_DIR/secrets/enrollment_token"
   configure_identity
   start_node || exit 1
 }
 
+# Commands in English; the Spanish names of earlier versions keep working.
 main() {
   local cmd=${1:-install}
   [[ $# -gt 0 ]] && shift
+  set_lang
   case "$cmd" in
-    -h | --help | help | ayuda) echo "$USAGE"; return 0 ;;
+    -h | --help | help | ayuda)
+      if [[ $UI_LANG == es ]]; then echo "$USAGE_ES"; else echo "$USAGE_EN"; fi
+      return 0
+      ;;
   esac
   require_root
   case "$cmd" in
@@ -774,15 +1027,15 @@ main() {
     status) cmd_status ;;
     doctor) cmd_doctor ;;
     logs) cmd_logs "$@" ;;
-    servicio) cmd_servicio "$@" ;;
+    service | servicio) cmd_service "$@" ;;
     backup) cmd_backup ;;
-    restaurar) cmd_restaurar "$@" ;;
+    restore | restaurar) cmd_restore "$@" ;;
     update) cmd_update "$@" ;;
-    modo) cmd_modo "$@" ;;
-    reenrolar) cmd_reenrolar ;;
+    mode | modo) cmd_mode "$@" ;;
+    reenroll | reenrolar) cmd_reenroll ;;
     stop) cmd_stop ;;
     start) cmd_start ;;
-    *) fail "Comando desconocido: $cmd (ver: ./install.sh ayuda)" ;;
+    *) fail "Unknown command: %s (see: ./install.sh help)" "$cmd" ;;
   esac
 }
 

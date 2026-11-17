@@ -290,7 +290,7 @@ func TestRenew401PointsToReenroll(t *testing.T) {
 	p.Set(func(p *fakeportal.Portal) { p.Heartbeat.RenewCertificate = true; p.RenewStatus = 401 })
 	c.cycle(context.Background())
 	saved, _ := c.store.Load()
-	if saved.PendingRenewal != nil || !strings.Contains(logs.String(), "reenrolar") {
+	if saved.PendingRenewal != nil || !strings.Contains(logs.String(), "reenroll") {
 		t.Fatalf("pending=%v log=%s", saved.PendingRenewal, logs)
 	}
 }

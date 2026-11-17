@@ -40,7 +40,7 @@ func TestProbeReflectsRecentUpstreamErrors(t *testing.T) {
 	}
 	serve(t, s, 4)
 	err = s.Probe(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "4 de 4") {
+	if err == nil || !strings.Contains(err.Error(), "4 of 4") {
 		t.Fatalf("an upstream that times out must be unhealthy: %v", err)
 	}
 	now = now.Add(61 * time.Second)

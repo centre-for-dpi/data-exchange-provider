@@ -303,6 +303,7 @@ details.faq[open] summary { color: var(--gov); }
     <div class="meta">
       <span><b>Para</b> los equipos de TI, de datos y de infraestructura de cada entidad proveedora</span>
       <span><b>Versión</b> 2.0 · noviembre 2026</span>
+      <span><a href="../../guides/providers.html" hreflang="en">English version (official)</a></span>
     </div>
   </div>
 </header>
@@ -507,7 +508,7 @@ details.faq[open] summary { color: var(--gov); }
             <tr><td>Contrato OpenAPI 3</td><td class="wrap">El portal lo revisa al registrar la versión: <code>operationId</code> en cada operación, sin repetir; al menos una respuesta de éxito; solo <code>$ref</code> locales; en APIs con datos personales o sensibles, cada operación declara su titular (<code>x-rid-data-subject</code>) o <code>none</code>.</td></tr>
             <tr><td>Identificadores</td><td class="wrap"><b>Nunca en el query string.</b> Los números de documento van en la ruta (<code>/personas/{documento}</code>) o en el cuerpo de un POST, no en <code>?documento=…</code>.</td></tr>
             <tr><td>API propia</td><td class="wrap">La URL interna de la API y, si la pide, su credencial: una cabecera, usuario y contraseña, o un certificado de cliente.</td></tr>
-            <tr><td>API instantánea</td><td class="wrap">Una <b>vista</b> por consulta, con solo las columnas que se van a compartir, y un <b>usuario de solo lectura</b> con <code>SELECT</code> sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en <a href="../APIS-INSTANTANEAS.md"><code>docs/APIS-INSTANTANEAS.md</code></a>.</td></tr>
+            <tr><td>API instantánea</td><td class="wrap">Una <b>vista</b> por consulta, con solo las columnas que se van a compartir, y un <b>usuario de solo lectura</b> con <code>SELECT</code> sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en <a href="../INSTANT-APIS.md"><code>docs/es/INSTANT-APIS.md</code></a>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -567,7 +568,7 @@ sudo ./install.sh</code></pre></div></span></li>
       </ol>
       <div class="callout info">
         <b>Guía de instalación del nodo</b>
-        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALACION.md"><code>docs/INSTALACION.md</code></a>, que también viene dentro del paquete. La preparación de la base, el archivo del servicio, los tipos y las respuestas de las APIs instantáneas están en <a href="../APIS-INSTANTANEAS.md"><code>docs/APIS-INSTANTANEAS.md</code></a>.</p>
+        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALL.md"><code>docs/es/INSTALL.md</code></a>, que también viene dentro del paquete. La preparación de la base, el archivo del servicio, los tipos y las respuestas de las APIs instantáneas están en <a href="../INSTANT-APIS.md"><code>docs/es/INSTANT-APIS.md</code></a>.</p>
       </div>
     </section>
 
@@ -654,7 +655,7 @@ sudo ./install.sh</code></pre></div></span></li>
         <div class="role"><header><b>Regulador (MinTIC)</b></header><p>Aprobaciones de datos sensibles y marco normativo.</p></div>
         <div class="role"><header><b>Dentro de la entidad</b></header><p>El <code>entity_admin</code> gestiona su gente y su nodo; el <code>data_steward</code> decide los accesos; infraestructura opera el nodo.</p></div>
       </div>
-      <p class="footer">Versión en Markdown: <code>docs/guias/proveedoras.md</code> del repositorio del kit.</p>
+      <p class="footer">Versión en Markdown: <code>docs/es/guides/providers.md</code> del repositorio del kit.</p>
     </section>
   </main>
 </div>

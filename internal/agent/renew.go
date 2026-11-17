@@ -22,7 +22,7 @@ func (c *Controller) renew(ctx context.Context) {
 		}
 		c.st.PendingRenewal = &state.PendingRenewal{KeyPEM: keyPEM, CSRPEM: csrPEM, CreatedAt: c.Now()}
 		if err := c.store.Save(c.st); err != nil {
-			c.log.Error("renew_failed", "error", "no se pudo guardar la renovación pendiente: "+err.Error())
+			c.log.Error("renew_failed", "error", "cannot save the pending renewal: "+err.Error())
 			c.st.PendingRenewal = nil
 			return
 		}
@@ -32,23 +32,23 @@ func (c *Controller) renew(ctx context.Context) {
 	switch status := contract.StatusOf(err); {
 	case err == nil:
 	case status == http.StatusConflict:
-		c.log.Warn("renew_refused", "detail", "el portal no renueva certificados de una entidad suspendida")
+		c.log.Warn("renew_refused", "detail", "the portal does not renew certificates of a suspended entity")
 		return
 	case status == http.StatusBadRequest:
-		c.log.Warn("renew_refused", "detail", "el portal rechazó el CSR; la próxima renovación usará una clave nueva")
+		c.log.Warn("renew_refused", "detail", "the portal rejected the CSR; the next renewal will use a new key")
 		c.dropPending()
 		return
 	case status == http.StatusUnauthorized:
-		c.log.Error("renew_refused", "detail", "el portal no acepta el certificado del nodo para renovar: pasó la gracia de 24 h o el nodo fue dado de baja; usa install.sh reenrolar")
+		c.log.Error("renew_refused", "detail", "the portal does not accept the node's certificate for a renewal: the 24 h grace period passed or the node was removed; use install.sh reenroll")
 		c.dropPending()
 		return
 	default:
-		c.log.Warn("renew_failed", "error", err.Error(), "detail", "se reintenta con el mismo CSR")
+		c.log.Warn("renew_failed", "error", err.Error(), "detail", "retrying with the same CSR")
 		return
 	}
 	pair, err := tls.X509KeyPair([]byte(res.Certificate), []byte(pending.KeyPEM))
 	if err != nil {
-		c.log.Error("renew_failed", "error", "el certificado renovado no corresponde a la clave: "+err.Error())
+		c.log.Error("renew_failed", "error", "the renewed certificate does not match the key: "+err.Error())
 		return
 	}
 	old := c.cert.Load()
@@ -56,7 +56,7 @@ func (c *Controller) renew(ctx context.Context) {
 	c.st.PendingRenewal = nil
 	if err := c.store.Save(c.st); err != nil {
 		// Keep serving with the old certificate; the pending renewal stays for the next try.
-		c.log.Error("renew_failed", "error", "no se pudo guardar el certificado renovado: "+err.Error())
+		c.log.Error("renew_failed", "error", "cannot save the renewed certificate: "+err.Error())
 		c.st.PendingRenewal = pending
 		return
 	}

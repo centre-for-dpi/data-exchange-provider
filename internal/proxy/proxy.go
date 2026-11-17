@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 )
 
@@ -51,7 +52,7 @@ func newHandler(servicePath string, spec config.ProxySpec, h *health) (http.Hand
 		}
 		pem, err := os.ReadFile(spec.CAFile)
 		if err != nil || !pool.AppendCertsFromPEM(pem) {
-			return nil, fmt.Errorf("caFile %s: no se pudo leer un certificado PEM", spec.CAFile)
+			return nil, i18n.Errorf("caFile %s: cannot read a PEM certificate", spec.CAFile)
 		}
 		tlsCfg.RootCAs = pool
 	}
@@ -74,7 +75,7 @@ func newHandler(servicePath string, spec config.ProxySpec, h *health) (http.Hand
 		case c.ClientCert != "":
 			pair, err := tls.LoadX509KeyPair(c.ClientCert, c.ClientKey)
 			if err != nil {
-				return nil, fmt.Errorf("certificado de cliente hacia el upstream: %w", err)
+				return nil, i18n.Errorf("client certificate toward the upstream: %w", err)
 			}
 			tlsCfg.Certificates = []tls.Certificate{pair}
 		}
@@ -122,7 +123,7 @@ func newHandler(servicePath string, spec config.ProxySpec, h *health) (http.Hand
 			server.SetRoute(r, servicePath+t)
 		}
 		if r.ContentLength > limit {
-			server.Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+			server.Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", i18n.T("The request body exceeds the allowed maximum"))
 			return
 		}
 		if r.Body != nil {
@@ -132,20 +133,20 @@ func newHandler(servicePath string, spec config.ProxySpec, h *health) (http.Hand
 	}), nil
 }
 
-// errorHandler answers upstream failures quickly and in Spanish. It never logs the error text:
+// errorHandler answers upstream failures quickly, with titles in the node's language (RID_LANG). It never logs the error text:
 // a *url.Error carries the URL, and the URL can carry an identifier.
 func errorHandler(w http.ResponseWriter, r *http.Request, err error) int {
 	var tooLarge *http.MaxBytesError
 	var netErr net.Error
 	switch {
 	case errors.As(err, &tooLarge):
-		server.Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+		server.Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", i18n.T("The request body exceeds the allowed maximum"))
 		return http.StatusRequestEntityTooLarge
 	case errors.Is(err, context.DeadlineExceeded) || errors.As(err, &netErr) && netErr.Timeout():
-		server.Problem(w, http.StatusGatewayTimeout, "upstream_timeout", "La API interna tardó demasiado en responder")
+		server.Problem(w, http.StatusGatewayTimeout, "upstream_timeout", i18n.T("The internal API took too long to answer"))
 		return http.StatusGatewayTimeout
 	default:
-		server.Problem(w, http.StatusBadGateway, "bad_gateway", "La API interna no respondió")
+		server.Problem(w, http.StatusBadGateway, "bad_gateway", i18n.T("The internal API did not answer"))
 		return http.StatusBadGateway
 	}
 }
@@ -173,7 +174,7 @@ func Probe(ctx context.Context, spec config.ProxySpec) error {
 	defer cancel()
 	c, err := (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
 	if err != nil {
-		return fmt.Errorf("upstream %s no responde", u.Host)
+		return i18n.Errorf("upstream %s does not answer", u.Host)
 	}
 	return c.Close()
 }

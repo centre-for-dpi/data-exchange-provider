@@ -6,8 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"log/slog"
 	"net/netip"
 	"os"
@@ -20,6 +18,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/proxy"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/state"
@@ -53,7 +52,7 @@ func runNode(ctx context.Context, o runOptions) error {
 			}
 			route, rt, closeFn, err := instantRuntime(ctx, s, log)
 			if err != nil {
-				return fmt.Errorf("servicio %q: %w", s.Name, err)
+				return i18n.Errorf("service %q: %w", s.Name, err)
 			}
 			defer closeFn() // after the server has drained (runNode returns after Serve)
 			routes = append(routes, route)
@@ -62,7 +61,7 @@ func runNode(ctx context.Context, o runOptions) error {
 		}
 		ps, err := proxy.NewService(s.Path, s.Proxy)
 		if err != nil {
-			return fmt.Errorf("servicio %q: %w", s.Name, err)
+			return i18n.Errorf("service %q: %w", s.Name, err)
 		}
 		routes = append(routes, server.Route{Path: s.Path, Handler: ps.Handler(), MaxRequestBytes: s.Proxy.MaxRequestBytes})
 		info := contract.ServiceInfo{Name: s.Name, Path: s.Path}
@@ -93,13 +92,13 @@ func runNode(ctx context.Context, o runOptions) error {
 	}
 	cert, err := tls.X509KeyPair([]byte(st.Certificate), []byte(st.KeyPEM))
 	if err != nil {
-		return fmt.Errorf("el certificado del nodo no corresponde a su clave: %w; usa install.sh reenrolar", err)
+		return i18n.Errorf("the node's certificate does not match its key: %w; use install.sh reenroll", err)
 	}
 	live := &atomic.Pointer[tls.Certificate]{}
 	live.Store(&cert)
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM([]byte(st.CACertificate)) {
-		return errors.New("el estado no tiene la raíz de la red; usa install.sh reenrolar")
+		return i18n.New("the state does not have the network's root; use install.sh reenroll")
 	}
 
 	opts, err := assertionOptions(cfg, st, o.PortalRoots, log)
@@ -147,7 +146,7 @@ func tunnelConfig(st *state.State) (tunnel.Config, error) {
 	w := st.WireGuard
 	addr, err := netip.ParsePrefix(w.Address)
 	if err != nil {
-		return tunnel.Config{}, fmt.Errorf("dirección del túnel %q inválida: %w", w.Address, err)
+		return tunnel.Config{}, i18n.Errorf("invalid tunnel address %q: %w", w.Address, err)
 	}
 	priv, err := tunnel.ParseKey(st.WGPrivateKey)
 	if err != nil {
@@ -161,7 +160,7 @@ func tunnelConfig(st *state.State) (tunnel.Config, error) {
 	for _, a := range w.AllowedIPs {
 		p, err := netip.ParsePrefix(a)
 		if err != nil {
-			return tunnel.Config{}, fmt.Errorf("allowedIps %q inválida: %w", a, err)
+			return tunnel.Config{}, i18n.Errorf("invalid allowedIps %q: %w", a, err)
 		}
 		allowed = append(allowed, p)
 	}
@@ -185,7 +184,7 @@ func assertionAudience(a config.GatewayAssertion, gatewayClientName string) (str
 		return slug, nil
 	}
 	if a.Mode == "require" {
-		return "", fmt.Errorf("gatewayAssertion: no se puede saber el slug de la entidad desde %q; escríbelo en gatewayAssertion.audience", gatewayClientName)
+		return "", i18n.Errorf("gatewayAssertion: cannot tell the entity's slug from %q; set it in gatewayAssertion.audience", gatewayClientName)
 	}
 	return "", nil
 }

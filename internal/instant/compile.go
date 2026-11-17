@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Compiled is a resource checked against the catalog, ready to serve.
@@ -28,14 +29,14 @@ type Compiled struct {
 const defaultStringKeyLength = 64
 
 // Compile checks every resource of the service against the catalog and reports every problem at
-// once, in Spanish.
+// once, in the operator's language (RID_LANG).
 func Compile(svc config.Service, catalog []Object, d Dialect) ([]Compiled, error) {
 	var out []Compiled
 	var errs []error
 	for _, r := range svc.Instant.Resources {
 		c, rerrs := compileResource(r, catalog, d)
 		for _, err := range rerrs {
-			errs = append(errs, fmt.Errorf("recurso %q: %w", r.Name, err))
+			errs = append(errs, i18n.Errorf("resource %q: %w", r.Name, err))
 		}
 		if len(rerrs) == 0 {
 			out = append(out, c)
@@ -56,14 +57,14 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 	c := Compiled{Resource: r, Object: Object{Schema: obj.Schema, Name: obj.Name, Kind: obj.Kind}}
 	key, err := findColumn(obj, r.Key.Column)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("la clave: %w", err))
+		errs = append(errs, i18n.Errorf("the key: %w", err))
 	} else {
 		c.KeyColumn = key
 		pattern, err := keyPattern(key, r.Key.Pattern)
 		if err != nil {
 			errs = append(errs, err)
 		} else if re, err := regexp.Compile(pattern); err != nil {
-			errs = append(errs, fmt.Errorf("el patrón de la clave %q no es válido: %v", pattern, err))
+			errs = append(errs, i18n.Errorf("the key's pattern %q is not valid: %v", pattern, err))
 		} else {
 			c.Key.Pattern = pattern
 			c.KeyRegexp = re
@@ -77,12 +78,12 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 			continue
 		}
 		if col.Kind == KindUnsupported {
-			errs = append(errs, fmt.Errorf("la columna %q es de tipo %s, que el kit no puede exponer: conviértela en la vista (por ejemplo a texto o a número) o quítala de columns", spec.Name, col.Native))
+			errs = append(errs, i18n.Errorf("the column %q is of type %s, which the kit cannot expose: convert it in the view (for example to text or to a number) or remove it from columns", spec.Name, col.Native))
 			continue
 		}
 		k, ok := exposedKind(col, spec.As)
 		if !ok {
-			errs = append(errs, fmt.Errorf("la columna %q es de tipo %s y no se puede exponer con as: %s; con este tipo se puede usar %s",
+			errs = append(errs, i18n.Errorf("the column %q is of type %s and cannot be exposed with as: %s; with this type you can use %s",
 				spec.Name, col.Native, spec.As, possibleAs(col.Kind)))
 			continue
 		}
@@ -122,9 +123,9 @@ func findObject(catalog []Object, source string) (*Object, error) {
 	case 1:
 		return folded[0], nil
 	case 0:
-		return nil, fmt.Errorf("el usuario de la base no puede leer %s (no está entre las vistas y tablas con permiso SELECT)", source)
+		return nil, i18n.Errorf("the database user cannot read %s (it is not among the views and tables with the SELECT permission)", source)
 	}
-	return nil, fmt.Errorf("%s es ambiguo: hay varios objetos que solo cambian en mayúsculas; escríbelo exactamente como en la base", source)
+	return nil, i18n.Errorf("%s is ambiguous: several objects differ only in case; write it exactly as in the database", source)
 }
 
 func findColumn(obj *Object, name string) (Column, error) {
@@ -141,9 +142,9 @@ func findColumn(obj *Object, name string) (Column, error) {
 	case 1:
 		return folded[0], nil
 	case 0:
-		return Column{}, fmt.Errorf("la columna %q no existe en %s.%s", name, obj.Schema, obj.Name)
+		return Column{}, i18n.Errorf("the column %q does not exist in %s.%s", name, obj.Schema, obj.Name)
 	}
-	return Column{}, fmt.Errorf("la columna %q es ambigua en %s.%s (varias solo cambian en mayúsculas)", name, obj.Schema, obj.Name)
+	return Column{}, i18n.Errorf("the column %q is ambiguous in %s.%s (several differ only in case)", name, obj.Schema, obj.Name)
 }
 
 // keyPattern is the entity's pattern, anchored to the whole key, or a default by kind. Default
@@ -169,7 +170,7 @@ func keyPattern(key Column, declared string) (string, error) {
 	case KindDate:
 		return `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`, nil
 	case KindUnsupported:
-		return "", fmt.Errorf("la clave %q es de tipo %s, que no se puede usar como clave", key.Name, key.Native)
+		return "", i18n.Errorf("the key %q is of type %s, which cannot be used as a key", key.Name, key.Native)
 	}
-	return "", fmt.Errorf("la clave %q es de tipo %s: declara key.pattern con el formato que acepta", key.Name, key.Native)
+	return "", i18n.Errorf("the key %q is of type %s: declare key.pattern with the format it accepts", key.Name, key.Native)
 }

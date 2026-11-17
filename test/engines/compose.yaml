@@ -1,5 +1,5 @@
 # Integration databases for the instant APIs (make test-engines). Synthetic data only.
-# Passwords come from an env file outside the repo (see docs/DESARROLLO.md):
+# Passwords come from an env file outside the repo (see docs/DEVELOPMENT.md):
 #   docker compose -f test/engines/compose.yaml --env-file "$RID_IT_ENV" up -d --wait
 # The engine images are test infrastructure, never shipped in the kit.
 name: rid-engines

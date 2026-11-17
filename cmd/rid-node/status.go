@@ -7,14 +7,15 @@ import (
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/agent"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/state"
 )
 
-// status prints status.json, in Spanish, or raw with asJSON.
+// status prints status.json, in the operator's language, or raw with asJSON.
 func status(stateDir string, asJSON bool, out io.Writer, now func() time.Time) int {
 	var st agent.Status
 	if err := (state.Store{Dir: stateDir}).ReadStatus(&st); err != nil {
-		fmt.Fprintln(out, "El nodo todavía no escribió su estado: ¿está corriendo? ¿ya se enroló? Mira los logs con install.sh logs.")
+		i18n.Fprintln(out, "The node has not written its status yet: is it running? Has it enrolled? Check the logs with install.sh logs.")
 		return 1
 	}
 	if asJSON {
@@ -25,22 +26,22 @@ func status(stateDir string, asJSON bool, out io.Writer, now func() time.Time) i
 	}
 	ago := func(t time.Time) string {
 		if t.IsZero() {
-			return "nunca"
+			return i18n.T("never")
 		}
-		return "hace " + now().Sub(t).Round(time.Second).String()
+		return i18n.Sprintf("%s ago", now().Sub(t).Round(time.Second).String())
 	}
-	fmt.Fprintf(out, "Nodo:         %s\n", st.NodeName)
-	fmt.Fprintf(out, "Portal:       %s (último heartbeat %s)\n", st.PortalState, ago(st.LastHeartbeat))
-	fmt.Fprintf(out, "Túnel:        último handshake %s\n", ago(st.LastHandshake))
-	fmt.Fprintf(out, "Certificado:  vence %s\n", st.CertificateNotAfter)
+	i18n.Fprintf(out, "Node:         %s\n", st.NodeName)
+	i18n.Fprintf(out, "Portal:       %s (last heartbeat %s)\n", st.PortalState, ago(st.LastHeartbeat))
+	i18n.Fprintf(out, "Tunnel:       last handshake %s\n", ago(st.LastHandshake))
+	i18n.Fprintf(out, "Certificate:  expires %s\n", st.CertificateNotAfter)
 	health := st.Health.Status
 	if st.Health.Detail != "" {
 		health += " — " + st.Health.Detail
 	}
-	fmt.Fprintf(out, "Salud:        %s\n", health)
-	fmt.Fprintln(out, "Servicios:")
+	i18n.Fprintf(out, "Health:       %s\n", health)
+	i18n.Fprintln(out, "Services:")
 	if len(st.Services) == 0 {
-		fmt.Fprintln(out, "  (ninguno: agrega uno con install.sh servicio)")
+		i18n.Fprintln(out, "  (none: add one with install.sh service)")
 	}
 	for _, s := range st.Services {
 		mark, detail := "✔", ""
@@ -49,12 +50,12 @@ func status(stateDir string, asJSON bool, out io.Writer, now func() time.Time) i
 		}
 		fmt.Fprintf(out, "  %s %-16s %s%s\n", mark, s.Name, s.Path, detail)
 		if s.Requests > 0 {
-			fmt.Fprintf(out, "      %d peticiones (4xx: %d, 5xx: %d) · p50 %.0f ms · p95 %.0f ms\n",
+			i18n.Fprintf(out, "      %d requests (4xx: %d, 5xx: %d) · p50 %.0f ms · p95 %.0f ms\n",
 				s.Requests, s.ClientErrors, s.ServerErrors, s.P50Ms, s.P95Ms)
 		}
 	}
 	if len(st.Notices) > 0 {
-		fmt.Fprintln(out, "Avisos:")
+		i18n.Fprintln(out, "Notices:")
 		for _, n := range st.Notices {
 			fmt.Fprintf(out, "  ⚠ %s\n", n)
 		}

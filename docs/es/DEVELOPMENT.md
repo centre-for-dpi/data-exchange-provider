@@ -1,5 +1,7 @@
 # Desarrollo del kit
 
+> English version (official): [docs/DEVELOPMENT.md](../DEVELOPMENT.md)
+
 ## Requisitos
 
 - Go 1.27.

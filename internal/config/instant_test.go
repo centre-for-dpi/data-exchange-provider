@@ -68,7 +68,7 @@ func TestProxyRejectsInstantFields(t *testing.T) {
 
 func TestDatabaseRequiredFields(t *testing.T) {
 	for _, field := range []string{"engine: postgres", "host: bd.interna", "name: entidad", "user: rid_reader", "passwordFile: /run/secrets/afiliacion_db_password"} {
-		mustFail(t, strings.Replace(validInstant, field, "", 1), "base de datos")
+		mustFail(t, strings.Replace(validInstant, field, "", 1), "database")
 	}
 	mustFail(t, strings.Replace(validInstant, "engine: postgres", "engine: db2", 1), "db2")
 	mustFail(t, strings.Replace(validInstant, "port: 5432", "port: 5432\n      tls: maybe", 1), "tls")
@@ -90,7 +90,7 @@ func TestResourceValidation(t *testing.T) {
 		{"bad as", "as: boolean", "as: blob", "blob"},
 		{"empty document type", "dataSubject: { documentType: CC }", "dataSubject: { documentType: '' }", "documentType"},
 		{"bad maxRows", "key: { column: numero_documento }", "key: { column: numero_documento }\n        maxRows: 5000", "maxRows"},
-		{"duplicate column", "- { name: activo, as: boolean }", "- { name: NUMERO_documento }", "repetida"},
+		{"duplicate column", "- { name: activo, as: boolean }", "- { name: NUMERO_documento }", "is repeated"},
 		{"no columns", "        columns:\n          - { name: numero_documento }\n          - { name: activo, as: boolean }\n", "", "columns"},
 		{"column name not an identifier", "- { name: activo, as: boolean }", "- { name: 'activo; drop' }", "activo; drop"},
 		{"key column not an identifier", "key: { column: numero_documento }", "key: { column: 'numero documento' }", "numero documento"},
@@ -101,13 +101,13 @@ func TestResourceValidation(t *testing.T) {
 			if !strings.Contains(validInstant, c.from) {
 				t.Fatalf("fixture lacks %q", c.from)
 			}
-			mustFail(t, strings.Replace(validInstant, c.from, c.to, 1), "recurso", c.want)
+			mustFail(t, strings.Replace(validInstant, c.from, c.to, 1), "resource", c.want)
 		})
 	}
 	two := strings.Replace(validInstant, "    resources:\n", "    resources:\n      - { name: afiliados, entity: Otro, source: a.b, key: { column: id } }\n", 1)
-	mustFail(t, two, "afiliados", "repetido")
+	mustFail(t, two, "afiliados", "is repeated")
 	two = strings.Replace(validInstant, "    resources:\n", "    resources:\n      - { name: otro, entity: Afiliado, source: a.b, key: { column: id } }\n", 1)
-	mustFail(t, two, "Afiliado", "repetida")
+	mustFail(t, two, "Afiliado", "is repeated")
 }
 
 func TestInstantWithoutResourcesIsValid(t *testing.T) {
@@ -116,7 +116,7 @@ func TestInstantWithoutResourcesIsValid(t *testing.T) {
 		t.Fatalf("a service without resources yet (the installer's first step) must load: %v", err)
 	}
 	n, _ := load(t, validInstant[:i])
-	if w := n.Warnings(); len(w) != 1 || !strings.Contains(w[0], "afiliacion") || !strings.Contains(w[0], "recursos") {
+	if w := n.Warnings(); len(w) != 1 || !strings.Contains(w[0], "afiliacion") || !strings.Contains(w[0], "resources") {
 		t.Fatalf("warnings: %q", w)
 	}
 	n, _ = load(t, validInstant)

@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Route is one service behind its servicePath.
@@ -62,18 +64,18 @@ func NewHandlerWith(nodeName string, routes []Route, logger *slog.Logger, o Opti
 	return accessLog(logger, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if host, _, _ := strings.Cut(r.Host, ":"); host != nodeName {
 			SetRoute(r, "(wrong host)")
-			Problem(w, http.StatusMisdirectedRequest, "misdirected_request", "La petición no es para este nodo")
+			Problem(w, http.StatusMisdirectedRequest, "misdirected_request", i18n.T("The request is not for this node"))
 			return
 		}
 		if unsafePath(r) {
 			SetRoute(r, "(invalid path)")
-			Problem(w, http.StatusBadRequest, "invalid_path", "La ruta de la petición no es válida")
+			Problem(w, http.StatusBadRequest, "invalid_path", i18n.T("The request path is not valid"))
 			return
 		}
 		rt := match(rs, r.URL.Path)
 		if rt == nil {
 			SetRoute(r, "(no service)")
-			Problem(w, http.StatusNotFound, "not_found", "Recurso no encontrado")
+			Problem(w, http.StatusNotFound, "not_found", i18n.T("Resource not found"))
 			return
 		}
 		SetRoute(r, rt.Path+"/*")
@@ -89,7 +91,7 @@ func NewHandlerWith(nodeName string, routes []Route, logger *slog.Logger, o Opti
 		case rt.slots <- struct{}{}:
 			defer func() { <-rt.slots }()
 		default:
-			Problem(rec, http.StatusServiceUnavailable, "service_busy", "El servicio está ocupado; intenta de nuevo")
+			Problem(rec, http.StatusServiceUnavailable, "service_busy", i18n.T("The service is busy; try again"))
 			return
 		}
 		if o.Assertion != nil && !checkAssertion(rec, r, o, rt.MaxRequestBytes) {
@@ -188,13 +190,13 @@ func checkAssertion(w http.ResponseWriter, r *http.Request, o Options, limit int
 		b, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
 		if err != nil {
 			setAssertion(r, "invalid: body unreadable")
-			Problem(w, http.StatusBadRequest, "invalid_request", "No se pudo leer el cuerpo de la petición")
+			Problem(w, http.StatusBadRequest, "invalid_request", i18n.T("The request body could not be read"))
 			return false
 		}
 		if int64(len(b)) > limit {
 			setAssertion(r, "invalid: body too large to verify")
 			if o.RequireAssertion {
-				Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+				Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", i18n.T("The request body exceeds the allowed maximum"))
 				return false
 			}
 			// verify never rejects: the service gets the whole body, what was read and the rest.
@@ -215,7 +217,7 @@ func checkAssertion(w http.ResponseWriter, r *http.Request, o Options, limit int
 	result := o.Assertion(r.Context(), header, r.Method, uri, body)
 	setAssertion(r, result)
 	if o.RequireAssertion && result != "verified" {
-		Problem(w, http.StatusUnauthorized, "assertion_invalid", "La llamada no trae una aserción válida del gateway")
+		Problem(w, http.StatusUnauthorized, "assertion_invalid", i18n.T("The call does not carry a valid gateway assertion"))
 		return false
 	}
 	return true

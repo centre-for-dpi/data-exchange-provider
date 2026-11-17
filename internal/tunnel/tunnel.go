@@ -18,6 +18,8 @@ import (
 	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun/netstack"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Config is the tunnel, as handed out at enrollment.
@@ -66,7 +68,7 @@ func Up(ctx context.Context, c Config, log *slog.Logger) (*Tunnel, error) {
 	}
 	tunDev, tnet, err := netstack.CreateNetTUN([]netip.Addr{c.Address.Addr()}, nil, c.MTU)
 	if err != nil {
-		return nil, fmt.Errorf("túnel: %w", err)
+		return nil, i18n.Errorf("tunnel: %w", err)
 	}
 	logger := &device.Logger{
 		Verbosef: func(string, ...any) {},
@@ -80,7 +82,7 @@ func Up(ctx context.Context, c Config, log *slog.Logger) (*Tunnel, error) {
 	}
 	if c.HubEndpoint != "" {
 		if ep, err := c.Resolve(c.HubEndpoint); err != nil {
-			log.Warn("hub_resolve_failed", "hub", c.HubEndpoint, "error", err.Error(), "detail", "se reintenta hasta que el DNS responda")
+			log.Warn("hub_resolve_failed", "hub", c.HubEndpoint, "error", err.Error(), "detail", "retrying until DNS answers")
 		} else {
 			t.endpoint = ep
 			fmt.Fprintf(&uapi, "endpoint=%s\n", ep)
@@ -88,16 +90,16 @@ func Up(ctx context.Context, c Config, log *slog.Logger) (*Tunnel, error) {
 	}
 	if err := t.dev.IpcSet(uapi.String()); err != nil {
 		t.dev.Close()
-		return nil, fmt.Errorf("túnel: %w", err)
+		return nil, i18n.Errorf("tunnel: %w", err)
 	}
 	if err := t.dev.Up(); err != nil {
 		t.dev.Close()
-		return nil, fmt.Errorf("túnel: %w", err)
+		return nil, i18n.Errorf("tunnel: %w", err)
 	}
 	if t.endpoint != "" {
 		if err := t.startKeepalive(); err != nil {
 			t.dev.Close()
-			return nil, fmt.Errorf("túnel: %w", err)
+			return nil, i18n.Errorf("tunnel: %w", err)
 		}
 	}
 	ctx, t.cancel = context.WithCancel(ctx)

@@ -16,6 +16,7 @@ import (
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/agent"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/proxy"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/state"
 	"golang.org/x/net/http/httpproxy"
@@ -33,17 +34,18 @@ type doctorOptions struct {
 	ReadFile                        func(string) ([]byte, error) // default os.ReadFile
 }
 
+// checker prints one line per check; each message comes already in the operator's language.
 type checker struct {
 	out    io.Writer
 	failed bool
 }
 
-func (c *checker) ok(format string, a ...any)   { fmt.Fprintf(c.out, "✔ "+format+"\n", a...) }
-func (c *checker) warn(format string, a ...any) { fmt.Fprintf(c.out, "⚠ "+format+"\n", a...) }
-func (c *checker) info(format string, a ...any) { fmt.Fprintf(c.out, "ℹ "+format+"\n", a...) }
-func (c *checker) fail(format string, a ...any) {
+func (c *checker) ok(msg string)   { fmt.Fprintln(c.out, "✔ "+msg) }
+func (c *checker) warn(msg string) { fmt.Fprintln(c.out, "⚠ "+msg) }
+func (c *checker) info(msg string) { fmt.Fprintln(c.out, "ℹ "+msg) }
+func (c *checker) fail(msg string) {
 	c.failed = true
-	fmt.Fprintf(c.out, "✘ "+format+"\n", a...)
+	fmt.Fprintln(c.out, "✘ "+msg)
 }
 
 // doctor checks what usually breaks a node in an entity's network. Exit 1 on any ✘.
@@ -54,10 +56,10 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 	}
 	cfg, err := config.Load(o.ConfigPath)
 	if err != nil {
-		c.fail("configuración: %v", err)
+		c.fail(i18n.Sprintf("configuration: %v", err))
 		return 1
 	}
-	c.ok("configuración válida (%d servicios)", len(cfg.Services))
+	c.ok(i18n.Sprintf("valid configuration (%d services)", len(cfg.Services)))
 
 	// Secrets: readable, and not readable by group or others.
 	var secrets []string
@@ -80,68 +82,68 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 			}
 		}
 		if s.Proxy.AllowPlainHTTP && strings.HasPrefix(s.Proxy.Upstream, "http://") {
-			c.warn("el servicio %s usa http sin cifrar hacia %s (allowPlainHttp)", s.Name, s.Proxy.Upstream)
+			c.warn(i18n.Sprintf("service %s uses unencrypted http to %s (allowPlainHttp)", s.Name, s.Proxy.Upstream))
 		}
 	}
 	for _, f := range secrets {
 		info, err := os.Stat(f)
 		switch {
 		case errors.Is(err, fs.ErrNotExist) && f == o.TokenFile:
-			c.warn("falta el token de enrolamiento en %s (el nodo esperará hasta que exista)", f)
+			c.warn(i18n.Sprintf("the enrollment token is missing at %s (the node will wait until it exists)", f))
 		case err != nil:
-			c.fail("secreto %s: %v", f, err)
+			c.fail(i18n.Sprintf("secret %s: %v", f, err))
 		case readErr(o.ReadFile, f) != nil:
-			c.fail("el secreto %s no lo puede leer este usuario (el contenedor corre como uid 65532): ajusta el dueño (chown 65532) o los permisos", f)
+			c.fail(i18n.Sprintf("this user cannot read the secret %s (the container runs as uid 65532): fix its owner (chown 65532) or its permissions", f))
 		case runtime.GOOS != "windows" && info.Mode().Perm()&0o077 != 0:
-			c.warn("el secreto %s lo pueden leer otros usuarios (permisos %v): usa chmod 600", f, info.Mode().Perm())
+			c.warn(i18n.Sprintf("other users can read the secret %s (permissions %v): use chmod 600", f, info.Mode().Perm()))
 		default:
-			c.ok("secreto %s legible", f)
+			c.ok(i18n.Sprintf("secret %s readable", f))
 		}
 	}
 
 	// The portal (or the corporate proxy in front of it): DNS, TCP and the clock (certificates
 	// fail with a skewed clock).
 	u, _ := url.Parse(cfg.Portal)
-	host, port, via := u.Hostname(), u.Port(), "el portal"
+	host, port, via := u.Hostname(), u.Port(), i18n.T("the portal")
 	if port == "" {
 		port = map[string]string{"https": "443", "http": "80"}[u.Scheme]
 	}
 	if p, err := httpproxy.FromEnvironment().ProxyFunc()(u); err == nil && p != nil {
-		host, port, via = p.Hostname(), p.Port(), "el proxy corporativo"
+		host, port, via = p.Hostname(), p.Port(), i18n.T("the corporate proxy")
 		if port == "" {
 			port = "80"
 		}
-		c.ok("el portal se alcanza a través del proxy corporativo %s", p.Host)
+		c.ok(i18n.Sprintf("the portal is reached through the corporate proxy %s", p.Host))
 	}
 	if _, err := net.DefaultResolver.LookupHost(ctx, host); err != nil {
-		c.fail("DNS: no se resuelve %s (%s): %v", host, via, err)
+		c.fail(i18n.Sprintf("DNS: %s does not resolve (%s): %v", host, via, err))
 	} else {
-		c.ok("DNS resuelve %s (%s)", host, via)
+		c.ok(i18n.Sprintf("DNS resolves %s (%s)", host, via))
 	}
 	dctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	conn, err := (&net.Dialer{}).DialContext(dctx, "tcp", net.JoinHostPort(host, port))
 	cancel()
 	if err != nil {
-		c.fail("no hay conexión TCP con %s %s:%s: revisa la salida por 443 o el proxy corporativo", via, host, port)
+		c.fail(i18n.Sprintf("no TCP connection to %s %s:%s: check outbound traffic on 443 or the corporate proxy", via, host, port))
 	} else {
 		conn.Close()
-		c.ok("conexión TCP con %s %s:%s", via, host, port)
+		c.ok(i18n.Sprintf("TCP connection to %s %s:%s", via, host, port))
 	}
 	if res, err := o.PortalHTTP.Get(strings.TrimRight(cfg.Portal, "/") + "/api/v1/health"); err != nil {
-		c.warn("no se pudo comparar el reloj con el portal: %v", err)
+		c.warn(i18n.Sprintf("could not compare the clock with the portal: %v", err))
 	} else {
 		res.Body.Close()
 		if date, err := http.ParseTime(res.Header.Get("Date")); err != nil {
-			c.warn("no se pudo comparar el reloj: el portal no envió la hora (cabecera Date)")
+			c.warn(i18n.T("could not compare the clock: the portal did not send the time (Date header)"))
 		} else {
 			skew := o.Now().Sub(date)
 			if skew < 0 {
 				skew = -skew
 			}
 			if skew > 60*time.Second {
-				c.fail("el reloj del servidor está desfasado %s respecto al portal: configura NTP (timedatectl)", skew.Round(time.Second))
+				c.fail(i18n.Sprintf("the server's clock is %s off from the portal: set up NTP (timedatectl)", skew.Round(time.Second)))
 			} else {
-				c.ok("reloj sincronizado con el portal (desfase %s)", skew.Round(time.Second))
+				c.ok(i18n.Sprintf("clock in sync with the portal (skew %s)", skew.Round(time.Second)))
 			}
 		}
 	}
@@ -153,26 +155,26 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 			continue
 		}
 		if err := proxy.Probe(ctx, s.Proxy); err != nil {
-			c.fail("servicio %s: %v", s.Name, err)
+			c.fail(i18n.Sprintf("service %s: %v", s.Name, err))
 		} else {
-			c.ok("servicio %s: %s responde", s.Name, s.Proxy.Upstream)
+			c.ok(i18n.Sprintf("service %s: %s answers", s.Name, s.Proxy.Upstream))
 		}
 	}
 
 	// What the running node reported.
 	var st agent.Status
 	if err := store.ReadStatus(&st); err != nil {
-		c.warn("el nodo todavía no escribió su estado (¿está corriendo?)")
+		c.warn(i18n.T("the node has not written its status yet (is it running?)"))
 	} else {
 		switch {
 		case !st.UpdatedAt.IsZero() && o.Now().Sub(st.UpdatedAt) > 3*time.Minute:
-			c.warn("el nodo no actualiza su estado desde hace %s: ¿está detenido? (install.sh status, install.sh logs)", o.Now().Sub(st.UpdatedAt).Round(time.Second))
+			c.warn(i18n.Sprintf("the node has not updated its status for %s: is it stopped? (install.sh status, install.sh logs)", o.Now().Sub(st.UpdatedAt).Round(time.Second)))
 		case st.PortalState == "rejected":
-			c.fail("el portal rechaza el certificado del nodo: fue dado de baja o el certificado venció; usa install.sh reenrolar")
+			c.fail(i18n.T("the portal rejects the node's certificate: the node was removed or the certificate expired; use install.sh reenroll"))
 		case st.LastHandshake.IsZero() || o.Now().Sub(st.LastHandshake) > 3*time.Minute:
-			c.fail("el túnel no tiene handshake reciente con el hub: ¿está bloqueada la salida por UDP 51820?")
+			c.fail(i18n.T("the tunnel has no recent handshake with the hub: is outbound UDP 51820 blocked?"))
 		default:
-			c.ok("túnel con handshake reciente")
+			c.ok(i18n.T("tunnel with a recent handshake"))
 		}
 	}
 	if c.failed {

@@ -3,11 +3,11 @@
 package instant
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // ScaffoldOptions are the choices for a new resource; empty Resource and Entity are derived
@@ -37,7 +37,7 @@ func Scaffold(catalog []Object, o ScaffoldOptions) (config.Resource, []string, e
 		name = strings.ReplaceAll(strings.TrimPrefix(strings.ToLower(obj.Name), "v_"), "_", "-")
 	}
 	if !resourceName.MatchString(name) || len(name) > 80 {
-		return config.Resource{}, nil, fmt.Errorf("el nombre de recurso %q no sirve en una URL: usa --resource con minúsculas, números y guiones", name)
+		return config.Resource{}, nil, i18n.Errorf("the resource name %q does not work in a URL: use --resource with lower-case letters, digits and hyphens", name)
 	}
 	entity := o.Entity
 	if entity == "" {
@@ -48,7 +48,7 @@ func Scaffold(catalog []Object, o ScaffoldOptions) (config.Resource, []string, e
 		}
 	}
 	if !entityName.MatchString(entity) || entity == "Problem" {
-		return config.Resource{}, nil, fmt.Errorf("el nombre de entidad %q no sirve: usa --entity con un nombre que empiece en mayúscula (por ejemplo Afiliado)", entity)
+		return config.Resource{}, nil, i18n.Errorf("the entity name %q does not work: use --entity with a name that starts with an upper-case letter (for example Member)", entity)
 	}
 	r := config.Resource{Name: name, Entity: entity, Source: o.Source, Many: o.Many}
 	if o.Subject != "" {
@@ -62,11 +62,11 @@ func Scaffold(catalog []Object, o ScaffoldOptions) (config.Resource, []string, e
 	for _, c := range obj.Columns {
 		switch {
 		case lowered[strings.ToLower(c.Name)] > 1:
-			skipped = append(skipped, fmt.Sprintf("%s: otra columna solo cambia en mayúsculas; renómbrala en la vista", c.Name))
+			skipped = append(skipped, i18n.Sprintf("%s: another column differs only in case; rename it in the view", c.Name))
 		case !plainColumn.MatchString(c.Name):
-			skipped = append(skipped, fmt.Sprintf("%s: el nombre no es simple; renómbrala en la vista", c.Name))
+			skipped = append(skipped, i18n.Sprintf("%s: the name is not plain; rename it in the view", c.Name))
 		case c.Kind == KindUnsupported:
-			skipped = append(skipped, fmt.Sprintf("%s: tipo %s, que no se puede exponer", strings.ToLower(c.Name), c.Native))
+			skipped = append(skipped, i18n.Sprintf("%s: type %s, which cannot be exposed", strings.ToLower(c.Name), c.Native))
 		default:
 			r.Columns = append(r.Columns, config.ColumnSpec{Name: strings.ToLower(c.Name)})
 		}
@@ -76,11 +76,11 @@ func Scaffold(catalog []Object, o ScaffoldOptions) (config.Resource, []string, e
 		return config.Resource{}, nil, err
 	}
 	if key.Kind == KindUnsupported || !plainColumn.MatchString(key.Name) {
-		return config.Resource{}, nil, fmt.Errorf("la columna %q (%s) no se puede usar como clave", o.Key, key.Native)
+		return config.Resource{}, nil, i18n.Errorf("the column %q (%s) cannot be used as a key", o.Key, key.Native)
 	}
 	r.Key.Column = strings.ToLower(key.Name)
 	if len(r.Columns) == 0 {
-		return config.Resource{}, nil, fmt.Errorf("%s no tiene columnas que se puedan exponer", o.Source)
+		return config.Resource{}, nil, i18n.Errorf("%s has no columns that can be exposed", o.Source)
 	}
 	return r, skipped, nil
 }

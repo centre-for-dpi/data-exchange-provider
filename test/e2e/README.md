@@ -1,63 +1,63 @@
-# Punta a punta: modo `canal` contra el portal real
+# End to end: `canal` mode against the real portal
 
-`canal-e2e.mjs` prueba el entregable del modo `canal` (criterio de cierre de K1) contra el stack de desarrollo del portal (`../data-exchange`):
+`canal-e2e.mjs` tests the `canal` mode deliverable (K1 exit criterion) against the portal's development stack (`../data-exchange`):
 
-1. `elena.admin` registra un nodo y recibe el token.
-2. El nodo arranca con la imagen `rid-node:<v>-canal` (`compose.yaml`). Corre sin capacidades, con sistema de archivos de solo lectura, sin root y sin puertos publicados.
-3. El nodo se enrola, levanta el túnel con el hub real, envía heartbeats y queda `online`.
-4. El nodo sirve el proveedor de prueba del portal (`mock-salud`) como si fuera la API propia de la entidad (`config/node.yaml`).
-5. Se publica una versión con `upstream: node`, que pasa la revisión.
-6. Un consumidor se suscribe y llama por el gateway.
-7. Se comprueba el log del nodo: el gateway aparece por su nombre, la ruta como plantilla y no aparece el número de documento.
-8. Se corren `status` y `doctor` dentro del contenedor.
+1. `elena.admin` registers a node and receives the token.
+2. The node starts with the `rid-node:<v>-canal` image (`compose.yaml`). It runs without capabilities, with a read-only file system, without root and without published ports.
+3. The node enrolls, brings up the tunnel with the real hub, sends heartbeats and goes `online`.
+4. The node serves the portal's test provider (`mock-salud`) as if it were the entity's own API (`config/node.yaml`).
+5. A version with `upstream: node` is published and passes review.
+6. A consumer subscribes and calls through the gateway.
+7. The node's log is checked: the gateway appears by its name, the path appears as a template, and the document number does not appear.
+8. `status` and `doctor` are run inside the container.
 
 ```
-# en ../data-exchange: pnpm infra:up y el API (pnpm dev)
+# in ../data-exchange: pnpm infra:up and the API (pnpm dev)
 make e2e
 ```
 
-En tiempo de ejecución el script escribe el token en `.run/` y copia el OpenAPI del portal en `config/`. Los dos están en `.gitignore`.
+At run time, the script writes the token to `.run/` and copies the portal's OpenAPI into `config/`. Both are in `.gitignore`.
 
-Cada corrida deja en el portal un nodo `prueba-kit-canal-*`, una API "Afiliación por el canal (prueba del kit …)", una aplicación y una suscripción, todos con datos sintéticos. La prueba queda como terminó, con el nodo `online`. Con `RID_E2E_CLEANUP=1` revoca la suscripción, da de baja el nodo y borra los contenedores locales.
+Each run leaves in the portal a node `prueba-kit-canal-*`, an API "Afiliación por el canal (prueba del kit …)", an application and a subscription, all with synthetic data. The test is left as it finished, with the node `online`. With `RID_E2E_CLEANUP=1`, it revokes the subscription, decommissions the node and removes the local containers.
 
-## Contra el portal desplegado (VPS)
+## Against the deployed portal (VPS)
 
-Con `RID_E2E_TARGET=vps` el nodo corre en esta máquina, como lo haría una entidad. Sale por internet hacia el portal, el gateway y el hub públicos (`compose.vps.yaml`, `config-vps/node.yaml`), y la API propia es el proveedor de prueba, corriendo a su lado.
+With `RID_E2E_TARGET=vps`, the node runs on this machine, as it would at an entity. It goes out over the internet to the public portal, gateway and hub (`compose.vps.yaml`, `config-vps/node.yaml`), and the entity's own API is the test provider, running next to it.
 
-Variables, tomadas del `.env` del despliegue:
-- `RID_API_URL`, `KEYCLOAK_URL` (`…/auth`), `RID_GATEWAY_PUBLIC_URL`, `RID_GATEWAY_HTTP_URL` (`…/gw`) y `RID_WEB_URL`;
-- los secretos `RID_PORTAL_WEB_CLIENT_SECRET`, `RID_DEMO_USER_PASSWORD` y `RID_DEMO_TOTP_SECRET`.
+Variables, taken from the deployment's `.env`:
+- `RID_API_URL`, `KEYCLOAK_URL` (`…/auth`), `RID_GATEWAY_PUBLIC_URL`, `RID_GATEWAY_HTTP_URL` (`…/gw`) and `RID_WEB_URL`;
+- the secrets `RID_PORTAL_WEB_CLIENT_SECRET`, `RID_DEMO_USER_PASSWORD` and `RID_DEMO_TOTP_SECRET`.
 
-Los secretos no se guardan en el repositorio.
+The secrets are not stored in the repository.
 
-## Instalación limpia con el instalador
+## Clean installation with the installer
 
-Con `RID_E2E_NODE=installer`, el nodo se instala con `install.sh` desde el paquete (`make bundle`), en un servidor de prueba (`test/install/ubuntu.sh`):
-- **`RID_TEST_DOCKER=preinstalled`** (por defecto): un Ubuntu 24.04 con Docker ya instalado.
-- **`RID_TEST_DOCKER=install`:** un Ubuntu 24.04 con systemd como PID 1 y **sin Docker**. El instalador instala Docker Engine desde `download.docker.com`.
+With `RID_E2E_NODE=installer`, the node is installed with `install.sh` from the bundle (`make bundle`), on a test server (`test/install/ubuntu.sh`):
+- **`RID_TEST_DOCKER=preinstalled`** (default): an Ubuntu 24.04 with Docker already installed.
+- **`RID_TEST_DOCKER=install`:** an Ubuntu 24.04 with systemd as PID 1 and **no Docker**. The installer installs Docker Engine from `download.docker.com`.
 
-La prueba recorre:
-1. un token equivocado y luego el correcto;
-2. la reinstalación;
-3. `servicio` y `servicio quitar`;
-4. `update` a una versión inexistente;
-5. perder el estado y `restaurar`;
-6. el cambio de modo;
-7. la publicación y el consumo por el gateway.
+The test goes through:
+1. a wrong token and then the right one;
+2. reinstallation;
+3. `service` and `service remove`;
+4. `update` to a version that does not exist;
+5. losing the state and `restore`;
+6. the mode change;
+7. publication and consumption through the gateway.
 
 
-## API instantánea (modo `completo`)
+## Instant API (`completo` mode)
 
-Con `RID_E2E_SERVICE=instant` (junto con `RID_E2E_NODE=installer`), la prueba cierra K3:
-1. Instala el nodo en modo `completo` en un servidor de prueba limpio (`RID_TEST_SERVER`, por defecto `rid-install-test`).
-2. Levanta en ese servidor la base de la entidad: PostgreSQL con los datos sintéticos de `test/engines/postgres`, en la red del nodo, y un usuario `rid_reader` que solo puede leer las vistas.
-3. Corre `install.sh servicio` de tipo `instant` sobre `salud.v_afiliados`, con clave `numero_documento` y titular `CC`.
-4. Publica en el portal el OpenAPI que generó el instalador y espera que el heartbeat lleve su hash.
-5. Comprueba que el consumidor recibe por el gateway la fila de la vista, y que el log del nodo tiene la plantilla `/salud/afiliados/{numero_documento}` y no el número de documento.
-6. Corre `status` y `doctor`. `doctor` revisa la conexión, el catálogo, que el usuario no pueda escribir y la transacción de solo lectura.
+With `RID_E2E_SERVICE=instant` (together with `RID_E2E_NODE=installer`), the test closes K3:
+1. Installs the node in `completo` mode on a clean test server (`RID_TEST_SERVER`, by default `rid-install-test`).
+2. Brings up the entity's database on that server: PostgreSQL with the synthetic data from `test/engines/postgres`, on the node's network, and a `rid_reader` user that can only read the views.
+3. Runs `install.sh service` of type `instant` on `salud.v_afiliados`, with key `numero_documento` and data subject `CC`.
+4. Publishes in the portal the OpenAPI generated by the installer and waits for the heartbeat to carry its hash.
+5. Checks that the consumer receives the view's row through the gateway, and that the node's log has the template `/salud/afiliados/{numero_documento}` and not the document number.
+6. Runs `status` and `doctor`. `doctor` checks the connection, the catalog, that the user cannot write, and the read-only transaction.
 
 ```
 RID_E2E_TARGET=vps RID_E2E_NODE=installer RID_E2E_SERVICE=instant RID_TEST_SERVER=rid-install-instant node test/e2e/canal-e2e.mjs
 ```
 
-Con otro `RID_TEST_SERVER`, el servidor de una corrida anterior queda como estaba.
+With a different `RID_TEST_SERVER`, the server from a previous run is left as it was.

@@ -1,6 +1,6 @@
 # CLAUDE.md — Kit de APIs instantáneas (nodo del proveedor)
 
-Este archivo es el contexto permanente para Claude Code. Léelo completo al inicio de cada sesión, y después `docs/CONTEXTO.md`.
+Este archivo es el contexto permanente para Claude Code. Léelo completo al inicio de cada sesión, y después `docs/CONTEXT.md`.
 
 ## Qué es este repositorio
 
@@ -27,7 +27,7 @@ El primer despliegue es Colombia (entidades públicas; el gateway lo opera la AN
 - La evidencia está en `docs/spikes/S-1-dab.md` y `docs/spikes/S-2-nodo-go.md`.
 - `spikes/` es código desechable: se aprende de él, no se reutiliza como base del kit.
 
-`docs/CONTEXTO.md` reúne lo que el portal ya hace y lo que el kit debe cumplir.
+`docs/CONTEXT.md` reúne lo que el portal ya hace y lo que el kit debe cumplir.
 
 ## Reglas de oro (heredadas del portal)
 
@@ -35,7 +35,7 @@ El primer despliegue es Colombia (entidades públicas; el gateway lo opera la AN
 2. **No se guarda el contenido de las respuestas.** Ni el kit ni sus logs guardan cuerpos de petición o respuesta, ni siquiera en modo debug. Solo metadatos. Rutas y query strings van **enmascarados** en los logs, porque pueden llevar números de identificación.
 3. **Los datos se quedan en la entidad.** El kit lee con un usuario de solo lectura y no copia ni replica datos fuera de la base de la entidad.
 4. **Nada específico de un país en el código.**
-5. **Código, identificadores, commits y comentarios en inglés.** Documentación y textos para las entidades, en español.
+5. **Código, identificadores, commits y comentarios en inglés.** La documentación oficial va en inglés, con su versión en español en `docs/es/` (misma ruta), actualizada en el mismo commit. Los mensajes del kit (instalador, CLI, errores, títulos problem+json, textos del OpenAPI) se escriben en inglés en el código y su español va en el catálogo (`internal/i18n/catalog_es.go`, `MSG_ES` en `install.sh`); `RID_LANG=es` los cambia. Los ADRs, spikes, planes y BACKLOG anteriores quedan en español; los nuevos, en inglés (ADR-0004).
 6. **Sin secretos en el repo.** Ni tokens de enrolamiento, ni claves, ni credenciales de bases de datos.
 7. **Seguridad por defecto.** El kit corre dentro de la red de la entidad: no abre puertos de entrada a internet, sirve solo por el túnel y solo al certificado del gateway, y se ejecuta con el mínimo privilegio.
 8. **Las decisiones de arquitectura van en ADRs** (`docs/adr/NNNN-titulo.md`, formato en `docs/adr/0000-template.md`). Los ADRs aceptados no se modifican: se reemplazan con uno nuevo.

@@ -13,14 +13,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 )
 
 const (
-	titleTooManyRows = "La clave trae más registros de los que este servicio entrega"
-	titleTooLarge    = "La respuesta es más grande de lo que este servicio entrega"
-	titleNotFitting  = "Un valor de la fuente no se puede representar con el tipo que declara el OpenAPI"
-	titleMethod      = "Este servicio solo acepta GET"
+	titleTooManyRows = "The key returns more records than this service delivers"
+	titleTooLarge    = "The response is larger than this service delivers"
+	titleNotFitting  = "A source value cannot be represented with the type the OpenAPI declares"
+	titleMethod      = "This service only accepts GET"
 	// maxKeyBytes bounds any key, whatever the declared pattern.
 	maxKeyBytes = 256
 )
@@ -30,7 +31,7 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		server.SetRoute(req, base+"/*")
 		w.Header().Set("Allow", http.MethodGet)
-		server.Problem(w, http.StatusMethodNotAllowed, "method_not_allowed", titleMethod)
+		server.Problem(w, http.StatusMethodNotAllowed, "method_not_allowed", i18n.T(titleMethod))
 		return
 	}
 	path := req.URL.EscapedPath()
@@ -48,20 +49,20 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 	if r == nil {
 		server.SetRoute(req, base+"/(undeclared)")
 		if set == nil {
-			server.Problem(w, http.StatusServiceUnavailable, "service_unavailable", titleUnavailable)
+			server.Problem(w, http.StatusServiceUnavailable, "service_unavailable", sharedTitle(titleUnavailable))
 			return
 		}
-		server.Problem(w, http.StatusNotFound, "not_found", "Recurso no encontrado")
+		server.Problem(w, http.StatusNotFound, "not_found", i18n.T("Resource not found"))
 		return
 	}
 	server.SetRoute(req, base+"/"+r.Name+"/{"+r.Key.Column+"}")
 	if req.URL.RawQuery != "" || req.URL.ForceQuery {
-		server.Problem(w, http.StatusBadRequest, "query_not_allowed", titleQueryNotAllowed)
+		server.Problem(w, http.StatusBadRequest, "query_not_allowed", sharedTitle(titleQueryNotAllowed))
 		return
 	}
 	key, err := url.PathUnescape(segs[1])
 	if err != nil || len(key) > maxKeyBytes || !r.KeyRegexp.MatchString(key) {
-		server.Problem(w, http.StatusBadRequest, "invalid_key", titleInvalidKey)
+		server.Problem(w, http.StatusBadRequest, "invalid_key", sharedTitle(titleInvalidKey))
 		return
 	}
 	var arg any = key
@@ -75,18 +76,18 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 				arg = key
 				break
 			}
-			server.Problem(w, http.StatusNotFound, "not_found", titleNotFound)
+			server.Problem(w, http.StatusNotFound, "not_found", sharedTitle(titleNotFound))
 			return
 		}
 		if strings.EqualFold(r.KeyColumn.Native, "integer") && (n > math.MaxInt32 || n < math.MinInt32) {
 			// PostgreSQL's 4-byte integer: no row can have it (and the driver refuses to bind it).
-			server.Problem(w, http.StatusNotFound, "not_found", titleNotFound)
+			server.Problem(w, http.StatusNotFound, "not_found", sharedTitle(titleNotFound))
 			return
 		}
 		arg = n
 	case KindDate:
 		if _, err := time.Parse("2006-01-02", key); err != nil {
-			server.Problem(w, http.StatusBadRequest, "invalid_key", titleInvalidKey)
+			server.Problem(w, http.StatusBadRequest, "invalid_key", sharedTitle(titleInvalidKey))
 			return
 		}
 	}
@@ -95,30 +96,30 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	items, err := s.query(req.Context(), r, arg)
 	if errors.Is(err, errTooLarge) {
-		server.Problem(w, http.StatusInternalServerError, "response_too_large", titleTooLarge)
+		server.Problem(w, http.StatusInternalServerError, "response_too_large", i18n.T(titleTooLarge))
 		return
 	}
 	var nf *notFitting
 	if errors.As(err, &nf) {
 		s.log.Warn("unrepresentable value", "resource", r.Name, "column", nf.column, "kind", string(nf.kind))
-		server.Problem(w, http.StatusInternalServerError, "unrepresentable_value", titleNotFitting)
+		server.Problem(w, http.StatusInternalServerError, "unrepresentable_value", i18n.T(titleNotFitting))
 		return
 	}
 	s.served(err)
 	if err != nil {
 		s.logError("database error", err, "resource", r.Name)
-		server.Problem(w, http.StatusServiceUnavailable, "service_unavailable", titleUnavailable)
+		server.Problem(w, http.StatusServiceUnavailable, "service_unavailable", sharedTitle(titleUnavailable))
 		return
 	}
 	switch {
 	case len(items) == 0:
-		server.Problem(w, http.StatusNotFound, "not_found", titleNotFound)
+		server.Problem(w, http.StatusNotFound, "not_found", sharedTitle(titleNotFound))
 	case r.Many && len(items) > r.MaxRows:
-		server.Problem(w, http.StatusInternalServerError, "too_many_rows", titleTooManyRows)
+		server.Problem(w, http.StatusInternalServerError, "too_many_rows", i18n.T(titleTooManyRows))
 	case r.Many:
 		writeJSON(w, items)
 	case len(items) > 1:
-		server.Problem(w, http.StatusInternalServerError, "non_unique_key", titleNonUnique)
+		server.Problem(w, http.StatusInternalServerError, "non_unique_key", sharedTitle(titleNonUnique))
 	default:
 		writeJSON(w, items[0])
 	}
@@ -175,7 +176,7 @@ func (s *Service) query(ctx context.Context, r *Compiled, arg any) ([]map[string
 // root answers the portal's healthcheck: 200 while the database answers, 503 otherwise.
 func (s *Service) root(w http.ResponseWriter, req *http.Request) {
 	if err := s.Probe(req.Context()); err != nil {
-		server.Problem(w, http.StatusServiceUnavailable, "service_unavailable", titleUnavailable)
+		server.Problem(w, http.StatusServiceUnavailable, "service_unavailable", sharedTitle(titleUnavailable))
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"})
@@ -216,7 +217,7 @@ func valueSize(v any) int {
 func writeJSON(w http.ResponseWriter, v any) {
 	b, err := json.Marshal(v)
 	if err != nil { // ToJSON only yields marshalable values; this is a bug, not data
-		server.Problem(w, http.StatusInternalServerError, "internal_error", "Error interno del nodo")
+		server.Problem(w, http.StatusInternalServerError, "internal_error", i18n.T("Internal node error"))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

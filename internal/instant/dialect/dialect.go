@@ -8,9 +8,9 @@ package dialect
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/instant"
 )
 
@@ -26,7 +26,7 @@ func For(engine string) (instant.Dialect, error) {
 	case "oracle":
 		return oracle{}, nil
 	}
-	return nil, fmt.Errorf("el motor %q no está soportado", engine)
+	return nil, i18n.Errorf("the engine %q is not supported", engine)
 }
 
 func lower(t string) string { return strings.ToLower(strings.TrimSpace(t)) }

@@ -1,10 +1,12 @@
 # Guía para entidades proveedoras
 
+> English version (official): [docs/guides/providers.md](../../guides/providers.md)
+
 Versión 2.0 · noviembre 2026 · para la jornada de incorporación (bootcamp) con las entidades
 
-Esta guía explica qué tiene que **designar, disponer y hacer** una entidad para publicar sus datos en la Red de Intercambio de Datos (RID) como **proveedora**. Lo que hace una entidad **consumidora** está en la guía de entidades del portal (`docs/guias/entidades.md` del repositorio del portal). La plataforma central (portal y gateway) la opera el operador nacional: la entidad no instala nada de eso. Lo único que instala la proveedora es el **nodo**.
+Esta guía explica qué tiene que **designar, disponer y hacer** una entidad para publicar sus datos en la Red de Intercambio de Datos (RID) como **proveedora**. Lo que hace una entidad **consumidora** está en la guía de entidades del portal (`docs/es/guides/entities.md` del repositorio del portal). La plataforma central (portal y gateway) la opera el operador nacional: la entidad no instala nada de eso. Lo único que instala la proveedora es el **nodo**.
 
-El paso a paso de la instalación del nodo está en la [guía de instalación del nodo](../INSTALACION.md), y la preparación de la base y la configuración de las APIs instantáneas, en [APIs instantáneas: uso y configuración](../APIS-INSTANTANEAS.md).
+El paso a paso de la instalación del nodo está en la [guía de instalación del nodo](../INSTALL.md), y la preparación de la base y la configuración de las APIs instantáneas, en [APIs instantáneas: uso y configuración](../INSTANT-APIS.md).
 
 ## 1. Qué significa ser proveedora
 
@@ -85,7 +87,7 @@ No se abre ningún puerto de entrada. El operador indica los nombres del portal 
   - **ningún identificador en el query string:** los números de documento van en la ruta (`/personas/{documento}`) o en el cuerpo de un POST, nunca en `?documento=...`;
   - en APIs con datos personales o sensibles, cada operación declara dónde está el titular de los datos (`x-rid-data-subject`) o que no tiene (`none`).
 - **Con el modo canal:** la URL interna de la API y, si la pide, su credencial (una cabecera, usuario y contraseña, o un certificado de cliente).
-- **Con las APIs instantáneas:** una **vista** por cada consulta, con solo las columnas que se van a compartir, y un **usuario de solo lectura** con `SELECT` sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en [APIs instantáneas: uso y configuración](../APIS-INSTANTANEAS.md#2-preparar-la-base-de-datos-dba).
+- **Con las APIs instantáneas:** una **vista** por cada consulta, con solo las columnas que se van a compartir, y un **usuario de solo lectura** con `SELECT` sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en [APIs instantáneas: uso y configuración](../INSTANT-APIS.md#2-preparar-la-base-de-datos-dba).
 - **Un sandbox** (recomendado): el mismo servicio con **datos sintéticos**. Con él el portal prueba el contrato al enviar a revisión, y los consumidores integran sin tocar datos reales. Se publica por el mismo nodo, como un servicio más.
 
 ### 4.4 Lista de preparación
@@ -140,7 +142,7 @@ El script no puede probar el túnel (UDP 51820) sin un nodo. Eso lo comprueba el
    - **API instantánea** (tipo `instant`, modo completo): pide el nombre, la ruta en el nodo, la conexión a la base con el usuario de solo lectura, la vista y la columna clave. Muestra las vistas que el usuario puede leer y genera el OpenAPI en `/opt/rid-node/config/services/<nombre>.openapi.json`.
 4. En el portal, el nodo aparece **En línea**.
 
-El detalle de cada pregunta, el proxy corporativo, el respaldo y la actualización están en la [guía de instalación del nodo](../INSTALACION.md).
+El detalle de cada pregunta, el proxy corporativo, el respaldo y la actualización están en la [guía de instalación del nodo](../INSTALL.md).
 
 ### 5.4 Publicar una API
 
@@ -197,7 +199,7 @@ La red no puede verificar lo que pasa dentro de la entidad. Estas prácticas son
 | `sudo /opt/rid-node/install.sh doctor` | Revisa la configuración, los secretos, el DNS, el portal, el reloj, las APIs internas y el túnel |
 | `sudo /opt/rid-node/install.sh logs` | Los últimos logs del nodo (solo metadatos). Con `-f` los sigue en vivo |
 
-Los problemas comunes y cómo resolverlos están en la [guía de instalación del nodo](../INSTALACION.md#9-problemas-comunes). Para reportar un problema al operador, adjunta la salida de `status` y `doctor`: no contienen secretos ni datos de personas.
+Los problemas comunes y cómo resolverlos están en la [guía de instalación del nodo](../INSTALL.md#10-problemas-comunes). Para reportar un problema al operador, adjunta la salida de `status` y `doctor`: no contienen secretos ni datos de personas.
 
 ## 10. Contactos y soporte
 

@@ -11,7 +11,7 @@ import (
 func TestCanalSaysNotAvailable(t *testing.T) {
 	for _, cmd := range [][]string{{"catalog", "--service-file", "x.yaml"}, {"scaffold"}, {"openapi", "afiliacion"}} {
 		var out bytes.Buffer
-		if code := run(cmd, &out); code != 2 || !strings.Contains(out.String(), "modo canal") {
+		if code := run(cmd, &out); code != 2 || !strings.Contains(out.String(), "canal mode") {
 			t.Fatalf("%v: code=%d %s", cmd, code, out.String())
 		}
 	}

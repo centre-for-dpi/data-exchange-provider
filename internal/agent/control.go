@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/state"
 )
 
@@ -144,7 +144,7 @@ func (c *Controller) cycle(ctx context.Context) time.Duration {
 		}
 	case status == http.StatusUnauthorized:
 		c.status.PortalState = "rejected"
-		c.log.Error("control_rejected", "detail", "el portal rechazó el certificado del nodo: el nodo fue dado de baja o su certificado venció; usa install.sh reenrolar")
+		c.log.Error("control_rejected", "detail", "the portal rejected the node's certificate: the node was removed or its certificate expired; use install.sh reenroll")
 		wait = c.RejectedEvery
 	default:
 		c.status.PortalState = "unreachable"
@@ -204,9 +204,9 @@ func (c *Controller) probe(ctx context.Context) ([]ServiceStatus, contract.Healt
 	case len(failing) == 0:
 		return out, contract.Health{Status: "ok"}
 	case len(failing) == len(out):
-		return out, contract.Health{Status: "failing", Detail: truncate("sin respuesta: "+strings.Join(failing, ", "), 200)}
+		return out, contract.Health{Status: "failing", Detail: truncate(i18n.Sprintf("no answer: %s", strings.Join(failing, ", ")), 200)}
 	default:
-		return out, contract.Health{Status: "degraded", Detail: truncate("sin respuesta: "+strings.Join(failing, ", "), 200)}
+		return out, contract.Health{Status: "degraded", Detail: truncate(i18n.Sprintf("no answer: %s", strings.Join(failing, ", ")), 200)}
 	}
 }
 
@@ -220,7 +220,7 @@ func (c *Controller) refreshConfig(ctx context.Context) {
 	c.lastConfig = c.Now()
 	var notices []string
 	if m := cfg.MinimumKitVersion; m != nil && *m != "" && compareSemver(c.kit, *m) < 0 {
-		notices = append(notices, fmt.Sprintf("la versión del kit %s es menor que la mínima exigida %s: actualiza con install.sh update", c.kit, *m))
+		notices = append(notices, i18n.Sprintf("kit version %s is below the required minimum %s: update with install.sh update", c.kit, *m))
 	}
 	local := map[string]bool{}
 	for _, s := range c.services {
@@ -228,7 +228,7 @@ func (c *Controller) refreshConfig(ctx context.Context) {
 	}
 	for _, s := range cfg.Services {
 		if !local[s.ServicePath] {
-			notices = append(notices, fmt.Sprintf("la versión %s de %s está publicada en %s pero este nodo no sirve la ruta %s", s.Version, s.APIName, s.BasePath, s.ServicePath))
+			notices = append(notices, i18n.Sprintf("version %s of %s is published at %s but this node does not serve the path %s", s.Version, s.APIName, s.BasePath, s.ServicePath))
 		}
 	}
 	for _, n := range cfg.Notices {

@@ -1,11 +1,11 @@
 package config
 
 import (
-	"errors"
-	"fmt"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // InstantSpec is an instant-API service: GET by key over views of the entity's database.
@@ -152,66 +152,66 @@ func (p ProxySpec) setFields() []string {
 
 func (s InstantSpec) validate() []error {
 	var errs []error
-	add := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
+	add := func(err error) { errs = append(errs, err) }
 	if s.Database == nil {
-		add("falta database: la conexión a la base de datos (engine, host, port, name, user, passwordFile)")
+		add(i18n.Errorf("database is missing: the connection to the database (engine, host, port, name, user, passwordFile)"))
 	} else {
 		errs = append(errs, s.Database.validate()...)
 	}
 	names := map[string]bool{}
 	entities := map[string]bool{}
 	for i, r := range s.Resources {
-		label := fmt.Sprintf("recurso %d (%q)", i+1, r.Name)
+		label := i18n.Sprintf("resource %d (%q)", i+1, r.Name)
 		if !namePattern.MatchString(r.Name) || len(r.Name) > 80 {
-			add("%s: el nombre %q debe usar solo minúsculas, números y guiones (máximo 80)", label, r.Name)
+			add(i18n.Errorf("%s: the name %q must use only lower-case letters, digits and hyphens (at most 80)", label, r.Name))
 		} else if names[r.Name] {
-			add("%s: el nombre %q está repetido", label, r.Name)
+			add(i18n.Errorf("%s: the name %q is repeated", label, r.Name))
 		}
 		names[r.Name] = true
 		if !entityPattern.MatchString(r.Entity) {
-			add("%s: entity %q debe empezar con mayúscula y usar solo letras y números (por ejemplo Afiliado)", label, r.Entity)
+			add(i18n.Errorf("%s: entity %q must start with an upper-case letter and use only letters and digits (for example Member)", label, r.Entity))
 		} else if r.Entity == "Problem" {
-			add("%s: entity %q está reservada para los errores del OpenAPI; usa otro nombre", label, r.Entity)
+			add(i18n.Errorf("%s: entity %q is reserved for the OpenAPI's errors; use another name", label, r.Entity))
 		} else if entities[r.Entity] {
-			add("%s: la entidad %q está repetida", label, r.Entity)
+			add(i18n.Errorf("%s: the entity %q is repeated", label, r.Entity))
 		}
 		entities[r.Entity] = true
 		if parts := strings.Split(r.Source, "."); len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-			add("%s: source %q debe tener la forma esquema.objeto (por ejemplo salud.v_afiliados)", label, r.Source)
+			add(i18n.Errorf("%s: source %q must have the form schema.object (for example health.v_members)", label, r.Source))
 		}
 		if r.Key.Column == "" {
-			add("%s: falta key.column, la columna que se busca con la clave", label)
+			add(i18n.Errorf("%s: key.column is missing: the column the key is looked up in", label))
 		} else if !columnPattern.MatchString(r.Key.Column) {
-			add("%s: key.column %q debe ser un nombre simple (letras, números y _); renombra la columna en la vista", label, r.Key.Column)
+			add(i18n.Errorf("%s: key.column %q must be a plain name (letters, digits and _); rename the column in the view", label, r.Key.Column))
 		}
 		if r.Key.Pattern != "" {
 			if _, err := regexp.Compile(r.Key.Pattern); err != nil {
-				add("%s: key.pattern %q no es una expresión regular válida", label, r.Key.Pattern)
+				add(i18n.Errorf("%s: key.pattern %q is not a valid regular expression", label, r.Key.Pattern))
 			}
 		}
 		if r.MaxRows < 1 || r.MaxRows > MaxMaxRows {
-			add("%s: maxRows %d debe estar entre 1 y %d", label, r.MaxRows, MaxMaxRows)
+			add(i18n.Errorf("%s: maxRows %d must be between 1 and %d", label, r.MaxRows, MaxMaxRows))
 		}
 		if r.DataSubject != nil && strings.TrimSpace(r.DataSubject.DocumentType) == "" {
-			add("%s: dataSubject.documentType no puede estar vacío (o quita dataSubject si la clave no identifica a una persona)", label)
+			add(i18n.Errorf("%s: dataSubject.documentType cannot be empty (or remove dataSubject if the key does not identify a person)", label))
 		}
 		if len(r.Columns) == 0 {
-			add("%s: columns no puede estar vacío: lista las columnas que se exponen", label)
+			add(i18n.Errorf("%s: columns cannot be empty: list the columns to expose", label))
 		}
 		cols := map[string]bool{}
 		for _, c := range r.Columns {
 			lower := strings.ToLower(c.Name)
 			switch {
 			case c.Name == "":
-				add("%s: una columna no tiene name", label)
+				add(i18n.Errorf("%s: a column has no name", label))
 			case !columnPattern.MatchString(c.Name):
-				add("%s: la columna %q debe ser un nombre simple (letras, números y _); renombra la columna en la vista", label, c.Name)
+				add(i18n.Errorf("%s: the column %q must be a plain name (letters, digits and _); rename the column in the view", label, c.Name))
 			case cols[lower]:
-				add("%s: la columna %q está repetida", label, c.Name)
+				add(i18n.Errorf("%s: the column %q is repeated", label, c.Name))
 			}
 			cols[lower] = true
 			if c.As != "" && !contains(asValues, c.As) {
-				add("%s: la columna %q tiene as %q, que no existe (%s)", label, c.Name, c.As, strings.Join(asValues, ", "))
+				add(i18n.Errorf("%s: the column %q has as %q, which does not exist (%s)", label, c.Name, c.As, strings.Join(asValues, ", ")))
 			}
 		}
 	}
@@ -233,25 +233,25 @@ func (d Database) validate() []error {
 		}
 	}
 	if len(missing) > 0 {
-		errs = append(errs, fmt.Errorf("a la base de datos le falta %s", strings.Join(missing, ", ")))
+		errs = append(errs, i18n.Errorf("the database is missing %s", strings.Join(missing, ", ")))
 	}
 	if d.Engine != "" && !contains(Engines, d.Engine) {
-		errs = append(errs, fmt.Errorf("la base de datos usa engine %q, que no está soportado (%s)", d.Engine, strings.Join(Engines, ", ")))
+		errs = append(errs, i18n.Errorf("the database uses engine %q, which is not supported (%s)", d.Engine, strings.Join(Engines, ", ")))
 	}
 	if d.Port < 0 || d.Port > 65535 {
-		errs = append(errs, fmt.Errorf("el puerto %d de la base de datos no es válido", d.Port))
+		errs = append(errs, i18n.Errorf("the database's port %d is not valid", d.Port))
 	}
 	if !contains(tlsValues, d.TLS) {
-		errs = append(errs, fmt.Errorf("tls %q de la base de datos no existe (%s)", d.TLS, strings.Join(tlsValues, ", ")))
+		errs = append(errs, i18n.Errorf("the database's tls %q does not exist (%s)", d.TLS, strings.Join(tlsValues, ", ")))
 	}
 	if d.CAFile != "" && d.TLS != "verify" {
-		errs = append(errs, errors.New("caFile de la base de datos solo se usa con tls: verify"))
+		errs = append(errs, i18n.New("the database's caFile is only used with tls: verify"))
 	}
 	if d.Engine == "oracle" && d.TLS == "verify" && d.CAFile != "" {
-		errs = append(errs, errors.New("con Oracle, tls: verify usa las CA del sistema: quita caFile (go-ora no acepta una CA propia)"))
+		errs = append(errs, i18n.New("with Oracle, tls: verify uses the system's CAs: remove caFile (go-ora does not take its own CA)"))
 	}
 	if d.MaxConnections < 0 || d.QueryTimeout < 0 {
-		errs = append(errs, errors.New("maxConnections y queryTimeout de la base de datos no pueden ser negativos"))
+		errs = append(errs, i18n.New("the database's maxConnections and queryTimeout cannot be negative"))
 	}
 	return errs
 }
@@ -262,7 +262,7 @@ func (n *Node) Warnings() []string {
 	var out []string
 	for _, s := range n.Services {
 		if s.Type == "instant" && len(s.Instant.Resources) == 0 {
-			out = append(out, fmt.Sprintf("el servicio %q todavía no tiene recursos: no se sirve hasta que agregues al menos uno", s.Name))
+			out = append(out, i18n.Sprintf("service %q has no resources yet: it is not served until you add at least one", s.Name))
 		}
 	}
 	return out

@@ -104,7 +104,7 @@ func TestCatalogCommand(t *testing.T) {
 	cfg, svc, _ := instantSetup(t, "https://portal.red.example", "postgres", "")
 	code, out := cli(t, cfg, "catalog", "--service-file", svc)
 	if code != 0 || !strings.Contains(out, "FakeDB 1.0") || !strings.Contains(out, "SALUD.V_AFILIADOS") || !strings.Contains(out, "NUMERO_DOCUMENTO") ||
-		!strings.Contains(out, "FOTO") || !strings.Contains(out, "no se puede exponer") {
+		!strings.Contains(out, "FOTO") || !strings.Contains(out, "cannot be exposed") {
 		t.Fatalf("code=%d\n%s", code, out)
 	}
 }
@@ -178,7 +178,7 @@ func TestOpenAPICommand(t *testing.T) {
 func TestValidateCompilesInstant(t *testing.T) {
 	cfg, _, db := instantSetup(t, "https://portal.red.example", "postgres", afiliadosYAML)
 	var out bytes.Buffer
-	if code := validate(cfg, &out); code != 0 || !strings.Contains(out.String(), "compila") {
+	if code := validate(cfg, &out); code != 0 || !strings.Contains(out.String(), "compiles") {
 		t.Fatalf("code=%d %s", code, out.String())
 	}
 	db.Set(func(f *instanttest.DB) { f.Down = true })
@@ -193,7 +193,7 @@ func TestValidateCompilesInstant(t *testing.T) {
 	}
 	cfg3, _, _ := instantSetup(t, "https://portal.red.example", "postgres", "")
 	out.Reset()
-	if code := validate(cfg3, &out); code != 0 || !strings.Contains(out.String(), "todavía no tiene recursos") {
+	if code := validate(cfg3, &out); code != 0 || !strings.Contains(out.String(), "has no resources yet") {
 		t.Fatalf("no resources yet: a warning: code=%d %s", code, out.String())
 	}
 }
@@ -202,7 +202,7 @@ func TestDoctorInstant(t *testing.T) {
 	portal := portalWithDate(t, 0)
 	cfg, _, db := instantSetup(t, portal.URL, "postgres", afiliadosYAML)
 	code, out := doctorAt(t, portal, cfg)
-	if code != 0 || !strings.Contains(out, "✔ servicio afiliacion: conexión con la base de datos") || !strings.Contains(out, "FakeDB 1.0") || !strings.Contains(out, "no puede escribir en las fuentes expuestas") || !strings.Contains(out, "solo lectura") {
+	if code != 0 || !strings.Contains(out, "✔ service afiliacion: connected to the database") || !strings.Contains(out, "FakeDB 1.0") || !strings.Contains(out, "cannot write to the exposed sources") || !strings.Contains(out, "read-only") {
 		t.Fatalf("code=%d\n%s", code, out)
 	}
 	db.Set(func(f *instanttest.DB) { f.Writes = 1 })
@@ -211,7 +211,7 @@ func TestDoctorInstant(t *testing.T) {
 		t.Fatalf("a user that can write is a ✘ naming the source: code=%d\n%s", code, out)
 	}
 	db.Set(func(f *instanttest.DB) { f.Writes = 0; f.Down = true })
-	if code, out = doctorAt(t, portal, cfg); code != 1 || !strings.Contains(out, "no se pudo conectar") {
+	if code, out = doctorAt(t, portal, cfg); code != 1 || !strings.Contains(out, "cannot connect") {
 		t.Fatalf("database down: code=%d\n%s", code, out)
 	}
 	cfgSQL, _, _ := instantSetup(t, portal.URL, "sqlserver", afiliadosYAML)
@@ -305,7 +305,7 @@ func TestDoctorOpensTheReadOnlyTransaction(t *testing.T) {
 	cfg, _, db := instantSetup(t, portal.URL, "postgres", afiliadosYAML)
 	db.Set(func(f *instanttest.DB) { f.ReadOnlyErr = errors.New("cannot set transaction read-only mode") })
 	code, out := doctorAt(t, portal, cfg)
-	if code != 1 || !strings.Contains(out, "✘ servicio afiliacion: no se pudo abrir una transacción de solo lectura") {
+	if code != 1 || !strings.Contains(out, "✘ service afiliacion: could not open a read-only transaction") {
 		t.Fatalf("code=%d %s", code, out)
 	}
 }

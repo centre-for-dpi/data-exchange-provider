@@ -63,7 +63,7 @@ check: fmt-check check-canal-deps
 
 # Instant APIs against real SQL Server, PostgreSQL, MySQL and Oracle (test/engines), then the
 # portal's lint on the OpenAPI each engine generated. RID_IT_ENV is an env file outside the repo
-# with RID_IT_ADMIN_PASSWORD, RID_IT_READER_PASSWORD and RID_IT_WRITER_PASSWORD (DESARROLLO.md).
+# with RID_IT_ADMIN_PASSWORD, RID_IT_READER_PASSWORD and RID_IT_WRITER_PASSWORD (docs/DEVELOPMENT.md).
 RID_IT_ENV ?= $(HOME)/.config/rid-node/engines.env
 ENGINES    := docker compose -f test/engines/compose.yaml --env-file $(RID_IT_ENV)
 

@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/state"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/tunnel"
 )
@@ -39,8 +39,8 @@ type Enroller struct {
 // errTokenUnreadable explains the usual cause: Compose secrets are bind mounts that keep the
 // host file's owner and mode, and the container runs as uid 65532.
 func errTokenUnreadable(path string) error {
-	return fmt.Errorf("el token de enrolamiento %s existe pero el usuario del contenedor (uid 65532) no puede leerlo: "+
-		"ajusta el dueño (chown 65532) o los permisos (644 dentro de una carpeta 700)", path)
+	return i18n.Errorf("the enrollment token %s exists but the container's user (uid 65532) cannot read it: "+
+		"fix its owner (chown 65532) or its permissions (644 inside a 700 folder)", path)
 }
 
 // LoadOrEnroll returns the saved state, or enrolls when there is none. A state that exists but
@@ -71,20 +71,20 @@ func (e *Enroller) LoadOrEnroll(ctx context.Context) (*state.State, error) {
 		case err == nil:
 			st := fromEnrollment(res, keyPEM, wgPriv)
 			if err := validateEnrollment(st); err != nil {
-				return nil, fmt.Errorf("la respuesta de enrolamiento del portal no es usable (%w); el token ya se consumió: pide uno nuevo y avisa al operador de la red", err)
+				return nil, i18n.Errorf("the portal's enrollment answer is not usable (%w); the token is already spent: ask for a new one and tell the network's operator", err)
 			}
 			if err := e.Store.Save(st); err != nil {
-				return nil, fmt.Errorf("enrolado como %s, pero no se pudo guardar el estado: %w", res.NodeName, err)
+				return nil, i18n.Errorf("enrolled as %s, but the state could not be saved: %w", res.NodeName, err)
 			}
 			e.Log.Info("enrolled", "node", st.NodeName, "tunnel", st.WireGuard.Address, "gateway_client", st.GatewayClientName)
-			e.Log.Info("enrollment_token_used", "detail", "el token ya se usó: puedes borrar el secreto enrollment_token")
+			e.Log.Info("enrollment_token_used", "detail", "the token was used: you can delete the enrollment_token secret")
 			return st, nil
 		case status == http.StatusUnauthorized:
-			return nil, errors.New("el portal rechazó el token de enrolamiento: no es válido, ya se usó o venció; pide uno nuevo en el portal (Mi entidad → Nodos del kit)")
+			return nil, i18n.New("the portal rejected the enrollment token: it is not valid, was already used or expired; ask for a new one in the portal (My entity → Kit nodes)")
 		case status == http.StatusConflict:
-			return nil, errors.New("el portal ya tiene enrolada esta clave WireGuard: el estado del nodo se perdió; usa install.sh reenrolar con un token nuevo")
+			return nil, i18n.New("the portal already has this WireGuard key enrolled: the node's state was lost; use install.sh reenroll with a new token")
 		case status >= 400 && status < 500:
-			return nil, fmt.Errorf("el portal rechazó el enrolamiento: %w", err)
+			return nil, i18n.Errorf("the portal rejected the enrollment: %w", err)
 		default: // 5xx or network: the portal may be starting or unreachable for a while
 			e.Log.Warn("enroll_retry", "error", err.Error(), "retry_in", wait.String())
 			select {
@@ -126,7 +126,7 @@ func (e *Enroller) waitForToken(ctx context.Context) (string, error) {
 			}
 		}
 		if !logged {
-			e.Log.Info("waiting_for_token", "detail", "esperando el token de enrolamiento en "+e.TokenFile)
+			e.Log.Info("waiting_for_token", "detail", "waiting for the enrollment token at "+e.TokenFile)
 			logged = true
 		}
 		select {
@@ -142,15 +142,15 @@ func (e *Enroller) waitForToken(ctx context.Context) (string, error) {
 // a tunnel configuration the device can take.
 func validateEnrollment(st *state.State) error {
 	if st.NodeID == "" || st.NodeName == "" || st.GatewayClientName == "" || st.ControlURL == "" {
-		return errors.New("faltan nodeId, nodeName, gatewayClientName o controlUrl")
+		return i18n.New("nodeId, nodeName, gatewayClientName or controlUrl is missing")
 	}
 	roots := x509.NewCertPool()
 	if !roots.AppendCertsFromPEM([]byte(st.CACertificate)) {
-		return errors.New("la raíz de la red no es un certificado PEM")
+		return i18n.New("the network's root is not a PEM certificate")
 	}
 	pair, err := tls.X509KeyPair([]byte(st.Certificate), []byte(st.KeyPEM))
 	if err != nil {
-		return fmt.Errorf("el certificado no corresponde a la clave del nodo: %w", err)
+		return i18n.Errorf("the certificate does not match the node's key: %w", err)
 	}
 	leaf, err := x509.ParseCertificate(pair.Certificate[0])
 	if err != nil {
@@ -165,20 +165,20 @@ func validateEnrollment(st *state.State) error {
 	}
 	if _, err := leaf.Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates, DNSName: st.NodeName,
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny}}); err != nil {
-		return fmt.Errorf("el certificado no es de la red para %s: %w", st.NodeName, err)
+		return i18n.Errorf("the certificate is not the network's for %s: %w", st.NodeName, err)
 	}
 	if _, err := netip.ParsePrefix(st.WireGuard.Address); err != nil {
-		return fmt.Errorf("dirección del túnel %q inválida", st.WireGuard.Address)
+		return i18n.Errorf("invalid tunnel address %q", st.WireGuard.Address)
 	}
 	if _, err := tunnel.ParseKey(st.WireGuard.HubPublicKey); err != nil {
-		return errors.New("clave pública del hub inválida")
+		return i18n.New("invalid hub public key")
 	}
 	if st.WireGuard.HubEndpoint == "" || len(st.WireGuard.AllowedIPs) == 0 {
-		return errors.New("falta el endpoint del hub o allowedIps")
+		return i18n.New("the hub's endpoint or allowedIps is missing")
 	}
 	for _, a := range st.WireGuard.AllowedIPs {
 		if _, err := netip.ParsePrefix(a); err != nil {
-			return fmt.Errorf("allowedIps %q inválida", a)
+			return i18n.Errorf("invalid allowedIps %q", a)
 		}
 	}
 	return nil

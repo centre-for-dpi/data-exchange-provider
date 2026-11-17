@@ -21,8 +21,10 @@ for arch in amd64 arm64; do
 done
 install -m 0755 deploy/install.sh "$OUT/install.sh"
 install -m 0644 deploy/compose.yaml deploy/env.example LICENSE NOTICE "$OUT/"
-for doc in docs/INSTALACION.md docs/APIS-INSTANTANEAS.md; do
-  if [[ -f $doc ]]; then install -m 0644 "$doc" "$OUT/"; fi
+mkdir -p "$OUT/es"
+for doc in INSTALL.md INSTANT-APIS.md; do
+  install -m 0644 "docs/$doc" "$OUT/"
+  install -m 0644 "docs/es/$doc" "$OUT/es/"
 done
 echo "$VERSION" >"$OUT/VERSION"
 {

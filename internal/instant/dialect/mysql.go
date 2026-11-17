@@ -19,6 +19,7 @@ import (
 	"github.com/go-sql-driver/mysql"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/instant"
 )
 
@@ -54,11 +55,11 @@ func (mysqlDialect) DSN(db config.Database, password string) (string, error) {
 func registerCA(host, caFile string) (string, error) {
 	pem, err := os.ReadFile(caFile)
 	if err != nil {
-		return "", fmt.Errorf("no se pudo leer la CA de la base de datos %s: %w", caFile, err)
+		return "", i18n.Errorf("cannot read the database's CA %s: %w", caFile, err)
 	}
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(pem) {
-		return "", fmt.Errorf("%s no contiene certificados PEM", caFile)
+		return "", i18n.Errorf("%s contains no PEM certificates", caFile)
 	}
 	sum := sha256.Sum256(append([]byte(host+"\x00"), pem...))
 	name := "rid-" + hex.EncodeToString(sum[:8])

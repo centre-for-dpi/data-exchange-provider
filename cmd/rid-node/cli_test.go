@@ -71,7 +71,7 @@ func TestDoctorHealthy(t *testing.T) {
 
 func TestDoctorClockSkew(t *testing.T) {
 	code, out := doctorFor(t, portalWithDate(t, 5*time.Minute), "", nil)
-	if code != 1 || !strings.Contains(out, "✘") || !strings.Contains(out, "reloj") {
+	if code != 1 || !strings.Contains(out, "✘") || !strings.Contains(out, "clock") {
 		t.Fatalf("code=%d\n%s", code, out)
 	}
 }
@@ -126,7 +126,7 @@ func TestStatusHuman(t *testing.T) {
 		t.Fatalf("code %d", code)
 	}
 	for _, want := range []string{"rid-node-abc", "online", "2027-02-14", "certificados", "upstream no responde", "actualiza el kit", "canal",
-		"1234 peticiones", "5xx: 2", "p50 12 ms", "p95 80 ms"} {
+		"1234 requests", "5xx: 2", "p50 12 ms", "p95 80 ms"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("status lacks %q:\n%s", want, out.String())
 		}
@@ -135,7 +135,7 @@ func TestStatusHuman(t *testing.T) {
 
 func TestStatusWithoutFile(t *testing.T) {
 	var out bytes.Buffer
-	if code := status(t.TempDir(), false, &out, time.Now); code != 1 || !strings.Contains(out.String(), "todavía") {
+	if code := status(t.TempDir(), false, &out, time.Now); code != 1 || !strings.Contains(out.String(), "not written its status yet") {
 		t.Fatalf("code=%d %s", code, out.String())
 	}
 }
@@ -256,7 +256,7 @@ func TestDoctorStaleStatusIsNotTunnelBlame(t *testing.T) {
 	st := &agent.Status{NodeName: "rid-node-x", PortalState: "online", LastHandshake: time.Now().Add(-2 * time.Hour),
 		LastHeartbeat: time.Now().Add(-2 * time.Hour), UpdatedAt: time.Now().Add(-2 * time.Hour)}
 	_, out := doctorFor(t, portalWithDate(t, 0), "", st)
-	if strings.Contains(out, "UDP 51820") || !strings.Contains(out, "detenido") {
+	if strings.Contains(out, "UDP 51820") || !strings.Contains(out, "is it stopped?") {
 		t.Fatalf("%s", out)
 	}
 }
@@ -268,7 +268,7 @@ func TestDoctorNoDateHeaderWarns(t *testing.T) {
 	}))
 	defer srv.Close()
 	_, out := doctorFor(t, srv, "", nil)
-	if !strings.Contains(out, "⚠") || !strings.Contains(out, "reloj") {
+	if !strings.Contains(out, "⚠") || !strings.Contains(out, "clock") {
 		t.Fatalf("%s", out)
 	}
 }
@@ -286,7 +286,7 @@ func TestValidateCommand(t *testing.T) {
 	dir := t.TempDir()
 	good := writeFile(t, dir, "node.yaml", "portal: https://portal.red.example\nservices:\n  - { name: certificados, path: /certificados, type: proxy, upstream: https://api.interna/c }\n", 0o644)
 	var out bytes.Buffer
-	if code := validate(good, &out); code != 0 || !strings.Contains(out.String(), "1 servicios") {
+	if code := validate(good, &out); code != 0 || !strings.Contains(out.String(), "1 services") {
 		t.Fatalf("code=%d %s", code, out.String())
 	}
 	bad := writeFile(t, dir, "bad.yaml", "portal: https://portal.red.example\nservices:\n  - { name: c, path: /c, type: proxy, upstream: https://api.interna/c, credential: { header: X-Api-Key, file: /no/existe } }\n", 0o644)
@@ -307,7 +307,7 @@ func TestDoctorSecret0400IsFine(t *testing.T) {
 	defer up.Close()
 	extra := fmt.Sprintf("services:\n  - { name: certificados, path: /certificados, type: proxy, upstream: %s, allowPlainHttp: true, credential: { header: X-Api-Key, file: %s } }\n", up.URL, cred)
 	_, out := doctorFor(t, portalWithDate(t, 0), extra, nil)
-	if strings.Contains(out, "lo pueden leer otros") {
+	if strings.Contains(out, "other users can read") {
 		t.Fatalf("%s", out)
 	}
 }
@@ -337,7 +337,7 @@ func TestIdentityCommand(t *testing.T) {
 func TestImportState(t *testing.T) {
 	src, dst := t.TempDir(), t.TempDir()
 	var out bytes.Buffer
-	if code := importState(src, dst, &out); code != 1 || !strings.Contains(out.String(), "estado") {
+	if code := importState(src, dst, &out); code != 1 || !strings.Contains(out.String(), "node state") {
 		t.Fatalf("empty source: code=%d %s", code, out.String())
 	}
 	_ = (state.Store{Dir: src}).Save(&state.State{NodeID: "n1", NodeName: "rid-node-n1", KeyPEM: "k"})

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -36,7 +37,19 @@ func goldenService() (config.Service, []Compiled) {
 	return svc, rs
 }
 
+// spanish runs the rest of the test with RID_LANG=es.
+func spanish(t *testing.T) {
+	t.Helper()
+	if err := i18n.Set("es"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = i18n.Set("en") })
+}
+
+// The golden file is the Spanish OpenAPI the node generated before it spoke English: with
+// RID_LANG=es the document (and so the SHA-256 the portal sees) stays byte for byte the same.
 func TestOpenAPIGolden(t *testing.T) {
+	spanish(t)
 	svc, rs := goldenService()
 	got, err := OpenAPI(svc, rs)
 	if err != nil {
@@ -74,6 +87,35 @@ func TestOpenAPIGolden(t *testing.T) {
 	body := many["responses"].(map[string]any)["200"].(map[string]any)["content"].(map[string]any)["application/json"].(map[string]any)["schema"].(map[string]any)
 	if body["type"] != "array" || body["maxItems"] != float64(50) {
 		t.Fatalf("many: %v", body)
+	}
+}
+
+// The OpenAPI's human texts follow RID_LANG: English by default, Spanish with es.
+func TestOpenAPILanguage(t *testing.T) {
+	svc, rs := goldenService()
+	en, err := OpenAPI(svc, rs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"There is no record with that key", "The data source is not available",
+		"The records with that key (at most 50)", "Get afiliado by numero_documento", "Error in problem+json format (RFC 9457)"} {
+		if !bytes.Contains(en, []byte(want)) {
+			t.Fatalf("English OpenAPI lacks %q:\n%s", want, en)
+		}
+	}
+	if bytes.Contains(en, []byte("No existe un registro con esa clave")) {
+		t.Fatal("the default OpenAPI is in Spanish")
+	}
+	spanish(t)
+	es, err := OpenAPI(svc, rs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"No existe un registro con esa clave", "La fuente de datos no está disponible",
+		"Los registros con esa clave (máximo 50)", "Consultar afiliado por numero_documento", "Error en formato problem+json (RFC 9457)"} {
+		if !bytes.Contains(es, []byte(want)) {
+			t.Fatalf("Spanish OpenAPI lacks %q:\n%s", want, es)
+		}
 	}
 }
 

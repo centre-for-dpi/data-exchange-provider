@@ -4,9 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"errors"
 
 	"golang.org/x/crypto/curve25519"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Key is a WireGuard (Curve25519) key.
@@ -32,7 +33,7 @@ func ParseKey(s string) (Key, error) {
 	var k Key
 	b, err := base64.StdEncoding.DecodeString(s)
 	if err != nil || len(b) != len(k) {
-		return k, errors.New("clave WireGuard inválida")
+		return k, i18n.New("invalid WireGuard key")
 	}
 	copy(k[:], b)
 	return k, nil

@@ -5,7 +5,6 @@ package config
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -14,6 +13,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 )
 
 // Node is node.yaml.
@@ -87,13 +88,13 @@ const (
 func Load(path string) (*Node, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo leer la configuración %s: %w", path, err)
+		return nil, i18n.Errorf("cannot read the configuration %s: %w", path, err)
 	}
 	var n Node
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
 	if err := dec.Decode(&n); err != nil {
-		return nil, fmt.Errorf("configuración %s inválida: %w", path, err)
+		return nil, i18n.Errorf("invalid configuration %s: %w", path, err)
 	}
 	more, err := loadServiceFiles(filepath.Join(filepath.Dir(path), "services"))
 	if err != nil {
@@ -107,7 +108,7 @@ func Load(path string) (*Node, error) {
 		n.Services[i].applyDefaults()
 	}
 	if err := n.Validate(); err != nil {
-		return nil, fmt.Errorf("configuración %s inválida:\n%w", path, err)
+		return nil, i18n.Errorf("invalid configuration %s:\n%w", path, err)
 	}
 	return &n, nil
 }
@@ -137,7 +138,7 @@ func loadServiceFiles(dir string) ([]Service, error) {
 func readServiceFile(f string) (Service, error) {
 	raw, err := os.ReadFile(f)
 	if err != nil {
-		return Service{}, fmt.Errorf("no se pudo leer el servicio %s: %w", f, err)
+		return Service{}, i18n.Errorf("cannot read the service %s: %w", f, err)
 	}
 	return decodeService(raw, f)
 }
@@ -147,11 +148,11 @@ func decodeService(raw []byte, f string) (Service, error) {
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
 	if err := dec.Decode(&s); err != nil {
-		return Service{}, fmt.Errorf("servicio %s inválido: %w", f, err)
+		return Service{}, i18n.Errorf("invalid service %s: %w", f, err)
 	}
 	var extra yaml.Node
 	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-		return Service{}, fmt.Errorf("servicio %s inválido: cada archivo debe tener un solo servicio (sin separadores ---)", f)
+		return Service{}, i18n.Errorf("invalid service %s: each file must hold a single service (no --- separators)", f)
 	}
 	s.File = f
 	return s, nil
@@ -162,7 +163,7 @@ func decodeService(raw []byte, f string) (Service, error) {
 func LoadServiceFile(path string) (Service, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return Service{}, fmt.Errorf("no se pudo leer el servicio %s: %w", path, err)
+		return Service{}, i18n.Errorf("cannot read the service %s: %w", path, err)
 	}
 	return ParseService(raw, path)
 }
@@ -175,7 +176,7 @@ func ParseService(raw []byte, path string) (Service, error) {
 	}
 	s.applyDefaults()
 	if errs := validateServices([]Service{s}); len(errs) > 0 {
-		return Service{}, fmt.Errorf("servicio %s inválido:\n%w", path, errors.Join(errs...))
+		return Service{}, i18n.Errorf("invalid service %s:\n%w", path, errors.Join(errs...))
 	}
 	return s, nil
 }

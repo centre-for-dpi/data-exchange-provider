@@ -1,5 +1,7 @@
 # Levantamiento por entidad (bootcamp)
 
+> English version (official): [docs/guides/bootcamp-survey.md](../../guides/bootcamp-survey.md)
+
 Para el **equipo que acompaña a las entidades** en el bootcamp, y para el equipo de infraestructura y el DBA de cada entidad. Cada respuesta decide algo concreto: el modo del nodo, si la versión de la base está probada, y si el servidor y la red sirven tal como están.
 
 Llenar una hoja por entidad. Los datos técnicos los saca la entidad con los comandos de cada sección; no hay que adivinarlos.

@@ -1,0 +1,710 @@
+<meta charset="utf-8">
+<title>RID instant APIs</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a sticky contents rail beside one reading column; the two planes of the network carry
+   their own hue (governance = indigo, data = teal) through every diagram, chip and card. */
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --ink: #15202b;
+  --muted: #586575;
+  --line: #d8dee6;
+  --gov: #3a4cc0;
+  --gov-tint: #eceffd;
+  --data: #0a7569;
+  --data-tint: #e2f3f0;
+  --ok: #1d7139;
+  --ok-tint: #e5f4ea;
+  --warn: #9a5200;
+  --warn-tint: #fdf1e1;
+  --bad: #b0222b;
+  --bad-tint: #fcebed;
+  --code-bg: #edf0f4;
+  --font-display: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --step: 1rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+    --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+    --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+    --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1319; --surface: #151c24; --ink: #e5eaf0; --muted: #9ba8b6; --line: #2a3541;
+  --gov: #95a3f7; --gov-tint: #1b2142; --data: #52cfbd; --data-tint: #0d2925;
+  --ok: #6fd18e; --ok-tint: #11291a; --warn: #f1b45c; --warn-tint: #2d210f;
+  --bad: #ff8c92; --bad-tint: #321619; --code-bg: #1c2530; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { font-size: 16px; scroll-padding-top: 72px; }
+html.big { font-size: 19px; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body);
+  font-size: 1rem; line-height: 1.6; margin: 0;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+table { font-size: inherit; }
+a { color: var(--gov); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid var(--gov); outline-offset: 2px; border-radius: 4px; }
+code, kbd, pre { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.topbar-inner { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; gap: 12px; min-height: 56px; }
+.brand { font-family: var(--font-display); font-weight: 700; letter-spacing: 0.01em; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 26px; height: 26px; flex: none; }
+.brand small { font-weight: 500; color: var(--muted); font-family: var(--font-body); }
+.topbar .spacer { flex: 1; }
+.tool {
+  font: inherit; font-size: 0.85rem; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  padding: 6px 12px; border-radius: 6px; cursor: pointer;
+}
+.tool[aria-pressed="true"] { background: var(--gov); border-color: var(--gov); color: var(--surface); }
+
+.hero {
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 28px; border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.hero-inner { max-width: 1180px; margin: 0 auto; display: grid; gap: 14px; }
+.eyebrow { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 700; max-width: 22ch; }
+.lede { font-size: 1.12rem; max-width: 64ch; color: var(--muted); margin: 0; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 0.9rem; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; }
+
+.shell {
+  max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 80px;
+}
+.toc { position: sticky; top: 76px; align-self: start; max-height: calc(100vh - 96px); overflow-y: auto; font-size: 0.9rem; }
+.toc p { margin: 18px 0 6px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+.toc p:first-child { margin-top: 0; }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--line); color: var(--muted); text-decoration: none; }
+.toc a:hover { color: var(--ink); }
+.toc a.active { color: var(--ink); border-left-color: var(--gov); font-weight: 600; }
+.toc-mobile { display: none; }
+
+main { min-width: 0; display: grid; gap: 64px; }
+section { display: grid; gap: 18px; min-width: 0; }
+section > p, section > ul, .prose { max-width: 70ch; margin: 0; }
+.part {
+  font-family: var(--font-display); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); border-top: 2px solid var(--ink); padding-top: 10px; font-weight: 600;
+}
+h2 { font-size: 1.65rem; font-weight: 700; }
+h2 .num { color: var(--muted); font-weight: 500; margin-right: 0.35em; font-variant-numeric: tabular-nums; }
+h3 { font-size: 1.2rem; font-weight: 600; }
+ul.ticks { padding-left: 1.2em; display: grid; gap: 8px; }
+
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.principle { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.principle b { font-family: var(--font-display); font-size: 1.02rem; }
+.principle span { color: var(--muted); font-size: 0.93rem; }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.figscroll { overflow-x: auto; }
+figure svg { display: block; width: 100%; height: auto; min-width: 640px; color: var(--ink); }
+figcaption { font-size: 0.9rem; color: var(--muted); max-width: 80ch; }
+
+/* SVG classes, themed through the page tokens */
+.d-box { fill: var(--surface); stroke: var(--ink); stroke-width: 1.2; }
+.d-gov { fill: var(--gov-tint); stroke: var(--gov); stroke-width: 1.2; }
+.d-data { fill: var(--data-tint); stroke: var(--data); stroke-width: 1.2; }
+.d-panel-gov { fill: var(--gov-tint); fill-opacity: 0.45; stroke: var(--gov); stroke-dasharray: 5 4; }
+.d-panel-data { fill: var(--data-tint); fill-opacity: 0.45; stroke: var(--data); stroke-dasharray: 5 4; }
+.d-edge { fill: var(--surface); stroke: var(--ink); stroke-width: 1.6; }
+.d-ent { fill: var(--bg); stroke: var(--muted); stroke-dasharray: 3 3; }
+.d-line { stroke: var(--ink); stroke-width: 1.3; fill: none; }
+.d-thin { stroke: var(--muted); stroke-width: 1; fill: none; }
+.d-dash { stroke: var(--ink); stroke-width: 1.3; fill: none; stroke-dasharray: 5 4; }
+.d-strong { stroke: var(--data); stroke-width: 2.6; fill: none; }
+.d-life { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 4; }
+.d-t { fill: var(--ink); font-family: var(--font-body); font-size: 13px; }
+.d-tb { fill: var(--ink); font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+.d-ts { fill: var(--muted); font-family: var(--font-body); font-size: 11.5px; }
+.d-lab { fill: var(--ink); font-family: var(--font-mono); font-size: 11.5px; }
+.d-cap { fill: var(--muted); font-family: var(--font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; }
+.d-capgov { fill: var(--gov); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-capdata { fill: var(--data); font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+.d-ah { fill: var(--ink); }
+.d-ahd { fill: var(--data); }
+.d-ahm { fill: var(--muted); }
+
+/* Tables */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table.t { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+table.t th, table.t td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; background: var(--bg); }
+table.t td:first-child { font-weight: 600; white-space: nowrap; }
+table.t td.wrap { white-space: normal; }
+
+/* Role cards */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.role header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; justify-content: space-between; }
+.role code { font-weight: 500; }
+.role .who { font-size: 0.82rem; color: var(--muted); }
+.role p { margin: 0; font-size: 0.93rem; }
+.tag { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.tag.mfa { background: var(--warn-tint); color: var(--warn); }
+.tag.gov { background: var(--gov-tint); color: var(--gov); }
+.tag.data { background: var(--data-tint); color: var(--data); }
+.tag.ok { background: var(--ok-tint); color: var(--ok); }
+.tag.warn { background: var(--warn-tint); color: var(--warn); }
+.tag.bad { background: var(--bad-tint); color: var(--bad); }
+.tag.plain { background: var(--code-bg); color: var(--muted); }
+
+/* Component cards */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 0.85rem; color: var(--muted); align-items: center; }
+.comps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.comp {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: grid;
+  gap: 10px; align-content: start; min-width: 0;
+}
+.comp.g { border-top: 3px solid var(--gov); }
+.comp.d { border-top: 3px solid var(--data); }
+.comp.e { border-top: 3px solid var(--ink); }
+.comp h4 { font-size: 1.08rem; }
+.comp .tech { font-size: 0.8rem; color: var(--muted); font-family: var(--font-mono); }
+.comp p { margin: 0; font-size: 0.93rem; }
+.comp dl { margin: 0; display: grid; grid-template-columns: 4.6rem minmax(0, 1fr); gap: 6px 10px; font-size: 0.88rem; border-top: 1px solid var(--line); padding-top: 10px; }
+.comp dt { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.comp dd { margin: 0; display: grid; gap: 4px; justify-items: start; }
+
+.comp ul.ticks { margin: 0; font-size: 0.93rem; gap: 4px; }
+/* State pipelines */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.st { font-family: var(--font-mono); font-size: 0.84rem; padding: 5px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; }
+.st.opt { border-style: dashed; color: var(--muted); }
+.st.goal { border-color: var(--ok); color: var(--ok); background: var(--ok-tint); font-weight: 500; }
+.st.end { border-color: var(--muted); color: var(--muted); }
+.arrow { color: var(--muted); font-size: 0.9rem; }
+.flowcard { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 14px; }
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 10px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); gap: 10px; max-width: 72ch; }
+ol.steps > li::before {
+  content: counter(s); font-family: var(--font-display); font-weight: 700; width: 1.75rem; height: 1.75rem;
+  border-radius: 50%; display: grid; place-items: center; background: var(--code-bg); font-size: 0.88rem;
+}
+
+/* Guarantees */
+.guar { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; }
+.guar div { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--ok); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; align-content: start; }
+.guar b { font-family: var(--font-display); }
+.guar span { font-size: 0.92rem; color: var(--muted); }
+
+/* Spec sheet */
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.spec div { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+.spec .k { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.spec .v { font-family: var(--font-display); font-size: 1.55rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.spec .s { font-size: 0.85rem; color: var(--muted); }
+.ports { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.port { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.port .pn { font-family: var(--font-mono); font-size: 1.15rem; font-weight: 500; }
+.port span { font-size: 0.9rem; color: var(--muted); }
+
+/* Checklist */
+.check { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 0; display: grid; }
+.check label { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 10px; padding: 8px 16px; cursor: pointer; align-items: start; }
+.check input { width: 1.05rem; height: 1.05rem; margin-top: 0.25em; accent-color: var(--ok); }
+.check input:checked + span { color: var(--muted); text-decoration: line-through; }
+
+/* Code */
+.code { position: relative; background: var(--code-bg); border-radius: 8px; border: 1px solid var(--line); min-width: 0; }
+.code pre { margin: 0; padding: 14px 16px; overflow-x: auto; line-height: 1.55; }
+.code .copy { position: absolute; top: 8px; right: 8px; }
+.copy { font: inherit; font-size: 0.75rem; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 3px 9px; border-radius: 5px; cursor: pointer; }
+.cmds { display: grid; gap: 8px; }
+.cmd { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.cmd code { background: none; padding: 0; font-size: 0.9rem; font-weight: 500; }
+.cmd span { grid-column: 1 / -1; font-size: 0.9rem; color: var(--muted); }
+
+/* Install stepper */
+.qs { display: grid; gap: 10px; counter-reset: q; }
+.q { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr); gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.q .qn { font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: grid; align-content: start; gap: 2px; }
+.q .qn b { font-size: 1.6rem; color: var(--ink); line-height: 1; }
+.q h4 { font-size: 1.02rem; margin-bottom: 4px; }
+.q p { margin: 0; font-size: 0.93rem; }
+.q .auto { color: var(--muted); }
+.opts { display: grid; gap: 6px; margin-top: 8px; }
+.opts div { font-size: 0.9rem; display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 6px; }
+.opts kbd { font-weight: 600; background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; text-align: center; height: 1.5rem; line-height: 1.45rem; }
+
+.callout { border-radius: 8px; padding: 14px 16px; display: grid; gap: 4px; max-width: 80ch; }
+.callout.warn { background: var(--warn-tint); border: 1px solid var(--warn); }
+.callout.info { background: var(--gov-tint); border: 1px solid var(--gov); }
+.callout b { font-family: var(--font-display); }
+.callout p { margin: 0; }
+
+details.faq { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+details.faq + details.faq { margin-top: -8px; }
+details.faq summary { cursor: pointer; padding: 12px 16px; font-weight: 600; list-style-position: outside; }
+details.faq p { margin: 0; padding: 0 16px 14px; max-width: 72ch; color: var(--muted); }
+details.faq[open] summary { color: var(--gov); }
+
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.footer { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .toc { display: none; }
+  .toc-mobile { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .toc-mobile summary { cursor: pointer; font-weight: 600; }
+  .toc-mobile ol { margin: 8px 0 0; padding-left: 1.2em; display: grid; gap: 4px; }
+  .brand small { display: none; }
+}
+@media (max-width: 520px) {
+  .q { grid-template-columns: minmax(0, 1fr); }
+  .q .qn { grid-auto-flow: column; justify-content: start; align-items: baseline; gap: 8px; }
+  .comp dl { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <circle cx="5" cy="13" r="3.2" fill="var(--gov)"></circle>
+        <circle cx="21" cy="5.5" r="3.2" fill="var(--data)"></circle>
+        <circle cx="21" cy="20.5" r="3.2" fill="var(--data)"></circle>
+        <path d="M8 13 H13 M13 13 L18 7 M13 13 L18 19" stroke="var(--ink)" stroke-width="1.6" fill="none"></path>
+      </svg>
+      <span>Data Exchange Network <small>· instant APIs</small></span>
+    </div>
+    <span class="spacer"></span>
+    <button class="tool" id="bigtext" type="button" aria-pressed="false" title="Larger text for projecting">Presentation mode</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Node in completo mode · usage and configuration</span>
+    <h1>Publish a database view as a by-key query API</h1>
+    <p class="lede">For a provider entity that has no API of its own. You create the first service with the installer (installation guide, section 5); this guide explains what is behind it: how to prepare the database, what the service file says, how the API responds and how to change it later.</p>
+    <div class="meta">
+      <span><b>For</b> the entity's DBA and infrastructure team</span>
+      <span><b>Engines</b> SQL Server · PostgreSQL · MySQL · Oracle</span>
+      <span><a href="es/INSTANT-APIS.html" hreflang="es">Versión en español</a></span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="toc" aria-label="Contents">
+    <p>Before creating the service</p>
+    <ol>
+      <li><a href="#que-publica">1. What the node publishes</a></li>
+      <li><a href="#base">2. Prepare the database</a></li>
+      <li><a href="#modo">3. Node mode</a></li>
+    </ol>
+    <p>Configuration</p>
+    <ol>
+      <li><a href="#archivo">4. The service file</a></li>
+      <li><a href="#tipos">5. Column types</a></li>
+      <li><a href="#clave">6. The key</a></li>
+      <li><a href="#respuestas">7. How it responds</a></li>
+    </ol>
+    <p>Operation</p>
+    <ol>
+      <li><a href="#cambiar">8. Changing a service</a></li>
+      <li><a href="#seguridad">9. Security</a></li>
+      <li><a href="#problemas">10. Common problems</a></li>
+      <li><a href="#limites">11. Limits</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <details class="toc-mobile">
+      <summary>Contents</summary>
+      <ol>
+        <li><a href="#que-publica">What the node publishes</a></li>
+        <li><a href="#base">Prepare the database</a></li>
+        <li><a href="#modo">Node mode</a></li>
+        <li><a href="#archivo">The service file</a></li>
+        <li><a href="#tipos">Column types</a></li>
+        <li><a href="#clave">The key</a></li>
+        <li><a href="#respuestas">How it responds</a></li>
+        <li><a href="#cambiar">Changing a service</a></li>
+        <li><a href="#seguridad">Security</a></li>
+        <li><a href="#problemas">Common problems</a></li>
+        <li><a href="#limites">Limits</a></li>
+      </ol>
+    </details>
+
+    <section id="que-publica">
+      <div class="part">Before creating the service</div>
+      <h2><span class="num">1</span>What the node publishes</h2>
+      <p>The node reads a <b>view</b> (or a table) from the entity's database and publishes it as a <b>by-key</b> query: <code>GET {service path}/{resource}/{key}</code>.</p>
+      <div class="flowcard">
+        <div class="flow" aria-label="Path of a query">
+          <span class="st">GET /afiliacion/afiliados/1000000001</span><span class="arrow">→</span>
+          <span class="st">the node validates the key</span><span class="arrow">→</span>
+          <span class="st">SELECT … WHERE numero_documento = ? · read-only</span><span class="arrow">→</span>
+          <span class="st">view salud.v_afiliados</span><span class="arrow">→</span>
+          <span class="st goal">JSON with the declared columns</span>
+        </div>
+        <div class="code"><button class="copy" type="button">Copy</button><pre><code>GET /afiliacion/afiliados/1000000001
+→ 200 {"numero_documento": "1000000001", "eps": "EPS01", "regimen": "contributivo", ...}</code></pre></div>
+      </div>
+      <p>Through the gateway, the consumer calls <code>/&lt;entity&gt;/&lt;api&gt;/v1/afiliados/1000000001</code>. The exact path is on the API's service sheet in the portal.</p>
+      <div class="principles">
+        <div class="principle"><b>Four engines</b><span>SQL Server, PostgreSQL, MySQL and Oracle. You do not need to install any client on the server: the drivers are built into the node. Tested: Oracle 11g, 21c and 23ai; SQL Server 2019; PostgreSQL 17; MySQL 8.4.</span></div>
+        <div class="principle"><b>One service, one connection</b><span>Each service connects to one database and has one or more resources. Each resource is a view and a key.</span></div>
+        <div class="principle"><b>Generated OpenAPI</b><span>The node generates the contract you upload to the portal, and it already meets the network's rules.</span></div>
+        <div class="principle"><b>By key only</b><span>There are no listings, filters, searches or writes.</span></div>
+      </div>
+    </section>
+
+    <section id="base">
+      <h2><span class="num">2</span>Prepare the database (DBA)</h2>
+      <h3>The view</h3>
+      <div class="callout info">
+        <b>The view is the contract</b>
+        <p>What is not in the view does not go out. Include only the columns that will be shared, with the minimization that the service sheet declares.</p>
+      </div>
+      <ul class="ticks">
+        <li><b>Simple names:</b> letters, digits and <code>_</code>, starting with a letter or <code>_</code> (<code>numero_documento</code>, not <code>"Número documento"</code>). Rename a column with any other name in the view with <code>AS</code>.</li>
+        <li><b>The key column</b> must be text, integer, numeric without decimals, UUID or date. If it is text, it is best if it uses only letters, digits and hyphens (section 6).</li>
+        <li><b>Unique key,</b> unless the resource is declared with several rows per key (for example, a household with several people).</li>
+        <li><b>An index</b> on the key column in the source table: each query is a <code>WHERE key = ?</code>.</li>
+      </ul>
+
+      <h3>The read-only user</h3>
+      <p>A dedicated user for the node, with <code>SELECT</code> <b>on the exposed views and nothing else</b>. No broad roles such as <code>db_datareader</code> and no permissions on the source tables: the view is already read with its owner's permissions.</p>
+      <div class="comps">
+        <article class="comp e">
+          <div><h4>PostgreSQL</h4></div>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>CREATE ROLE rid_reader LOGIN PASSWORD '&lt;password&gt;';
+GRANT CONNECT ON DATABASE entidad TO rid_reader;
+GRANT USAGE ON SCHEMA salud TO rid_reader;
+GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+        </article>
+        <article class="comp e">
+          <div><h4>SQL Server</h4></div>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>CREATE LOGIN rid_reader WITH PASSWORD = '&lt;password&gt;';
+USE entidad;
+CREATE USER rid_reader FOR LOGIN rid_reader;
+GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+        </article>
+        <article class="comp e">
+          <div><h4>MySQL</h4><span class="tech">the "schema" is the database</span></div>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>CREATE USER 'rid_reader'@'&lt;node IP&gt;' IDENTIFIED BY '&lt;password&gt;';
+GRANT SELECT ON salud.v_afiliados TO 'rid_reader'@'&lt;node IP&gt;';</code></pre></div>
+        </article>
+        <article class="comp e">
+          <div><h4>Oracle</h4><span class="tech">in the PDB; the "database" is the service (e.g. ORCLPDB1)</span></div>
+          <div class="code"><button class="copy" type="button">Copy</button><pre><code>CREATE USER rid_reader IDENTIFIED BY "&lt;password&gt;";
+GRANT CREATE SESSION TO rid_reader;
+GRANT SELECT ON salud.v_afiliados TO rid_reader;</code></pre></div>
+        </article>
+      </div>
+      <ul class="ticks">
+        <li>The password is not written in any configuration file: the installer asks for it without echoing it and stores it in <code>/opt/rid-node/secrets/&lt;service&gt;_db_password</code>.</li>
+        <li><code>doctor</code> checks that the user <b>cannot write</b> to the exposed views. If it can, <code>doctor</code> flags it with ✘.</li>
+      </ul>
+
+      <h3>The network and TLS to the database</h3>
+      <div class="ports">
+        <div class="port"><span class="pn">1433</span><b>SQL Server</b></div>
+        <div class="port"><span class="pn">5432</span><b>PostgreSQL</b></div>
+        <div class="port"><span class="pn">3306</span><b>MySQL</b></div>
+        <div class="port"><span class="pn">1521</span><b>Oracle</b></div>
+      </div>
+      <p>From the node server to the database, inside the entity's network, or whatever port the entity uses.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th><code>tls</code></th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>require</code> <span class="tag plain">default</span></td><td class="wrap">Encrypts the connection, without verifying the database's certificate</td></tr>
+            <tr><td><code>verify</code></td><td class="wrap">Encrypts and verifies the certificate. With an internal CA, the installer asks for the CA file. On Oracle, only the system CAs are used</td></tr>
+            <tr><td><code>disable</code></td><td class="wrap">No encryption. Only reasonable inside the entity's network, and the installer warns about it</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="modo">
+      <h2><span class="num">3</span>Node mode</h2>
+      <p>Instant APIs need the node in <b><code>completo</code> mode</b> (full: channel plus instant APIs). If it was installed in <code>canal</code> mode (secure channel only), you can switch without losing the node's identity or its services:</p>
+      <div class="cmds">
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh mode completo</code><button class="copy" type="button">Copy</button><span>Switches to the image with the instant APIs and the drivers.</span></div>
+        <div class="cmd"><code>sudo /opt/rid-node/install.sh service</code><button class="copy" type="button">Copy</button><span>Type <code>instant</code>: shows the views the user can read, creates the resource and generates the OpenAPI in <code>/opt/rid-node/config/services/&lt;service&gt;.openapi.json</code>.</span></div>
+      </div>
+    </section>
+
+    <section id="archivo">
+      <div class="part">Configuration</div>
+      <h2><span class="num">4</span>The service file</h2>
+      <p>Each service lives in <code>/opt/rid-node/config/services/&lt;service&gt;.yaml</code>. The installer writes it; you can edit it later (section 8).</p>
+      <div class="code"><button class="copy" type="button">Copy</button><pre><code>name: afiliacion                       # service name: lowercase letters, digits and hyphens
+path: /afiliacion                      # "Service path on the node" in the portal
+type: instant
+title: Afiliación en salud             # optional: OpenAPI title (defaults to the name)
+description: Consulta de afiliación    # optional
+version: 1.0.0                         # optional: OpenAPI version (defaults to 1.0.0)
+database:
+  engine: postgres                     # sqlserver | postgres | mysql | oracle
+  host: bd.interna.entidad
+  port: 5432
+  name: entidad                        # the database; on Oracle, the service name
+  user: rid_reader
+  passwordFile: /run/secrets/afiliacion_db_password
+  tls: require                         # disable | require | verify
+  # caFile: /run/secrets/afiliacion_db_ca.pem   # only with verify (not on Oracle)
+  maxConnections: 4                    # concurrent connections to the database (default 4)
+  queryTimeout: 5s                     # maximum time per query (default 5 s)
+resources:
+  - name: afiliados                    # in the URL: /afiliacion/afiliados/{key}
+    entity: Afiliado                   # name in the OpenAPI (schema and operationId getAfiliado)
+    source: salud.v_afiliados          # schema.view
+    description: Afiliado por documento   # optional
+    key:
+      column: numero_documento         # the column looked up with the key
+      # pattern: '[0-9]{6,12}'         # optional: the key's own format
+    dataSubject: { documentType: CC }  # if the key identifies a person
+    many: false                        # true: the key returns a list
+    # maxRows: 100                     # with many: maximum rows (default 100, up to 1000)
+    columns:
+      - { name: tipo_documento }
+      - { name: numero_documento }
+      - { name: eps }
+      - { name: activo, as: boolean }  # as changes how the column is published (section 5)</code></pre></div>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Resource field</th><th>What it is</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td class="wrap">The resource name in the URL. Lowercase letters, digits and hyphens, at most 80 characters</td></tr>
+            <tr><td><code>entity</code></td><td class="wrap">The name in the OpenAPI. Starts with an uppercase letter, only letters and digits, unique within the service (<code>Problem</code> is reserved)</td></tr>
+            <tr><td><code>source</code></td><td class="wrap">The view or table, as <code>schema.object</code>. Case does not matter</td></tr>
+            <tr><td><code>key.column</code></td><td class="wrap">The key column. It must be in the view</td></tr>
+            <tr><td><code>columns</code></td><td class="wrap">The columns that are published. <b>A column that is not listed here does not go out</b>, even if it is in the view</td></tr>
+            <tr><td><code>dataSubject</code> <span class="tag warn">personal data</span></td><td class="wrap">Declares that the key identifies a person, and with which document type. The portal requires it in personal or sensitive APIs. Without it, the OpenAPI declares that the resource has no data subject</td></tr>
+            <tr><td><code>many</code> <span class="tag plain">optional</span></td><td class="wrap"><code>true</code> if one key returns several rows. The response is a list</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <b>All or nothing</b>
+        <p>The whole file is validated before it is applied. If anything does not match the database (a view that does not exist, a misspelled column, an <code>as</code> that cannot be applied), the node <b>serves no resource of the service</b>, and <code>validate</code> and <code>doctor</code> say why.</p>
+      </div>
+    </section>
+
+    <section id="tipos">
+      <h2><span class="num">5</span>Column types</h2>
+      <p>The node reads each column's type from the database catalog and publishes it as follows:</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Published as</th><th>SQL Server</th><th>PostgreSQL</th><th>MySQL</th><th>Oracle</th></tr></thead>
+          <tbody>
+            <tr><td>text</td><td class="wrap"><code>varchar</code>, <code>nvarchar</code>, <code>char</code>, <code>nchar</code></td><td class="wrap"><code>varchar</code>, <code>char</code>, <code>text</code></td><td class="wrap"><code>varchar</code>, <code>char</code>, <code>*text</code>, <code>enum</code></td><td class="wrap"><code>varchar2</code>, <code>nvarchar2</code>, <code>char</code>, <code>nchar</code></td></tr>
+            <tr><td>integer</td><td class="wrap"><code>int</code>, <code>smallint</code>, <code>tinyint</code>, <code>bigint</code></td><td class="wrap"><code>integer</code>, <code>smallint</code>, <code>bigint</code></td><td class="wrap"><code>int</code>, <code>smallint</code>, <code>tinyint</code>, <code>mediumint</code>, <code>bigint</code>, <code>year</code></td><td class="wrap"><code>number</code> without decimals</td></tr>
+            <tr><td>number</td><td class="wrap"><code>decimal</code>, <code>numeric</code>, <code>money</code>, <code>float</code>, <code>real</code></td><td class="wrap"><code>numeric</code>, <code>real</code>, <code>double precision</code></td><td class="wrap"><code>decimal</code>, <code>float</code>, <code>double</code></td><td class="wrap"><code>number</code> with decimals, <code>float</code>, <code>binary_*</code></td></tr>
+            <tr><td>yes/no</td><td class="wrap"><code>bit</code></td><td class="wrap"><code>boolean</code></td><td class="wrap"><code>bit(1)</code></td><td class="wrap"><code>boolean</code></td></tr>
+            <tr><td>date</td><td class="wrap"><code>date</code></td><td class="wrap"><code>date</code></td><td class="wrap"><code>date</code></td><td class="wrap">—</td></tr>
+            <tr><td>date and time with time zone (always in UTC)</td><td class="wrap"><code>datetimeoffset</code></td><td class="wrap"><code>timestamp with time zone</code></td><td class="wrap">—</td><td class="wrap"><code>timestamp with time zone</code></td></tr>
+            <tr><td>date and time without time zone</td><td class="wrap"><code>datetime2</code>, <code>datetime</code>, <code>smalldatetime</code></td><td class="wrap"><code>timestamp</code></td><td class="wrap"><code>datetime</code>, <code>timestamp</code></td><td class="wrap"><code>date</code>, <code>timestamp</code></td></tr>
+            <tr><td>UUID</td><td class="wrap"><code>uniqueidentifier</code></td><td class="wrap"><code>uuid</code></td><td class="wrap">—</td><td class="wrap">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>All other types (binary, XML, JSON, geographic, intervals) <b>cannot be published</b>. The installer leaves them out and notes them as a comment in the file. If you need one, convert it in the view, for example with <code>CAST(... AS varchar)</code>. A <code>NULL</code> value goes out as <code>null</code>.</p>
+      <h3>Changing how a column is published: <code>as</code></h3>
+      <p>Only conversions that lose no information are accepted.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th><code>as</code></th><th>Works for</th></tr></thead>
+          <tbody>
+            <tr><td><code>string</code></td><td class="wrap">Any column</td></tr>
+            <tr><td><code>integer</code></td><td class="wrap">Integer columns</td></tr>
+            <tr><td><code>number</code></td><td class="wrap">Numbers and integers</td></tr>
+            <tr><td><code>boolean</code></td><td class="wrap">An integer that holds 0 or 1 (Oracle's <code>NUMBER(1)</code>, MySQL's <code>TINYINT(1)</code>)</td></tr>
+            <tr><td><code>date</code></td><td class="wrap">Dates and date-times, when the time does not matter (Oracle's <code>DATE</code> always carries a time)</td></tr>
+            <tr><td><code>date-time</code></td><td class="wrap">Only columns with a time zone</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="clave">
+      <h2><span class="num">6</span>The key</h2>
+      <p>The key arrives in the URL and is validated <b>before</b> the database is queried. An invalid format returns 400 without touching the database.</p>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Key column type</th><th>Format accepted by default</th></tr></thead>
+          <tbody>
+            <tr><td>Text</td><td class="wrap">Letters, digits and hyphens, up to the column's length. No spaces, quotes or separators</td></tr>
+            <tr><td>Integer or number</td><td class="wrap">Up to 38 digits. A key that does not fit in the column returns 404 without querying the database</td></tr>
+            <tr><td>UUID</td><td class="wrap"><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td></tr>
+            <tr><td>Date</td><td class="wrap"><code>YYYY-MM-DD</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If the entity's keys have another format (for example, with dots or with letters at the end), declare <code>key.pattern</code> with a regular expression. The node anchors it to the whole key. No key can exceed 256 bytes.</p>
+    </section>
+
+    <section id="respuestas">
+      <h2><span class="num">7</span>How the API responds</h2>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Response</th><th>When</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag ok">200</span> object</td><td class="wrap">The key exists (resource without <code>many</code>)</td></tr>
+            <tr><td><span class="tag ok">200</span> list</td><td class="wrap">The key exists (resource with <code>many</code>). The list is sorted by its columns, always in the same order</td></tr>
+            <tr><td><span class="tag plain">404</span> <code>not_found</code></td><td class="wrap">The key does not exist, or the resource does not exist</td></tr>
+            <tr><td><span class="tag warn">400</span> <code>invalid_key</code></td><td class="wrap">The key does not have the resource's format</td></tr>
+            <tr><td><span class="tag warn">400</span> <code>query_not_allowed</code></td><td class="wrap">The URL has parameters (<code>?...</code>). Keys always go in the path</td></tr>
+            <tr><td><span class="tag warn">405</span> <code>method_not_allowed</code></td><td class="wrap">A method other than <code>GET</code></td></tr>
+            <tr><td><span class="tag bad">500</span> <code>non_unique_key</code></td><td class="wrap">A key declared unique returned two rows. Check the view, or declare <code>many: true</code></td></tr>
+            <tr><td><span class="tag bad">500</span> <code>too_many_rows</code></td><td class="wrap">A list exceeded <code>maxRows</code>. It is never silently truncated</td></tr>
+            <tr><td><span class="tag bad">500</span> <code>response_too_large</code></td><td class="wrap">The response exceeded 8 MiB</td></tr>
+            <tr><td><span class="tag bad">500</span> <code>unrepresentable_value</code></td><td class="wrap">A database value does not fit the type the OpenAPI declares (for example <code>NaN</code>, <code>Infinity</code> or a <code>0000-00-00</code> date). The log says which column, never the value. Fix it in the view, for example with <code>NULLIF</code></td></tr>
+            <tr><td><span class="tag bad">503</span> <code>service_unavailable</code></td><td class="wrap">The database does not respond, or the service file does not match the database (a column changed, or the user has no <code>SELECT</code> on the view)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <ul class="ticks">
+        <li>Errors are returned as <code>application/problem+json</code>, with a title in Spanish and a stable <code>code</code>.</li>
+        <li><code>GET {service path}/</code> responds <code>{"status":"ok"}</code>, or 503 if the database does not respond: the portal uses it to know whether the service is healthy.</li>
+        <li>If the database goes down, the service responds 503 and the portal shows it as having problems. When the database comes back, the service recovers on its own, without restarting the node.</li>
+      </ul>
+    </section>
+
+    <section id="cambiar">
+      <div class="part">Operation</div>
+      <h2><span class="num">8</span>Changing a service</h2>
+      <p>The node's commands run inside the container, from <code>/opt/rid-node</code>. Inside the container, the configuration is in <code>/etc/rid-node/services/</code>.</p>
+      <div class="code"><button class="copy" type="button">Copy</button><pre><code>cd /opt/rid-node
+sudo docker compose exec rid-node /rid-node &lt;command&gt;</code></pre></div>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Command</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td class="wrap"><code>catalog --service-file /etc/rid-node/services/&lt;service&gt;.yaml</code></td><td class="wrap">The views and tables the user can read, with their columns and whether they can be published</td></tr>
+            <tr><td class="wrap"><code>scaffold --print --service-file ... --source schema.view --key column [--resource name] [--entity Name] [--subject CC] [--many]</code></td><td class="wrap">Prints the service file with a new resource that includes every column that can be published</td></tr>
+            <tr><td><code>validate</code></td><td class="wrap">Validates all services against their databases</td></tr>
+            <tr><td><code>openapi &lt;service&gt;</code></td><td class="wrap">Prints the OpenAPI that you upload to the portal</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Removing or adjusting columns</h3>
+      <p>Edit <code>config/services/&lt;service&gt;.yaml</code>: remove the column from <code>columns</code>, or add <code>as</code> to it.</p>
+
+      <h3>Adding a resource to an existing service</h3>
+      <p>Another view on the same database:</p>
+      <div class="code"><button class="copy" type="button">Copy</button><pre><code>sudo /opt/rid-node/install.sh service resource afiliacion</code></pre></div>
+      <p>It shows the views the user can read, asks for the view and its key, adds the resource, validates, regenerates the OpenAPI and restarts the node. If anything fails, it leaves the service as it was. The OpenAPI changes, so you must publish a new version in the portal.</p>
+
+      <h3>After any change</h3>
+      <ol class="steps">
+        <li><span>Validate, regenerate the OpenAPI and restart:
+          <div class="code" style="margin-top:8px"><button class="copy" type="button">Copy</button><pre><code>cd /opt/rid-node
+sudo docker compose exec rid-node /rid-node validate
+sudo docker compose exec rid-node /rid-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json &gt;/dev/null
+sudo docker compose restart rid-node</code></pre></div></span></li>
+        <li><span><b>If the OpenAPI changed, publish a new version in the portal.</b> The node sends the fingerprint of the OpenAPI it serves in every heartbeat, so the portal knows which contract is behind it. An incompatible change (removing a column, changing its type, changing the key) requires a new major version.</span></li>
+      </ol>
+      <div class="callout info">
+        <b>If the view changes in the database</b>
+        <p>The service keeps serving the declared columns. A new column in the view is not published until it is added to <code>columns</code>. If a declared column is removed from the view, the service stops serving and <code>doctor</code> says which one is missing.</p>
+      </div>
+    </section>
+
+    <section id="seguridad">
+      <h2><span class="num">9</span>Security and privacy</h2>
+      <div class="guar">
+        <div><b>Read-only in three layers</b><span>The database user, which <code>doctor</code> verifies; a read-only transaction on every query (PostgreSQL, MySQL and Oracle; SQL Server does not have one); and a <code>SELECT</code> generated by the node with the key as its only parameter. View and column names come from the catalog, never from the request.</span></div>
+        <div><b>No content in the logs</b><span>The resource, the path template and the result; never the key or the values. Database errors are logged by class, not with the driver's message.</span></div>
+        <div><b>Data is not copied</b><span>Each query is answered on the spot from the entity's database, and the node stores nothing.</span></div>
+        <div><b>The database is protected</b><span>The node limits connections (<code>maxConnections</code>), the time per query (<code>queryTimeout</code>) and concurrent requests.</span></div>
+      </div>
+    </section>
+
+    <section id="problemas">
+      <h2><span class="num">10</span>Common problems</h2>
+      <div class="tablewrap">
+        <table class="t">
+          <thead><tr><th>Symptom</th><th>Likely cause</th><th>What to do</th></tr></thead>
+          <tbody>
+            <tr><td class="wrap">The installer: "Could not read the database catalog with that user"</td><td class="wrap">Wrong host, port, database, user or password, or the firewall blocks the connection</td><td class="wrap">Check the details and the connection from the node server to the database</td></tr>
+            <tr><td class="wrap"><code>catalog</code>: "the user cannot read any view or table"</td><td class="wrap">The <code>GRANT SELECT</code> is missing (or, on PostgreSQL, the <code>USAGE</code> on the schema)</td><td class="wrap">Section 2</td></tr>
+            <tr><td class="wrap"><code>doctor</code>: ✘ the user can write</td><td class="wrap">The user has <code>INSERT</code>, <code>UPDATE</code> or <code>DELETE</code>, directly or through a role</td><td class="wrap">Remove those permissions and leave only <code>SELECT</code> on the views</td></tr>
+            <tr><td class="wrap"><code>validate</code>: a column does not exist</td><td class="wrap">The view changed, or the name is misspelled</td><td class="wrap">Fix <code>columns</code> or the view</td></tr>
+            <tr><td class="wrap">Every query returns 503</td><td class="wrap">The database does not respond, or the file does not match the database</td><td class="wrap"><code>doctor</code> says which of the two</td></tr>
+            <tr><td class="wrap"><code>400 invalid_key</code> with valid keys</td><td class="wrap">The default pattern does not accept the keys' format</td><td class="wrap">Declare <code>key.pattern</code> (section 6)</td></tr>
+            <tr><td class="wrap"><code>500 non_unique_key</code></td><td class="wrap">The key is repeated in the view</td><td class="wrap">Fix the view, or declare <code>many: true</code> and publish a new version</td></tr>
+            <tr><td class="wrap">With TLS <code>verify</code>, the connection fails</td><td class="wrap">The database uses a certificate from an internal CA</td><td class="wrap">Provide the CA file (not on Oracle), or use <code>require</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limites">
+      <h2><span class="num">11</span>Limits of this version</h2>
+      <ul class="ticks">
+        <li>Only <code>GET</code> by key. There are no listings, filters or searches by body (POST).</li>
+        <li>A new resource in an existing service is added by editing the file (section 8): the installer only creates new services.</li>
+        <li>Oracle was tested with version 23ai. With older versions, it is tested with each entity.</li>
+        <li>On PostgreSQL, <code>timestamp with time zone</code> columns go out in UTC.</li>
+      </ul>
+      <p class="footer">Markdown version: <code>docs/INSTANT-APIS.md</code> in the kit repository. Node installation is in <code>docs/INSTALL.md</code>.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var big = document.getElementById('bigtext');
+  function store(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function setBig(on) { root.classList.toggle('big', on); big.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  setBig(load('ridi-big') === '1');
+  big.addEventListener('click', function () { var on = !root.classList.contains('big'); setBig(on); store('ridi-big', on ? '1' : '0'); });
+
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var box = btn.closest('.code, .cmd');
+      var text = box.querySelector('pre, code').innerText.trim();
+      var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); };
+      var fallback = function () { var r = document.createRange(); r.selectNodeContents(box.querySelector('pre, code')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent = 'Selected'; };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+    });
+  });
+
+  document.querySelectorAll('#pre input').forEach(function (box) {
+    box.checked = load('ridi-' + box.id) === '1';
+    box.addEventListener('change', function () { store('ridi-' + box.id, box.checked ? '1' : '0'); });
+  });
+
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a'));
+  if ('IntersectionObserver' in window) {
+    var seen = {};
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { seen[e.target.id] = e.isIntersecting; });
+      var first = links.find(function (a) { return seen[a.getAttribute('href').slice(1)]; });
+      if (first) links.forEach(function (a) { a.classList.toggle('active', a === first); });
+    }, { rootMargin: '-80px 0px -55% 0px' });
+    links.forEach(function (a) { var s = document.getElementById(a.getAttribute('href').slice(1)); if (s) io.observe(s); });
+  }
+})();
+</script>

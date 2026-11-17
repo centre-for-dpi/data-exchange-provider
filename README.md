@@ -1,17 +1,19 @@
-# Kit de APIs instantáneas — RID
+# Instant API kit — RID
 
-Nodo que se instala en cada entidad proveedora de la Red de Intercambio de Datos. Expone vistas de su base de datos como APIs REST, a través de un túnel cifrado y con mTLS, solo hacia el gateway de la red.
+> Versión en español: [docs/es/README.md](docs/es/README.md)
 
-Estado: en diseño. Ver `CLAUDE.md` y `docs/CONTEXTO.md`.
+A node installed at each provider entity of the Data Exchange Network. It exposes views of the entity's database as REST APIs, through an encrypted tunnel and over mTLS, to the network gateway only.
 
-Para las entidades:
+Status: in design. See `CLAUDE.md` and `docs/CONTEXT.md`.
 
-- [docs/guias/proveedoras.md](docs/guias/proveedoras.md) — qué designa, dispone y hace una entidad proveedora (versión para proyectar: `proveedoras.html`)
-- [docs/INSTALACION.md](docs/INSTALACION.md) — instalación y operación del nodo
-- [docs/APIS-INSTANTANEAS.md](docs/APIS-INSTANTANEAS.md) — APIs instantáneas: preparar la base, el archivo del servicio, tipos, respuestas y cambios (versión para proyectar: `APIS-INSTANTANEAS.html`)
+For entities:
 
-El portal y el gateway están en otro repositorio. La frontera es el contrato de nodos v1 que publica el portal.
+- [docs/guides/providers.md](docs/guides/providers.md) — what a provider entity designates, provides and does (presentation version: `providers.html`)
+- [docs/INSTALL.md](docs/INSTALL.md) — installing and operating the node
+- [docs/INSTANT-APIS.md](docs/INSTANT-APIS.md) — instant APIs: preparing the database, the service file, types, responses and changes (presentation version: `INSTANT-APIS.html`)
 
-## Licencia
+The portal and the gateway live in another repository. The boundary is the node contract v1 that the portal publishes.
 
-Apache-2.0, © 2026 Centre for Digital Public Infrastructure (CDPI). Ver [LICENSE](LICENSE), [NOTICE](NOTICE) y [ADR-0003](docs/adr/0003-licencia-apache-2.md).
+## License
+
+Apache-2.0, © 2026 Centre for Digital Public Infrastructure (CDPI). See [LICENSE](LICENSE), [NOTICE](NOTICE) and [ADR-0003](docs/adr/0003-licencia-apache-2.md).

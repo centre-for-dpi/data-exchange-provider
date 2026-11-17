@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/i18n"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/proxy"
 )
 
@@ -28,10 +29,10 @@ func validate(configPath string, out io.Writer) int {
 			continue
 		}
 		if _, err := proxy.New(s.Path, s.Proxy); err != nil {
-			fmt.Fprintf(out, "✘ servicio %q: %v\n", s.Name, err)
+			i18n.Fprintf(out, "✘ service %q: %v\n", s.Name, err)
 			return 1
 		}
 	}
-	fmt.Fprintf(out, "✔ configuración válida: %d servicios\n", len(cfg.Services))
+	i18n.Fprintf(out, "✔ valid configuration: %d services\n", len(cfg.Services))
 	return 0
 }
