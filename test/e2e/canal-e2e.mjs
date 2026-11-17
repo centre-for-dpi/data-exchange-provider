@@ -391,7 +391,9 @@ const NODE_CONTAINER = `${PROJECT}-den-node-1`;
 // DEN_E2E_NODE=installer: the node is installed with install.sh from the delivery bundle on a
 // clean Ubuntu server (test/install/ubuntu.sh), as an entity would do it.
 const INSTALLER = process.env.DEN_E2E_NODE === 'installer';
-const KIT = process.env.DEN_E2E_KIT ?? resolve(here, '../../dist/den-node-kit-0.1.0');
+const KIT = process.env.DEN_E2E_KIT ?? resolve(here, '../../dist/den-node-kit-0.2.0');
+// The bundle's own version (its VERSION file): what an install from it must leave in .env.
+const KIT_VERSION = existsSync(resolve(KIT, 'VERSION')) ? readFileSync(resolve(KIT, 'VERSION'), 'utf8').trim() : '';
 const SERVER = resolve(here, '../install/ubuntu.sh');
 const TEST_SERVER = process.env.DEN_TEST_SERVER ?? 'den-install-test';
 // DEN_E2E_SERVICE=instant (with DEN_E2E_NODE=installer): the node is installed in modo completo
@@ -456,7 +458,7 @@ async function installWithInstaller(token) {
 
   const op = (cmd) => onServer(`DEN_INSTALL_YES=1 bash /opt/den-node/install.sh ${cmd} </dev/null`);
   const again = op('');
-  expect(again.status === 0 && /no hace falta token/.test(again.stdout), `re-install failed: ${again.stdout}${again.stderr}`);
+  expect(again.status === 0 && /no token needed/.test(again.stdout), `re-install failed: ${again.stdout}${again.stderr}`);
   ok('Reinstalar no pide token ni toca la identidad del nodo');
 
   const lan = readFileSync(resolve(here, '../install/.lan-address'), 'utf8').trim();
@@ -481,7 +483,7 @@ async function installWithInstaller(token) {
 
   const bad = op('update 9.9.9');
   const version = onServer("grep '^DEN_NODE_VERSION=' /opt/den-node/.env").stdout.trim();
-  expect(bad.status !== 0 && version === 'DEN_NODE_VERSION=0.1.0' && op('status').status === 0, `update to a missing version: ${bad.stdout}${bad.stderr} / ${version}`);
+  expect(bad.status !== 0 && version === `DEN_NODE_VERSION=${KIT_VERSION}` && op('status').status === 0, `update to a missing version: ${bad.stdout}${bad.stderr} / ${version}`);
   ok('update a una versión que no existe falla sin tocar .env y el nodo sigue en línea');
 
   const name = (op('status').stdout.match(/Node:\s+(\S+)/) ?? [])[1];
