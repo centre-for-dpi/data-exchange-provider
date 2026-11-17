@@ -21,7 +21,7 @@ GET /afiliacion/afiliados/1000000001
 
 A través del gateway, el consumidor llama a `/<entidad>/<api>/v1/afiliados/1000000001`. La ruta exacta está en la ficha de la API en el portal.
 
-- **Motores:** SQL Server, PostgreSQL, MySQL y Oracle. No hace falta instalar ningún cliente de base de datos en el servidor: los drivers van dentro del nodo.
+- **Motores:** SQL Server, PostgreSQL, MySQL y Oracle. No hace falta instalar ningún cliente de base de datos en el servidor: los drivers van dentro del nodo. Versiones probadas: Oracle 11g, 21c y 23ai; SQL Server 2019; PostgreSQL 17; MySQL 8.4.
 - **Un servicio = una conexión** a una base, con uno o varios recursos. Cada recurso es una vista y una clave.
 - **El nodo genera el OpenAPI** del servicio. Ese archivo es el contrato que se sube al portal y ya cumple las reglas de la red.
 - **Solo consultas por clave.** No hay listados, filtros, búsquedas ni escrituras.

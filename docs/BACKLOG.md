@@ -58,7 +58,7 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 
 - Declaraciones (`as` por columna, `maxRows`) y compilación contra el catálogo.
 - Dialectos SQL Server, PostgreSQL, MySQL y Oracle, con pruebas de integración por motor.
-- **Pendiente tras el bootcamp:** probar go-ora con las versiones de Oracle que reporten las entidades del piloto (K3 se probó con Oracle 23ai Free). Si falla, el plan B (node-oracledb *thin*) sería un contenedor aparte detrás del mismo nodo, y rompería la imagen única. Se decide con ese resultado.
+- **Oracle por versión:** la suite completa pasa con Oracle 11g XE, 21c XE y 23ai (`make test-engines-legacy`). Con 11g hizo falta un catálogo sin `oracle_maintained` y `ROWNUM` en vez de `FETCH FIRST`. Tras el bootcamp, probar cualquier otra versión que reporten las entidades (`docs/guias/bootcamp-levantamiento.md`). Si go-ora fallara, el plan B (node-oracledb *thin*) sería un contenedor aparte detrás del mismo nodo.
 - Handler, errores y raíz del servicio con la salud de la base.
 - OpenAPI determinista, igual al hash del heartbeat.
 - CLI: `catalog`, `scaffold`, `validate` y `openapi`.
