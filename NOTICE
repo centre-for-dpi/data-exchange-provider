@@ -1,0 +1,7 @@
+RID provider node kit (rid-node)
+Copyright 2026 Centre for Digital Public Infrastructure (CDPI)
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components linked into rid-node keep their own licenses. Each release
+bundle lists them in LICENSES.txt and in its CycloneDX SBOM files (sbom-*.cdx.json).

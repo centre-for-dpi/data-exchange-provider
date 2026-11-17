@@ -11,3 +11,7 @@ Para las entidades:
 - [docs/APIS-INSTANTANEAS.md](docs/APIS-INSTANTANEAS.md) — APIs instantáneas: preparar la base, el archivo del servicio, tipos, respuestas y cambios (versión para proyectar: `APIS-INSTANTANEAS.html`)
 
 El portal y el gateway están en otro repositorio. La frontera es el contrato de nodos v1 que publica el portal.
+
+## Licencia
+
+Apache-2.0, © 2026 Centre for Digital Public Infrastructure (CDPI). Ver [LICENSE](LICENSE), [NOTICE](NOTICE) y [ADR-0003](docs/adr/0003-licencia-apache-2.md).

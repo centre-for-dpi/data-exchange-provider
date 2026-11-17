@@ -24,6 +24,9 @@ FROM scratch
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --chown=65532:65532 deploy/rootfs/ /
 COPY --from=build /out/rid-node /rid-node
+COPY LICENSE NOTICE /licenses/
+LABEL org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.vendor="Centre for Digital Public Infrastructure (CDPI)"
 USER 65532:65532
 ENV RID_STATE_DIR=/var/lib/rid-node RID_CONFIG=/etc/rid-node/node.yaml
 ENTRYPOINT ["/rid-node", "run"]
