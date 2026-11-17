@@ -195,7 +195,7 @@ func natural(native string, k Kind, v any) any {
 		}
 	case KindDateTimeTZ:
 		if t, ok := v.(time.Time); ok {
-			return t.Format(time.RFC3339Nano)
+			return t.UTC().Format(time.RFC3339Nano) // one form on every engine and server zone
 		}
 	case KindUUID:
 		switch x := v.(type) {

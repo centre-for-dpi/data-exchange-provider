@@ -213,7 +213,7 @@ func TestToJSON(t *testing.T) {
 		{"date", Column{Kind: KindDate}, "", ts, `"2026-11-16"`},
 		{"date from datetime", Column{Kind: KindDateTime}, "date", ts, `"2026-11-16"`},
 		{"datetime without zone", Column{Kind: KindDateTime}, "", ts, `"2026-11-16T10:30:15.12"`},
-		{"datetime with zone", Column{Kind: KindDateTimeTZ}, "", ts, `"2026-11-16T10:30:15.12-05:00"`},
+		{"datetime with zone", Column{Kind: KindDateTimeTZ}, "", ts, `"2026-11-16T15:30:15.12Z"`}, // always UTC: the same instant reads the same on every engine
 		{"uuid from array", Column{Kind: KindUUID}, "", uuid, `"12345678-9abc-def0-1234-56789abcdef0"`},
 		{"uuid from bytes", Column{Kind: KindUUID}, "", uuid[:], `"12345678-9abc-def0-1234-56789abcdef0"`},
 		{"uuid from SQL Server bytes", Column{Kind: KindUUID, Native: "uniqueidentifier"}, "",

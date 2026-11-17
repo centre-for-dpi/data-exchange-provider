@@ -164,7 +164,7 @@ El nodo lee el tipo de cada columna en el catálogo de la base y lo publica así
 | número | `decimal`, `numeric`, `money`, `float`, `real` | `numeric`, `real`, `double precision` | `decimal`, `float`, `double` | `number` con decimales, `float`, `binary_*` |
 | sí/no | `bit` | `boolean` | `bit(1)` | `boolean` |
 | fecha (`2026-11-18`) | `date` | `date` | `date` | — |
-| fecha y hora con zona (RFC 3339) | `datetimeoffset` | `timestamp with time zone` | — | `timestamp with time zone` |
+| fecha y hora con zona (RFC 3339, siempre en UTC) | `datetimeoffset` | `timestamp with time zone` | — | `timestamp with time zone` |
 | fecha y hora sin zona | `datetime2`, `datetime`, `smalldatetime` | `timestamp` | `datetime`, `timestamp` | `date`, `timestamp` |
 | UUID | `uniqueidentifier` | `uuid` | — | — |
 
