@@ -19,7 +19,9 @@ for arch in amd64 arm64; do
 done
 install -m 0755 deploy/install.sh "$OUT/install.sh"
 install -m 0644 deploy/compose.yaml deploy/env.example "$OUT/"
-[[ -f docs/INSTALACION.md ]] && install -m 0644 docs/INSTALACION.md "$OUT/"
+for doc in docs/INSTALACION.md docs/APIS-INSTANTANEAS.md; do
+  if [[ -f $doc ]]; then install -m 0644 "$doc" "$OUT/"; fi
+done
 echo "$VERSION" >"$OUT/VERSION"
 {
   echo "# Go modules linked into rid-node $VERSION (completo; canal is a subset)"
