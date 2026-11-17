@@ -202,7 +202,7 @@ El portal prueba la conectividad a través del gateway y del nodo. Si la validac
 
 | Comando | Para qué |
 | :-- | :-- |
-| `sudo /opt/rid-node/install.sh status` | Estado: portal, túnel, certificado, salud de cada servicio y avisos |
+| `sudo /opt/rid-node/install.sh status` | Estado: portal, túnel, certificado, salud de cada servicio (con sus peticiones, errores y latencia desde el arranque) y avisos |
 | `sudo /opt/rid-node/install.sh doctor` | Revisa la configuración, los secretos, el DNS, la conexión con el portal, el reloj, las APIs internas y el túnel |
 | `sudo /opt/rid-node/install.sh logs` | Los últimos logs del nodo (solo metadatos). Con `-f` los sigue en vivo |
 | `sudo /opt/rid-node/install.sh stop` / `start` | Detiene o arranca el nodo, sin perder nada |

@@ -114,9 +114,10 @@ func TestStatusHuman(t *testing.T) {
 	dir := t.TempDir()
 	st := agent.Status{NodeName: "rid-node-abc", PortalState: "online", LastHeartbeat: time.Now().Add(-12 * time.Second),
 		LastHandshake: time.Now().Add(-30 * time.Second), CertificateNotAfter: "2027-02-14T00:00:00Z",
-		Health:   contract.Health{Status: "degraded", Detail: "sin respuesta: afiliacion"},
-		Services: []agent.ServiceStatus{{Name: "certificados", Path: "/certificados", Healthy: true}, {Name: "afiliacion", Path: "/salud", Healthy: false, Detail: "upstream no responde"}},
-		Notices:  []string{"actualiza el kit"}, KitVersion: "0.1.0-dev", Variant: "canal"}
+		Health: contract.Health{Status: "degraded", Detail: "sin respuesta: afiliacion"},
+		Services: []agent.ServiceStatus{{Name: "certificados", Path: "/certificados", Healthy: true, Requests: 1234, ServerErrors: 2, P50Ms: 12, P95Ms: 80},
+			{Name: "afiliacion", Path: "/salud", Healthy: false, Detail: "upstream no responde"}},
+		Notices: []string{"actualiza el kit"}, KitVersion: "0.1.0-dev", Variant: "canal"}
 	if err := (state.Store{Dir: dir}).WriteStatus(st); err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +125,8 @@ func TestStatusHuman(t *testing.T) {
 	if code := status(dir, false, &out, time.Now); code != 0 {
 		t.Fatalf("code %d", code)
 	}
-	for _, want := range []string{"rid-node-abc", "online", "2027-02-14", "certificados", "upstream no responde", "actualiza el kit", "canal"} {
+	for _, want := range []string{"rid-node-abc", "online", "2027-02-14", "certificados", "upstream no responde", "actualiza el kit", "canal",
+		"1234 peticiones", "5xx: 2", "p50 12 ms", "p95 80 ms"} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("status lacks %q:\n%s", want, out.String())
 		}
@@ -198,12 +200,13 @@ services:
 	// status.json is written after the heartbeat's answer is processed: wait for it.
 	var st agent.Status
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
-		if err := (state.Store{Dir: stateDir}).ReadStatus(&st); err == nil && st.PortalState == "online" {
+		if err := (state.Store{Dir: stateDir}).ReadStatus(&st); err == nil && st.PortalState == "online" &&
+			len(st.Services) == 1 && st.Services[0].Requests >= 1 {
 			break
 		}
 	}
-	if st.PortalState != "online" {
-		t.Fatalf("status %+v", st)
+	if st.PortalState != "online" || len(st.Services) != 1 || st.Services[0].Requests < 1 {
+		t.Fatalf("status (the gateway's call must be counted for the service): %+v", st)
 	}
 	cancel()
 	select {

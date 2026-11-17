@@ -48,6 +48,10 @@ func status(stateDir string, asJSON bool, out io.Writer, now func() time.Time) i
 			mark, detail = "✘", " — "+s.Detail
 		}
 		fmt.Fprintf(out, "  %s %-16s %s%s\n", mark, s.Name, s.Path, detail)
+		if s.Requests > 0 {
+			fmt.Fprintf(out, "      %d peticiones (4xx: %d, 5xx: %d) · p50 %.0f ms · p95 %.0f ms\n",
+				s.Requests, s.ClientErrors, s.ServerErrors, s.P50Ms, s.P95Ms)
+		}
 	}
 	if len(st.Notices) > 0 {
 		fmt.Fprintln(out, "Avisos:")

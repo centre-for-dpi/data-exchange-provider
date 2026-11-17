@@ -28,4 +28,10 @@ type ServiceStatus struct {
 	Path    string `json:"path"`
 	Healthy bool   `json:"healthy"`
 	Detail  string `json:"detail,omitempty"`
+	// Since the node started; latency over the recent requests, in milliseconds.
+	Requests     int64   `json:"requests"`
+	ClientErrors int64   `json:"clientErrors"`
+	ServerErrors int64   `json:"serverErrors"`
+	P50Ms        float64 `json:"p50Ms"`
+	P95Ms        float64 `json:"p95Ms"`
 }

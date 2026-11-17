@@ -72,6 +72,15 @@ func runNode(ctx context.Context, o runOptions) error {
 		}
 		services = append(services, agent.ServiceRuntime{Info: info, Probe: ps.Probe})
 	}
+	// Each service's counts and latency go to status.json (the node opens no metrics port).
+	metrics := server.NewMetrics()
+	for i := range services {
+		path := services[i].Info.Path
+		services[i].Stats = func() agent.ServiceStats {
+			s := metrics.Snapshot(path)
+			return agent.ServiceStats{Requests: s.Requests, ClientErrors: s.ClientErrors, ServerErrors: s.ServerErrors, P50: s.P50, P95: s.P95}
+		}
+	}
 	log.Info("starting", "version", buildinfo.Version, "variant", buildinfo.Variant(), "services", len(routes))
 
 	enroller := &agent.Enroller{Store: state.Store{Dir: o.StateDir}, HTTP: contract.NewPortalHTTPClient(o.PortalRoots),
@@ -109,7 +118,7 @@ func runNode(ctx context.Context, o runOptions) error {
 	serveErr := make(chan error, 1)
 	go func() {
 		serveErr <- server.Serve(ctx, l, server.TLSConfig(server.Identity{NodeName: st.NodeName, GatewayClientName: st.GatewayClientName,
-			Roots: roots, Certificate: live.Load}), server.NewHandler(st.NodeName, routes, log), log)
+			Roots: roots, Certificate: live.Load}), server.NewHandlerWithMetrics(st.NodeName, routes, log, metrics), log)
 	}()
 	ctl := agent.NewController(st, enroller.Store, contract.NewControl(st.ControlURL, cfg.ControlDialAddress, roots, live.Load),
 		live, services, tun, buildinfo.Version, log)

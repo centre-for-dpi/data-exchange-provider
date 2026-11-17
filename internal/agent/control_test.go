@@ -324,3 +324,17 @@ func TestHeartbeatOpenAPIShaIsDynamic(t *testing.T) {
 		t.Fatalf("after compiling: %q", got)
 	}
 }
+
+// K4: each service's counts and latency reach status.json.
+func TestStatusCarriesServiceStats(t *testing.T) {
+	p := fakeportal.New(t)
+	c, _ := controller(t, p)
+	c.services[0].Stats = func() ServiceStats {
+		return ServiceStats{Requests: 7, ClientErrors: 1, ServerErrors: 2, P50: 12 * time.Millisecond, P95: 80 * time.Millisecond}
+	}
+	c.cycle(context.Background())
+	s := c.status.Services[0]
+	if s.Requests != 7 || s.ClientErrors != 1 || s.ServerErrors != 2 || s.P50Ms != 12 || s.P95Ms != 80 {
+		t.Fatalf("%+v", s)
+	}
+}

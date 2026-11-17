@@ -24,6 +24,14 @@ type ServiceRuntime struct {
 	// OpenAPISHA256, when set, gives the OpenAPI's SHA-256 at each heartbeat (an instant service
 	// knows it only once its catalog compiles; "" until then). It overrides Info.OpenAPISHA256.
 	OpenAPISHA256 func() string
+	// Stats, when set, gives the service's request counts and latency for status.json.
+	Stats func() ServiceStats
+}
+
+// ServiceStats is what a service has served since the node started.
+type ServiceStats struct {
+	Requests, ClientErrors, ServerErrors int64
+	P50, P95                             time.Duration // over its recent requests
 }
 
 // Controller runs the control cycle: heartbeat with health, renewal, /config and status.json.
@@ -153,6 +161,11 @@ func (c *Controller) probe(ctx context.Context) ([]ServiceStatus, contract.Healt
 			pctx, cancel := context.WithTimeout(ctx, c.ProbeTimeout)
 			defer cancel()
 			out[i] = ServiceStatus{Name: s.Info.Name, Path: s.Info.Path, Healthy: true}
+			if s.Stats != nil {
+				st := s.Stats()
+				out[i].Requests, out[i].ClientErrors, out[i].ServerErrors = st.Requests, st.ClientErrors, st.ServerErrors
+				out[i].P50Ms, out[i].P95Ms = st.P50.Seconds()*1000, st.P95.Seconds()*1000
+			}
 			if s.Probe != nil {
 				if err := s.Probe(pctx); err != nil {
 					out[i].Healthy, out[i].Detail = false, err.Error()

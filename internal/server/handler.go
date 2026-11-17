@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Route is one service behind its servicePath.
@@ -32,6 +33,12 @@ func SetRoute(r *http.Request, template string) {
 // NewHandler checks Host, picks the route by longest servicePath prefix, strips it, limits
 // concurrency per route and writes one access line per request.
 func NewHandler(nodeName string, routes []Route, logger *slog.Logger) http.Handler {
+	return NewHandlerWithMetrics(nodeName, routes, logger, nil)
+}
+
+// NewHandlerWithMetrics is NewHandler that also counts each service's requests in m (nil: no
+// counting).
+func NewHandlerWithMetrics(nodeName string, routes []Route, logger *slog.Logger, m *Metrics) http.Handler {
 	rs := make([]*route, 0, len(routes))
 	for _, r := range routes {
 		if r.MaxInFlight <= 0 {
@@ -59,14 +66,22 @@ func NewHandler(nodeName string, routes []Route, logger *slog.Logger) http.Handl
 			return
 		}
 		SetRoute(r, rt.Path+"/*")
+		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w}
+		defer func() {
+			if rec.status == 0 {
+				rec.status = http.StatusOK
+			}
+			m.record(rt.Path, rec.status, time.Since(start))
+		}()
 		select {
 		case rt.slots <- struct{}{}:
 			defer func() { <-rt.slots }()
 		default:
-			Problem(w, http.StatusServiceUnavailable, "service_busy", "El servicio está ocupado; intenta de nuevo")
+			Problem(rec, http.StatusServiceUnavailable, "service_busy", "El servicio está ocupado; intenta de nuevo")
 			return
 		}
-		rt.Handler.ServeHTTP(w, strip(r, rt.Path))
+		rt.Handler.ServeHTTP(rec, strip(r, rt.Path))
 	}))
 }
 
