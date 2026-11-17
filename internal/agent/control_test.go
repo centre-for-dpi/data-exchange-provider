@@ -307,3 +307,20 @@ func TestCompareSemverPreRelease(t *testing.T) {
 		}
 	}
 }
+
+// An instant service knows its OpenAPI only after its catalog compiles: the heartbeat asks each time.
+func TestHeartbeatOpenAPIShaIsDynamic(t *testing.T) {
+	p := fakeportal.New(t)
+	c, _ := controller(t, p)
+	sha := ""
+	c.services[0].OpenAPISHA256 = func() string { return sha }
+	c.cycle(context.Background())
+	if got := lastHeartbeat(t, p).Services[0].OpenAPISHA256; got != "" {
+		t.Fatalf("before compiling: %q", got)
+	}
+	sha = "ab12"
+	c.cycle(context.Background())
+	if got := lastHeartbeat(t, p).Services[0].OpenAPISHA256; got != "ab12" {
+		t.Fatalf("after compiling: %q", got)
+	}
+}

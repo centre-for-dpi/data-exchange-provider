@@ -1,6 +1,9 @@
 //go:build !canal
 
-package instant
+// Package instanttest is an in-memory database behind a database/sql driver ("ridfake"), for
+// tests of the instant APIs and the commands that use them. Each DSN (the database name) is
+// one DB.
+package instanttest
 
 import (
 	"context"
@@ -15,38 +18,44 @@ import (
 	"syscall"
 )
 
-// fakeDB is an in-memory database behind a database/sql driver, one per DSN (= database name).
-type fakeDB struct {
-	mu        sync.Mutex
-	down      bool  // connections and queries fail as if the server were unreachable
-	queryErr  error // every query by key fails with this error (a driver message)
-	objects   [][]driver.Value
-	columns   map[string][][]driver.Value // "schema.name" → (name, type, maxLength, scale, nullable)
-	rows      map[string][][]driver.Value // key → rows of the selected columns
-	writes    int64                       // what WritePrivileges answers
-	readOnly  int                         // read-only transactions begun
-	byKey     int                         // queries by key run
-	catalogue int                         // catalog reads
+// DB is one fake database. Change it with Set; read the counters under Mu.
+type DB struct {
+	Mu        sync.Mutex
+	Down      bool  // connections and queries fail as if the server were unreachable
+	QueryErr  error // every query by key fails with this error (a driver message)
+	Objects   [][]driver.Value
+	Columns   map[string][][]driver.Value // "schema.name" → (name, type, maxLength, scale, nullable)
+	Rows      map[string][][]driver.Value // key → rows of the selected columns
+	Writes    int64                       // what WritePrivileges answers
+	ReadOnly  int                         // read-only transactions begun
+	ByKey     int                         // queries by key run
+	Catalogue int                         // catalog reads
 }
 
 var (
 	fakesMu sync.Mutex
-	fakes   = map[string]*fakeDB{}
+	fakes   = map[string]*DB{}
 )
 
-func init() { sql.Register("ridfake", fakeDriver{}) }
+// Driver is the database/sql driver name.
+const Driver = "ridfake"
 
-func newFakeDB(name string) *fakeDB {
-	f := &fakeDB{columns: map[string][][]driver.Value{}, rows: map[string][][]driver.Value{}}
+func init() { sql.Register(Driver, fakeDriver{}) }
+
+// New registers an empty database under name (the DSN that opens it).
+func New(name string) *DB {
+	f := &DB{Columns: map[string][][]driver.Value{}, Rows: map[string][][]driver.Value{}}
 	fakesMu.Lock()
 	fakes[name] = f
 	fakesMu.Unlock()
 	return f
 }
 
-func (f *fakeDB) set(fn func(f *fakeDB)) { f.mu.Lock(); fn(f); f.mu.Unlock() }
+// Set changes the database under its lock.
+func (f *DB) Set(fn func(f *DB)) { f.Mu.Lock(); fn(f); f.Mu.Unlock() }
 
-var errRefused = &net.OpError{Op: "dial", Net: "tcp", Err: syscall.ECONNREFUSED}
+// ErrRefused is what dialing a down database returns.
+var ErrRefused = &net.OpError{Op: "dial", Net: "tcp", Err: syscall.ECONNREFUSED}
 
 type fakeDriver struct{}
 
@@ -57,34 +66,34 @@ func (fakeDriver) Open(name string) (driver.Conn, error) {
 	if f == nil {
 		return nil, fmt.Errorf("no fake database %q", name)
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.down {
-		return nil, errRefused
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	if f.Down {
+		return nil, ErrRefused
 	}
 	return &fakeConn{f: f}, nil
 }
 
-type fakeConn struct{ f *fakeDB }
+type fakeConn struct{ f *DB }
 
 func (c *fakeConn) Prepare(string) (driver.Stmt, error) { return nil, errors.New("no prepare") }
 func (c *fakeConn) Close() error                        { return nil }
 func (c *fakeConn) Begin() (driver.Tx, error)           { return fakeTx{}, nil }
 func (c *fakeConn) BeginTx(_ context.Context, o driver.TxOptions) (driver.Tx, error) {
-	c.f.mu.Lock()
-	defer c.f.mu.Unlock()
-	if c.f.down {
+	c.f.Mu.Lock()
+	defer c.f.Mu.Unlock()
+	if c.f.Down {
 		return nil, driver.ErrBadConn
 	}
 	if o.ReadOnly {
-		c.f.readOnly++
+		c.f.ReadOnly++
 	}
 	return fakeTx{}, nil
 }
 func (c *fakeConn) Ping(context.Context) error {
-	c.f.mu.Lock()
-	defer c.f.mu.Unlock()
-	if c.f.down {
+	c.f.Mu.Lock()
+	defer c.f.Mu.Unlock()
+	if c.f.Down {
 		return driver.ErrBadConn
 	}
 	return nil
@@ -92,32 +101,32 @@ func (c *fakeConn) Ping(context.Context) error {
 
 func (c *fakeConn) QueryContext(_ context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	f := c.f
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.down {
+	f.Mu.Lock()
+	defer f.Mu.Unlock()
+	if f.Down {
 		return nil, driver.ErrBadConn
 	}
 	switch {
 	case query == "OBJECTS":
-		f.catalogue++
-		return &fakeRows{cols: []string{"schema", "name", "kind"}, rows: f.objects}, nil
+		f.Catalogue++
+		return &fakeRows{cols: []string{"schema", "name", "kind"}, rows: f.Objects}, nil
 	case query == "COLUMNS":
-		return &fakeRows{cols: []string{"name", "type", "len", "scale", "nullable"}, rows: f.columns[fmt.Sprint(args[0].Value)+"."+fmt.Sprint(args[1].Value)]}, nil
+		return &fakeRows{cols: []string{"name", "type", "len", "scale", "nullable"}, rows: f.Columns[fmt.Sprint(args[0].Value)+"."+fmt.Sprint(args[1].Value)]}, nil
 	case query == "WRITES":
-		return &fakeRows{cols: []string{"n"}, rows: [][]driver.Value{{f.writes}}}, nil
+		return &fakeRows{cols: []string{"n"}, rows: [][]driver.Value{{f.Writes}}}, nil
 	case strings.HasPrefix(query, "SELECT "):
-		f.byKey++
-		if f.queryErr != nil {
-			return nil, f.queryErr
+		f.ByKey++
+		if f.QueryErr != nil {
+			return nil, f.QueryErr
 		}
 		// rows are stored with every column of the (single) object, in catalog order: project them.
 		selected := strings.Split(strings.SplitN(strings.TrimPrefix(query, "SELECT "), " FROM ", 2)[0], ", ")
 		var all [][]driver.Value
-		for _, cols := range f.columns {
+		for _, cols := range f.Columns {
 			all = cols
 		}
 		var out [][]driver.Value
-		for _, row := range f.rows[fmt.Sprint(args[0].Value)] {
+		for _, row := range f.Rows[fmt.Sprint(args[0].Value)] {
 			var projected []driver.Value
 			for _, name := range selected {
 				for i, c := range all {

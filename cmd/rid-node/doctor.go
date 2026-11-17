@@ -40,6 +40,7 @@ type checker struct {
 
 func (c *checker) ok(format string, a ...any)   { fmt.Fprintf(c.out, "✔ "+format+"\n", a...) }
 func (c *checker) warn(format string, a ...any) { fmt.Fprintf(c.out, "⚠ "+format+"\n", a...) }
+func (c *checker) info(format string, a ...any) { fmt.Fprintf(c.out, "ℹ "+format+"\n", a...) }
 func (c *checker) fail(format string, a ...any) {
 	c.failed = true
 	fmt.Fprintf(c.out, "✘ "+format+"\n", a...)
@@ -65,6 +66,9 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 		secrets = append(secrets, o.TokenFile)
 	}
 	for _, s := range cfg.Services {
+		if db := s.Instant.Database; db != nil && db.PasswordFile != "" {
+			secrets = append(secrets, db.PasswordFile)
+		}
 		if cr := s.Proxy.Credential; cr != nil {
 			for _, f := range []string{cr.File, cr.ClientKey} {
 				if f != "" {
@@ -144,6 +148,10 @@ func doctor(ctx context.Context, o doctorOptions, out io.Writer) int {
 
 	// The entity's APIs.
 	for _, s := range cfg.Services {
+		if s.Type == "instant" {
+			doctorInstant(ctx, s, c)
+			continue
+		}
 		if err := proxy.Probe(ctx, s.Proxy); err != nil {
 			c.fail("servicio %s: %v", s.Name, err)
 		} else {

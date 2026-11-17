@@ -21,6 +21,9 @@ import (
 type ServiceRuntime struct {
 	Info  contract.ServiceInfo
 	Probe func(context.Context) error
+	// OpenAPISHA256, when set, gives the OpenAPI's SHA-256 at each heartbeat (an instant service
+	// knows it only once its catalog compiles; "" until then). It overrides Info.OpenAPISHA256.
+	OpenAPISHA256 func() string
 }
 
 // Controller runs the control cycle: heartbeat with health, renewal, /config and status.json.
@@ -86,7 +89,11 @@ func (c *Controller) cycle(ctx context.Context) time.Duration {
 	}
 	infos := make([]contract.ServiceInfo, 0, len(c.services))
 	for _, s := range c.services {
-		infos = append(infos, s.Info)
+		info := s.Info
+		if s.OpenAPISHA256 != nil {
+			info.OpenAPISHA256 = s.OpenAPISHA256()
+		}
+		infos = append(infos, info)
 	}
 	res, err := c.control.Heartbeat(ctx, c.st.NodeID, contract.HeartbeatRequest{
 		KitVersion: c.kit, ServicePort: 8443, Services: infos, Health: health,

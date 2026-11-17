@@ -36,19 +36,19 @@ type Resource struct {
 	Name        string       `yaml:"name"`
 	Entity      string       `yaml:"entity"`
 	Source      string       `yaml:"source"` // schema.object
-	Description string       `yaml:"description"`
+	Description string       `yaml:"description,omitempty"`
 	Key         KeySpec      `yaml:"key"`
-	Many        bool         `yaml:"many"`
-	MaxRows     int          `yaml:"maxRows"` // default 100, 1–1000
-	DataSubject *SubjectSpec `yaml:"dataSubject"`
+	Many        bool         `yaml:"many,omitempty"`
+	MaxRows     int          `yaml:"maxRows,omitempty"` // default 100, 1–1000
+	DataSubject *SubjectSpec `yaml:"dataSubject,omitempty"`
 	Columns     []ColumnSpec `yaml:"columns"`
 }
 
 // KeySpec is the column looked up by the path parameter.
 type KeySpec struct {
 	Column      string `yaml:"column"`
-	Pattern     string `yaml:"pattern"`
-	Description string `yaml:"description"`
+	Pattern     string `yaml:"pattern,omitempty"`
+	Description string `yaml:"description,omitempty"`
 }
 
 // SubjectSpec declares that the key identifies a person (x-rid-data-subject).
@@ -59,8 +59,8 @@ type SubjectSpec struct {
 // ColumnSpec is one exposed column; As overrides the type inferred from the catalog.
 type ColumnSpec struct {
 	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	As          string `yaml:"as"`
+	Description string `yaml:"description,omitempty"`
+	As          string `yaml:"as,omitempty"`
 }
 
 // Defaults for instant services.

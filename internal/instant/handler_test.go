@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/instant/instanttest"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 )
 
@@ -38,25 +39,25 @@ func (s *syncBuffer) String() string { s.mu.Lock(); defer s.mu.Unlock(); return 
 
 type fixture struct {
 	svc  *Service
-	db   *fakeDB
+	db   *instanttest.DB
 	logs *syncBuffer
 	h    http.Handler
 }
 
 // open starts a service on a fresh fake database holding SALUD.V_AFILIADOS.
-func open(t *testing.T, prepare func(f *fakeDB), resources ...config.Resource) *fixture {
+func open(t *testing.T, prepare func(f *instanttest.DB), resources ...config.Resource) *fixture {
 	t.Helper()
 	name := strings.ReplaceAll(t.Name(), "/", "_")
-	f := newFakeDB(name)
-	f.objects = [][]driver.Value{{"SALUD", "V_AFILIADOS", "view"}}
-	f.columns["SALUD.V_AFILIADOS"] = [][]driver.Value{
+	f := instanttest.New(name)
+	f.Objects = [][]driver.Value{{"SALUD", "V_AFILIADOS", "view"}}
+	f.Columns["SALUD.V_AFILIADOS"] = [][]driver.Value{
 		{"NUMERO_DOCUMENTO", "varchar", int64(12), nil, "NO"},
 		{"NOMBRES", "varchar", int64(80), nil, "YES"},
 		{"ACTIVO", "int", nil, int64(0), "NO"},
 	}
-	f.rows["123"] = [][]driver.Value{{"123", []byte("Ana"), int64(1)}}
-	f.rows["dup"] = [][]driver.Value{{"dup", "A", int64(1)}, {"dup", "B", int64(0)}}
-	f.rows["tres"] = [][]driver.Value{{"tres", "A", int64(1)}, {"tres", "B", int64(1)}, {"tres", "C", int64(1)}}
+	f.Rows["123"] = [][]driver.Value{{"123", []byte("Ana"), int64(1)}}
+	f.Rows["dup"] = [][]driver.Value{{"dup", "A", int64(1)}, {"dup", "B", int64(0)}}
+	f.Rows["tres"] = [][]driver.Value{{"tres", "A", int64(1)}, {"tres", "B", int64(1)}, {"tres", "C", int64(1)}}
 	if prepare != nil {
 		prepare(f)
 	}
@@ -121,7 +122,7 @@ func TestHandlerOneRow(t *testing.T) {
 	if code != 200 || m["numero_documento"] != "123" || m["nombres"] != "Ana" || m["activo"] != true || len(m) != 3 {
 		t.Fatalf("%d %s", code, body)
 	}
-	if fx.db.readOnly == 0 {
+	if fx.db.ReadOnly == 0 {
 		t.Fatal("the query must run in a read-only transaction")
 	}
 	if !strings.Contains(fx.logs.String(), `"/salud/afiliados/{numero_documento}"`) || strings.Contains(fx.logs.String(), "/afiliados/123") {
@@ -137,7 +138,7 @@ func TestHandlerQueryStringRejected(t *testing.T) {
 			t.Fatalf("%s: %d %v", target, code, m)
 		}
 	}
-	if fx.db.byKey != 0 {
+	if fx.db.ByKey != 0 {
 		t.Fatal("no query may run")
 	}
 }
@@ -150,7 +151,7 @@ func TestHandlerInvalidKey(t *testing.T) {
 			t.Fatalf("%s: %d %v", target, code, m)
 		}
 	}
-	if fx.db.byKey != 0 {
+	if fx.db.ByKey != 0 {
 		t.Fatal("no query may run")
 	}
 }
@@ -196,7 +197,7 @@ func TestHandlerMany(t *testing.T) {
 func TestHandlerDBDown503AndRecovers(t *testing.T) {
 	fx := open(t, nil)
 	fx.waitReady(t)
-	fx.db.set(func(f *fakeDB) { f.down = true })
+	fx.db.Set(func(f *instanttest.DB) { f.Down = true })
 	start := time.Now()
 	for i := 0; i < 4; i++ {
 		if code, m, _ := fx.get(t, "/salud/afiliados/123"); code != 503 || m["code"] != "service_unavailable" {
@@ -209,7 +210,7 @@ func TestHandlerDBDown503AndRecovers(t *testing.T) {
 	if fx.svc.Probe(context.Background()) == nil {
 		t.Fatal("the probe must fail while the database is down")
 	}
-	fx.db.set(func(f *fakeDB) { f.down = false })
+	fx.db.Set(func(f *instanttest.DB) { f.Down = false })
 	deadline := time.Now().Add(3 * time.Second)
 	for {
 		code, _, _ := fx.get(t, "/salud/afiliados/123")
@@ -227,7 +228,7 @@ func TestHandlerDBDown503AndRecovers(t *testing.T) {
 }
 
 func TestStartsWithDBDown(t *testing.T) {
-	fx := open(t, func(f *fakeDB) { f.down = true })
+	fx := open(t, func(f *instanttest.DB) { f.Down = true })
 	time.Sleep(50 * time.Millisecond)
 	if fx.svc.Ready() {
 		t.Fatal("cannot be ready without a catalog")
@@ -238,7 +239,7 @@ func TestStartsWithDBDown(t *testing.T) {
 	if code, _, _ := fx.get(t, "/salud/"); code != 503 {
 		t.Fatalf("root: %d", code)
 	}
-	fx.db.set(func(f *fakeDB) { f.down = false })
+	fx.db.Set(func(f *instanttest.DB) { f.Down = false })
 	fx.waitReady(t)
 	if code, _, _ := fx.get(t, "/salud/afiliados/123"); code != 200 {
 		t.Fatalf("after the database came up: %d", code)
@@ -254,7 +255,7 @@ func TestRootReflectsDB(t *testing.T) {
 	if code, _, _ := fx.get(t, "/salud"); code != 200 {
 		t.Fatalf("without the slash: %d", code)
 	}
-	fx.db.set(func(f *fakeDB) { f.down = true })
+	fx.db.Set(func(f *instanttest.DB) { f.Down = true })
 	if code, _, _ := fx.get(t, "/salud/"); code != 503 {
 		t.Fatalf("db down: %d", code)
 	}
@@ -263,7 +264,7 @@ func TestRootReflectsDB(t *testing.T) {
 func TestDBErrorNotLogged(t *testing.T) {
 	fx := open(t, nil)
 	fx.waitReady(t)
-	fx.db.set(func(f *fakeDB) { f.queryErr = errors.New(`ORA-01722: invalid number "CC-9988776655"`) })
+	fx.db.Set(func(f *instanttest.DB) { f.QueryErr = errors.New(`ORA-01722: invalid number "CC-9988776655"`) })
 	if code, _, body := fx.get(t, "/salud/afiliados/123"); code != 503 || bytes.Contains(body, []byte("9988776655")) {
 		t.Fatalf("%d %s", code, body)
 	}
@@ -279,16 +280,16 @@ func TestDBErrorNotLogged(t *testing.T) {
 func TestRecompileAfterRepeatedErrors(t *testing.T) {
 	fx := open(t, nil)
 	fx.waitReady(t)
-	before := fx.db.catalogue
-	fx.db.set(func(f *fakeDB) { f.queryErr = errors.New("relation does not exist") })
+	before := fx.db.Catalogue
+	fx.db.Set(func(f *instanttest.DB) { f.QueryErr = errors.New("relation does not exist") })
 	for i := 0; i < recompileAfter; i++ {
 		fx.get(t, "/salud/afiliados/123")
 	}
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		fx.db.mu.Lock()
-		n := fx.db.catalogue
-		fx.db.mu.Unlock()
+		fx.db.Mu.Lock()
+		n := fx.db.Catalogue
+		fx.db.Mu.Unlock()
 		if n > before {
 			break
 		}
@@ -323,7 +324,7 @@ func TestWriteCheck(t *testing.T) {
 	if w, err := fx.svc.WriteCheck(context.Background()); err != nil || len(w) != 0 {
 		t.Fatalf("%v %v", w, err)
 	}
-	fx.db.set(func(f *fakeDB) { f.writes = 2 })
+	fx.db.Set(func(f *instanttest.DB) { f.Writes = 2 })
 	if w, err := fx.svc.WriteCheck(context.Background()); err != nil || len(w) != 1 || w[0] != "salud.v_afiliados" {
 		t.Fatalf("%v %v", w, err)
 	}

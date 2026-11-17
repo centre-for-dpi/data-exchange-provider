@@ -31,9 +31,17 @@ func (n *Node) Validate() error {
 			add("controlDialAddress %q debe ser host:puerto", n.ControlDialAddress)
 		}
 	}
+	errs = append(errs, validateServices(n.Services)...)
+	return errors.Join(errs...)
+}
+
+// validateServices checks the services: each one, and that names and paths do not collide.
+func validateServices(services []Service) []error {
+	var errs []error
+	add := func(format string, args ...any) { errs = append(errs, fmt.Errorf(format, args...)) }
 	names := map[string]bool{}
 	paths := map[string]string{}
-	for i, s := range n.Services {
+	for i, s := range services {
 		label := fmt.Sprintf("servicio %d (%q)", i+1, s.Name)
 		if s.File != "" {
 			label = fmt.Sprintf("servicio %q (%s)", s.Name, filepath.Base(s.File))
@@ -81,7 +89,7 @@ func (n *Node) Validate() error {
 			add("%s: el tipo %q no existe (proxy o instant)", label, s.Type)
 		}
 	}
-	return errors.Join(errs...)
+	return errs
 }
 
 func hasDotSegment(p string) bool {

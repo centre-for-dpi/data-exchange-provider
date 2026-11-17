@@ -13,7 +13,7 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 )
 
-// fakeDialect quotes like PostgreSQL and talks to the ridfake driver (fakedb_test.go).
+// fakeDialect quotes like PostgreSQL and talks to the instanttest driver.
 type fakeDialect struct{}
 
 func (fakeDialect) Driver() string                                   { return "ridfake" }

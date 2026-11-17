@@ -3,9 +3,12 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 const validInstant = `
@@ -119,5 +122,39 @@ func TestInstantWithoutResourcesIsValid(t *testing.T) {
 	n, _ = load(t, validInstant)
 	if w := n.Warnings(); len(w) != 0 {
 		t.Fatalf("no warnings expected: %q", w)
+	}
+}
+
+func TestLoadServiceFile(t *testing.T) {
+	dir := t.TempDir()
+	path := dir + "/afiliacion.yaml"
+	body := "name: afiliacion\npath: /salud\ntype: instant\ndatabase: { engine: mysql, host: bd, port: 3306, name: salud, user: r, passwordFile: /run/secrets/x }\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s, err := LoadServiceFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.File != path || s.Instant.Database.TLS != "require" || s.Instant.Title != "afiliacion" {
+		t.Fatalf("%+v", s)
+	}
+	if err := os.WriteFile(path, []byte(body+"resources: [{ name: X }]\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadServiceFile(path); err == nil || !strings.Contains(err.Error(), "afiliacion.yaml") {
+		t.Fatalf("an invalid service names its file: %v", err)
+	}
+}
+
+func TestResourceMarshalsWithoutEmptyFields(t *testing.T) {
+	b, err := yaml.Marshal(Resource{Name: "a", Entity: "A", Source: "s.v", Key: KeySpec{Column: "id"}, Columns: []ColumnSpec{{Name: "id"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, empty := range []string{"description", "many", "maxRows", "dataSubject", "pattern", "as"} {
+		if strings.Contains(string(b), empty) {
+			t.Fatalf("%s written although empty:\n%s", empty, b)
+		}
 	}
 }

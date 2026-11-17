@@ -28,6 +28,13 @@ comandos:
   identity         nombre del nodo si ya está enrolado (salida 3 si no tiene identidad)
   version          versión del kit
 
+APIs instantáneas (modo completo):
+  catalog --service-file <archivo>     vistas y tablas que el usuario de la base puede leer
+  scaffold --service-file <archivo> --source esquema.vista --key columna
+           [--resource nombre] [--entity Nombre] [--subject TIPO] [--many]
+                                       agrega un recurso con todas las columnas exponibles
+  openapi <servicio>                   imprime el OpenAPI generado
+
 variables: RID_CONFIG (/etc/rid-node/node.yaml), RID_STATE_DIR (/var/lib/rid-node),
            RID_TOKEN_FILE (/run/secrets/enrollment_token), RID_HEARTBEAT_SECONDS (solo desarrollo)
 `
@@ -83,6 +90,8 @@ func run(args []string, out io.Writer) int {
 		return importState(args[1], stateDir, out)
 	case "validate":
 		return validate(configPath, out)
+	case "catalog", "scaffold", "openapi":
+		return instantCommand(args[0], args[1:], configPath, out)
 	case "status":
 		return status(stateDir, len(args) > 1 && args[1] == "--json", out, time.Now)
 	case "doctor":

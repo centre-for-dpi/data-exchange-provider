@@ -44,6 +44,19 @@ func runNode(ctx context.Context, o runOptions) error {
 	var routes []server.Route
 	var services []agent.ServiceRuntime
 	for _, s := range cfg.Services {
+		if s.Type == "instant" {
+			if len(s.Instant.Resources) == 0 {
+				log.Warn("instant service without resources: not served", "service", s.Name)
+				continue
+			}
+			route, rt, err := instantRuntime(ctx, s, log)
+			if err != nil {
+				return fmt.Errorf("servicio %q: %w", s.Name, err)
+			}
+			routes = append(routes, route)
+			services = append(services, rt)
+			continue
+		}
 		h, err := proxy.New(s.Path, s.Proxy)
 		if err != nil {
 			return fmt.Errorf("servicio %q: %w", s.Name, err)

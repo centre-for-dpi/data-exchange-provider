@@ -87,12 +87,7 @@ func Load(path string) (*Node, error) {
 	}
 	n.Services = append(n.Services, more...)
 	for i := range n.Services {
-		switch s := &n.Services[i]; s.Type {
-		case "proxy":
-			s.Proxy.applyDefaults()
-		case "instant":
-			s.Instant.applyDefaults(s.Name)
-		}
+		n.Services[i].applyDefaults()
 	}
 	if err := n.Validate(); err != nil {
 		return nil, fmt.Errorf("configuración %s inválida:\n%w", path, err)
@@ -113,24 +108,55 @@ func loadServiceFiles(dir string) ([]Service, error) {
 		if strings.HasPrefix(base, ".") || strings.Contains(base, ".openapi.") {
 			continue
 		}
-		raw, err := os.ReadFile(f)
+		s, err := readServiceFile(f)
 		if err != nil {
-			return nil, fmt.Errorf("no se pudo leer el servicio %s: %w", f, err)
+			return nil, err
 		}
-		var s Service
-		dec := yaml.NewDecoder(bytes.NewReader(raw))
-		dec.KnownFields(true)
-		if err := dec.Decode(&s); err != nil {
-			return nil, fmt.Errorf("servicio %s inválido: %w", f, err)
-		}
-		var extra yaml.Node
-		if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
-			return nil, fmt.Errorf("servicio %s inválido: cada archivo debe tener un solo servicio (sin separadores ---)", f)
-		}
-		s.File = f
 		out = append(out, s)
 	}
 	return out, nil
+}
+
+func readServiceFile(f string) (Service, error) {
+	raw, err := os.ReadFile(f)
+	if err != nil {
+		return Service{}, fmt.Errorf("no se pudo leer el servicio %s: %w", f, err)
+	}
+	var s Service
+	dec := yaml.NewDecoder(bytes.NewReader(raw))
+	dec.KnownFields(true)
+	if err := dec.Decode(&s); err != nil {
+		return Service{}, fmt.Errorf("servicio %s inválido: %w", f, err)
+	}
+	var extra yaml.Node
+	if err := dec.Decode(&extra); !errors.Is(err, io.EOF) {
+		return Service{}, fmt.Errorf("servicio %s inválido: cada archivo debe tener un solo servicio (sin separadores ---)", f)
+	}
+	s.File = f
+	return s, nil
+}
+
+// LoadServiceFile reads one services/<name>.yaml on its own (for the commands that work on a
+// single service), with defaults, and validates it.
+func LoadServiceFile(path string) (Service, error) {
+	s, err := readServiceFile(path)
+	if err != nil {
+		return Service{}, err
+	}
+	s.applyDefaults()
+	if errs := validateServices([]Service{s}); len(errs) > 0 {
+		return Service{}, fmt.Errorf("servicio %s inválido:\n%w", path, errors.Join(errs...))
+	}
+	return s, nil
+}
+
+func (s *Service) applyDefaults() {
+	switch s.Type {
+	case "proxy":
+		s.Proxy.applyDefaults()
+	case "instant":
+		s.Instant.applyDefaults(s.Name)
+	}
 }
 
 func (p *ProxySpec) applyDefaults() {
