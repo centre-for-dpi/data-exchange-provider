@@ -138,7 +138,7 @@
                 }
               }
             },
-            "description": "La clave declarada no es única en la fuente"
+            "description": "La clave declarada no es única en la fuente, o trae más registros de los que el servicio entrega"
           },
           "503": {
             "content": {
@@ -220,7 +220,7 @@
                 }
               }
             },
-            "description": "La clave declarada no es única en la fuente"
+            "description": "La clave declarada no es única en la fuente, o trae más registros de los que el servicio entrega"
           },
           "503": {
             "content": {

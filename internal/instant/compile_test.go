@@ -13,17 +13,21 @@ import (
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 )
 
-// fakeDialect quotes like PostgreSQL; the catalog-reading methods are not used by Compile.
+// fakeDialect quotes like PostgreSQL and talks to the ridfake driver (fakedb_test.go).
 type fakeDialect struct{}
 
-func (fakeDialect) Driver() string                                          { return "fake" }
-func (fakeDialect) DSN(config.Database, string) (string, error)             { return "", nil }
-func (fakeDialect) Objects() string                                         { return "" }
-func (fakeDialect) Columns() string                                         { return "" }
-func (fakeDialect) Quote(s string) string                                   { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
-func (fakeDialect) Kind(string, sql.NullInt64) Kind                         { return KindUnsupported }
-func (fakeDialect) WritePrivileges() string                                 { return "" }
-func (fakeDialect) BeginReadOnly(context.Context, *sql.DB) (*sql.Tx, error) { return nil, nil }
+func (fakeDialect) Driver() string                                   { return "ridfake" }
+func (fakeDialect) DSN(db config.Database, _ string) (string, error) { return db.Name, nil }
+func (fakeDialect) Objects() string                                  { return "OBJECTS" }
+func (fakeDialect) Columns() string                                  { return "COLUMNS" }
+func (fakeDialect) WritePrivileges() string                          { return "WRITES" }
+func (fakeDialect) Quote(s string) string                            { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
+func (fakeDialect) Kind(native string, _ sql.NullInt64) Kind {
+	return map[string]Kind{"varchar": KindString, "int": KindInteger, "timestamp": KindDateTime}[native]
+}
+func (fakeDialect) BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
+	return db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+}
 func (fakeDialect) SelectByKey(cols []string, from, key string, limit int) string {
 	return "SELECT " + strings.Join(cols, ", ") + " FROM " + from + " WHERE " + key + " = $1 LIMIT " + itoa(limit)
 }
@@ -211,6 +215,8 @@ func TestToJSON(t *testing.T) {
 		{"datetime with zone", Column{Kind: KindDateTimeTZ}, "", ts, `"2026-11-16T10:30:15.12-05:00"`},
 		{"uuid from array", Column{Kind: KindUUID}, "", uuid, `"12345678-9abc-def0-1234-56789abcdef0"`},
 		{"uuid from bytes", Column{Kind: KindUUID}, "", uuid[:], `"12345678-9abc-def0-1234-56789abcdef0"`},
+		{"uuid from SQL Server bytes", Column{Kind: KindUUID, Native: "uniqueidentifier"}, "",
+			[]byte{0x78, 0x56, 0x34, 0x12, 0xbc, 0x9a, 0xf0, 0xde, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0}, `"12345678-9abc-def0-1234-56789abcdef0"`},
 		{"uuid from text", Column{Kind: KindUUID}, "", "12345678-9ABC-DEF0-1234-56789ABCDEF0", `"12345678-9abc-def0-1234-56789abcdef0"`},
 		{"integer as string", Column{Kind: KindInteger}, "string", int64(7), `"7"`},
 		{"decimal as string", Column{Kind: KindNumber}, "string", []byte("1.50"), `"1.50"`},

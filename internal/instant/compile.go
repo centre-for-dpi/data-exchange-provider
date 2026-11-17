@@ -19,7 +19,8 @@ type Compiled struct {
 	Exposed         []Kind   // the kind each column is served as (after `as`)
 	KeyColumn       Column
 	KeyRegexp       *regexp.Regexp
-	Limit           int // rows read: 2 for one row (a second one means the key is not unique), maxRows+1 for many
+	Object          Object // the catalog object, as the catalog spells it (without columns)
+	Limit           int    // rows read: 2 for one row (a second one means the key is not unique), maxRows+1 for many
 }
 
 // defaultStringKeyLength bounds the default pattern of a text key without a declared length.
@@ -51,7 +52,7 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 	if err != nil {
 		return Compiled{}, []error{err}
 	}
-	c := Compiled{Resource: r}
+	c := Compiled{Resource: r, Object: Object{Schema: obj.Schema, Name: obj.Name, Kind: obj.Kind}}
 	key, err := findColumn(obj, r.Key.Column)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("la clave: %w", err))

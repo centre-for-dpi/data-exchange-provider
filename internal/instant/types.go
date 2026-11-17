@@ -111,21 +111,21 @@ func ToJSON(c Column, as string, v any) any {
 		target = k
 	}
 	if target == KindString && c.Kind != KindString {
-		return stringify(natural(c.Kind, v))
+		return stringify(natural(c.Native, c.Kind, v))
 	}
 	if target == KindBoolean && c.Kind == KindInteger {
-		switch n := natural(KindInteger, v).(type) {
+		switch n := natural(c.Native, KindInteger, v).(type) {
 		case int64:
 			return n != 0
 		case json.Number:
 			return n != "0"
 		}
-		return natural(KindBoolean, v)
+		return natural(c.Native, KindBoolean, v)
 	}
-	return natural(target, v)
+	return natural(c.Native, target, v)
 }
 
-func natural(k Kind, v any) any {
+func natural(native string, k Kind, v any) any {
 	if b, ok := v.([]byte); ok && k != KindUUID && k != KindBoolean {
 		v = string(b)
 	}
@@ -202,6 +202,9 @@ func natural(k Kind, v any) any {
 		case [16]byte:
 			return formatUUID(x[:])
 		case []byte:
+			if len(x) == 16 && strings.EqualFold(native, "uniqueidentifier") {
+				return formatUUID(mssqlGUIDOrder(x))
+			}
 			if len(x) == 16 {
 				return formatUUID(x)
 			}
@@ -249,4 +252,11 @@ func stringify(v any) any {
 func formatUUID(b []byte) string {
 	h := hex.EncodeToString(b)
 	return h[0:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:32]
+}
+
+// mssqlGUIDOrder reorders a SQL Server uniqueidentifier, whose first three groups are stored
+// little-endian, into RFC 4122 order.
+func mssqlGUIDOrder(b []byte) []byte {
+	return []byte{b[3], b[2], b[1], b[0], b[5], b[4], b[7], b[6],
+		b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}
 }
