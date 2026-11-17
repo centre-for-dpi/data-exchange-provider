@@ -64,7 +64,7 @@ func runNode(ctx context.Context, o runOptions) error {
 		if err != nil {
 			return fmt.Errorf("servicio %q: %w", s.Name, err)
 		}
-		routes = append(routes, server.Route{Path: s.Path, Handler: ps.Handler()})
+		routes = append(routes, server.Route{Path: s.Path, Handler: ps.Handler(), MaxRequestBytes: s.Proxy.MaxRequestBytes})
 		info := contract.ServiceInfo{Name: s.Name, Path: s.Path}
 		if s.Proxy.OpenAPI != "" {
 			if b, err := os.ReadFile(s.Proxy.OpenAPI); err == nil {
@@ -174,13 +174,14 @@ func tunnelConfig(st *state.State) (tunnel.Config, error) {
 }
 
 // assertionAudience is the provider entity's slug the gateway's assertions are addressed to: the
-// configured one, or the one in the gateway's client name (rid-gateway.<slug>). Unknown, the
+// configured one, or the one in the gateway's client name (<prefix>.<slug>). Unknown, the
 // verification is off (a warning), or the node does not start when it is required.
 func assertionAudience(a config.GatewayAssertion, gatewayClientName string) (string, error) {
 	if a.Audience != "" {
 		return a.Audience, nil
 	}
-	if slug, ok := strings.CutPrefix(gatewayClientName, "rid-gateway."); ok && slug != "" {
+	// The portal names the gateway's client <prefix>.<slug>; the prefix is the portal's setting.
+	if _, slug, ok := strings.Cut(gatewayClientName, "."); ok && slug != "" {
 		return slug, nil
 	}
 	if a.Mode == "require" {
@@ -206,7 +207,7 @@ func assertionOptions(cfg *config.Node, st *state.State, portalRoots *x509.CertP
 	}
 	v := assertion.New(assertion.Options{
 		JWKSURL: strings.TrimRight(cfg.Portal, "/") + "/api/v1/gateway/jwks", Audience: audience, Issuer: a.Issuer,
-		HTTP: contract.NewPortalHTTPClient(portalRoots),
+		HTTP: contract.NewPortalHTTPClient(portalRoots), Log: log,
 	})
 	log.Info("gateway assertion", "mode", a.Mode, "audience", audience)
 	return server.Options{

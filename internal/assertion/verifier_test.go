@@ -9,10 +9,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -59,20 +61,29 @@ type fixture struct {
 	now     time.Time
 	fetches *atomic.Int32
 	keys    *atomic.Value // []map[string]string
+	failing *atomic.Bool  // the JWKS answers 500
+	delay   *atomic.Int64 // the JWKS answers after this many milliseconds
 }
 
 func setup(t *testing.T) *fixture {
 	t.Helper()
-	f := &fixture{signer: newSigner(t, "k1"), now: time.Unix(1_800_000_000, 0), fetches: &atomic.Int32{}, keys: &atomic.Value{}}
+	f := &fixture{signer: newSigner(t, "k1"), now: time.Unix(1_800_000_000, 0), fetches: &atomic.Int32{}, keys: &atomic.Value{},
+		failing: &atomic.Bool{}, delay: &atomic.Int64{}}
 	f.keys.Store([]map[string]string{f.signer.jwk()})
 	jwks := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.fetches.Add(1)
+		time.Sleep(time.Duration(f.delay.Load()) * time.Millisecond)
+		if f.failing.Load() {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		_ = json.NewEncoder(w).Encode(map[string]any{"keys": f.keys.Load()})
 	}))
 	t.Cleanup(jwks.Close)
 	f.v = New(Options{JWKSURL: jwks.URL, Audience: "salud", Issuer: "https://gw.red.example", HTTP: jwks.Client()})
-	f.v.now = func() time.Time { return f.now }
-	f.v.refreshEvery = 0
+	var mu sync.Mutex
+	f.v.now = func() time.Time { mu.Lock(); defer mu.Unlock(); return f.now }
+	f.v.minFetchGap = 0
 	return f
 }
 
@@ -169,7 +180,7 @@ func TestRotationAndUnknownKid(t *testing.T) {
 	if got := f.v.Check(context.Background(), k2.sign(t, f.claims("GET", "/r")), "GET", "/r", nil); got != Verified {
 		t.Fatalf("rotated key: %q", got)
 	}
-	f.v.refreshEvery = time.Minute
+	f.v.minFetchGap = time.Minute
 	before := f.fetches.Load()
 	forged := newSigner(t, "nope")
 	for i := 0; i < 5; i++ {
@@ -181,5 +192,72 @@ func TestRotationAndUnknownKid(t *testing.T) {
 	}
 	if n := f.fetches.Load() - before; n > 1 {
 		t.Fatalf("an unknown kid fetched the JWKS %d times within refreshEvery", n)
+	}
+}
+
+// Final review 2: calls that arrive while the JWKS is being fetched wait for it instead of
+// failing with "unknown kid" (in require mode, a burst of 401 at every start).
+func TestConcurrentCallsDuringFetch(t *testing.T) {
+	f := setup(t)
+	f.delay.Store(200)
+	var wg sync.WaitGroup
+	results := make([]Result, 8)
+	for i := range results {
+		c := f.claims("GET", "/x")
+		c["jti"] = fmt.Sprintf("c%d", i)
+		tok := f.signer.sign(t, c)
+		wg.Add(1)
+		go func(i int) { defer wg.Done(); results[i] = f.v.Check(context.Background(), tok, "GET", "/x", nil) }(i)
+	}
+	wg.Wait()
+	for i, r := range results {
+		if r != Verified {
+			t.Fatalf("call %d during the fetch: %q", i, r)
+		}
+	}
+	if n := f.fetches.Load(); n != 1 {
+		t.Fatalf("one fetch for all of them, got %d", n)
+	}
+}
+
+// Final review 3: a key the portal revokes (removed from the JWKS) stops verifying within
+// maxKeyAge; a failed or empty JWKS never wipes the keys the node trusts.
+func TestKeysRefreshedAndKeptOnFailure(t *testing.T) {
+	f := setup(t)
+	tok := func(jti string) string { c := f.claims("GET", "/r"); c["jti"] = jti; return f.signer.sign(t, c) }
+	if got := f.v.Check(context.Background(), tok("a"), "GET", "/r", nil); got != Verified {
+		t.Fatalf("%q", got)
+	}
+	f.failing.Store(true)
+	f.now = f.now.Add(11 * time.Minute)
+	if got := f.v.Check(context.Background(), tok("b"), "GET", "/r", nil); got != Verified {
+		t.Fatalf("a failed refresh must keep the keys: %q", got)
+	}
+	f.failing.Store(false)
+	f.keys.Store([]map[string]string{})
+	f.now = f.now.Add(11 * time.Minute)
+	if got := f.v.Check(context.Background(), tok("c"), "GET", "/r", nil); got != Verified {
+		t.Fatalf("an empty JWKS must keep the keys: %q", got)
+	}
+	f.keys.Store([]map[string]string{newSigner(t, "k2").jwk()}) // k1 revoked
+	f.now = f.now.Add(11 * time.Minute)
+	if got := f.v.Check(context.Background(), tok("d"), "GET", "/r", nil); got != "invalid: unknown kid" {
+		t.Fatalf("a revoked key must stop verifying: %q", got)
+	}
+}
+
+// A failed fetch is retried after minFetchGap (5 s), not 30 s.
+func TestFailedFetchRetriedSoon(t *testing.T) {
+	f := setup(t)
+	f.v.minFetchGap = 5 * time.Second
+	f.failing.Store(true)
+	tok := func(jti string) string { c := f.claims("GET", "/r"); c["jti"] = jti; return f.signer.sign(t, c) }
+	if got := f.v.Check(context.Background(), tok("a"), "GET", "/r", nil); got != "invalid: unknown kid" {
+		t.Fatalf("%q", got)
+	}
+	f.failing.Store(false)
+	f.now = f.now.Add(6 * time.Second)
+	if got := f.v.Check(context.Background(), tok("b"), "GET", "/r", nil); got != Verified {
+		t.Fatalf("retried after 6 s: %q", got)
 	}
 }

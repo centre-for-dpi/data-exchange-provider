@@ -10,6 +10,7 @@ GRANT SELECT ON salud.v_hogares TO 'rid_reader'@'%';
 GRANT SELECT ON salud.v_tipos TO 'rid_reader'@'%';
 GRANT SELECT ON salud.v_codigos TO 'rid_reader'@'%';
 GRANT SELECT ON salud.v_claves TO 'rid_reader'@'%';
+GRANT SELECT ON salud.v_decimales TO 'rid_reader'@'%';
 CREATE USER 'rid_writer'@'%' IDENTIFIED BY '$RID_WRITER_PASSWORD';
 GRANT SELECT, INSERT, UPDATE, DELETE ON salud.escritura TO 'rid_writer'@'%';
 -- Writes through a role, and through a column-level grant.

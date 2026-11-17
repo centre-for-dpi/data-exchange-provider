@@ -156,7 +156,7 @@ func TestCatalogOnlyGranted(t *testing.T) {
 			got = append(got, strings.ToLower(o.Schema+"."+o.Name))
 		}
 		slices.Sort(got)
-		if want := []string{"salud.v_afiliados", "salud.v_claves", "salud.v_codigos", "salud.v_hogares", "salud.v_tipos"}; !slices.Equal(got, want) {
+		if want := []string{"salud.v_afiliados", "salud.v_claves", "salud.v_codigos", "salud.v_decimales", "salud.v_hogares", "salud.v_tipos"}; !slices.Equal(got, want) {
 			t.Fatalf("the reader sees %v, want %v", got, want)
 		}
 	})
@@ -563,5 +563,21 @@ func TestServerVersion(t *testing.T) {
 			t.Fatalf("version %q (want %s): %v (%v)", v, want[e.label], err, errors_unwrap(err))
 		}
 		t.Logf("%s: %s", e.label, v)
+	})
+}
+
+// Final review: two 20-digit keys that differ in the last digit never match each other (MySQL
+// compares a DECIMAL column with a string parameter as a double).
+func TestLongDecimalKeys(t *testing.T) {
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		s := reader(t, e, config.Resource{Name: "decimales", Entity: "Decimal", Source: "salud.v_decimales", MaxRows: 100,
+			Key: config.KeySpec{Column: "id"}, Columns: []config.ColumnSpec{{Name: "nombre"}}})
+		compile(t, s)
+		if code, body := get(t, s, "/decimales/12345678901234567891"); code != 200 || !strings.Contains(string(body), `"dos"`) {
+			t.Fatalf("%d %s", code, body)
+		}
+		if code, body := get(t, s, "/decimales/12345678901234567892"); code != 404 {
+			t.Fatalf("a key that differs in the last digit matched: %d %s", code, body)
+		}
 	})
 }

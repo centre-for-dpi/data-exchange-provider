@@ -33,6 +33,7 @@ func TestAssertionAudience(t *testing.T) {
 		fails                           bool
 	}{
 		{"", "rid-gateway.salud", "verify", "salud", false},
+		{"", "gw-red.salud", "verify", "salud", false}, // the prefix is the portal's setting
 		{"otra", "rid-gateway.salud", "require", "otra", false},
 		{"", "gateway-propio", "verify", "", false}, // unknown: verification off, with a warning
 		{"", "gateway-propio", "require", "", true}, // unknown and required: the node does not start

@@ -66,12 +66,18 @@ CREATE TABLE salud.claves (clave varchar(20), nombre varchar(50));
 INSERT INTO salud.claves VALUES ('ABC-1', 'mayusculas'), ('con espacio', 'espacio'), (NULL, 'nulo');
 CREATE VIEW salud.v_claves AS SELECT * FROM salud.claves;
 
+-- Two long decimal keys that differ in the last digit (MySQL compares DECIMAL with a string
+-- as a double: the node must compare them exactly).
+CREATE TABLE salud.decimales (id numeric(25,0) PRIMARY KEY, nombre varchar(20));
+INSERT INTO salud.decimales VALUES (12345678901234567890, 'uno'), (12345678901234567891, 'dos');
+CREATE VIEW salud.v_decimales AS SELECT * FROM salud.decimales;
+
 -- A table someone can write to, for the read-only checks.
 CREATE TABLE salud.escritura (id integer PRIMARY KEY, nota varchar(100));
 
 CREATE ROLE rid_reader LOGIN PASSWORD :'reader_pw';
 GRANT USAGE ON SCHEMA salud TO rid_reader;
-GRANT SELECT ON salud.v_afiliados, salud.v_hogares, salud.v_tipos, salud.v_codigos, salud.v_claves TO rid_reader;
+GRANT SELECT ON salud.v_afiliados, salud.v_hogares, salud.v_tipos, salud.v_codigos, salud.v_claves, salud.v_decimales TO rid_reader;
 
 CREATE ROLE rid_writer LOGIN PASSWORD :'writer_pw';
 GRANT USAGE ON SCHEMA salud TO rid_writer;

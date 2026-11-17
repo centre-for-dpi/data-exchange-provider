@@ -81,6 +81,12 @@ INSERT INTO salud.claves VALUES ('ABC-1', N'mayusculas'), ('con espacio', N'espa
 GO
 CREATE VIEW salud.v_claves AS SELECT * FROM salud.claves;
 GO
+CREATE TABLE salud.decimales (id decimal(25,0) PRIMARY KEY, nombre nvarchar(20));
+GO
+INSERT INTO salud.decimales VALUES (12345678901234567890, N'uno'), (12345678901234567891, N'dos');
+GO
+CREATE VIEW salud.v_decimales AS SELECT * FROM salud.decimales;
+GO
 CREATE TABLE salud.escritura (id int PRIMARY KEY, nota nvarchar(100));
 GO
 CREATE LOGIN rid_reader WITH PASSWORD = '$(READER_PASSWORD)', CHECK_POLICY = OFF;
@@ -90,6 +96,7 @@ GRANT SELECT ON salud.v_hogares TO rid_reader;
 GRANT SELECT ON salud.v_tipos TO rid_reader;
 GRANT SELECT ON salud.v_codigos TO rid_reader;
 GRANT SELECT ON salud.v_claves TO rid_reader;
+GRANT SELECT ON salud.v_decimales TO rid_reader;
 CREATE LOGIN rid_writer WITH PASSWORD = '$(WRITER_PASSWORD)', CHECK_POLICY = OFF;
 CREATE USER rid_writer FOR LOGIN rid_writer;
 GRANT SELECT, INSERT, UPDATE, DELETE ON salud.escritura TO rid_writer;

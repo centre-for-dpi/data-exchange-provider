@@ -86,8 +86,14 @@ FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER 
 
 func (mysqlDialect) Quote(s string) string { return "`" + strings.ReplaceAll(s, "`", "``") + "`" }
 
-func (mysqlDialect) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = ?%s LIMIT %d", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
+// SelectByKey compares a DECIMAL key as an exact decimal: MySQL compares a DECIMAL column with
+// a string parameter as a double, and a long key could match another row.
+func (d mysqlDialect) SelectByKey(cols []string, from string, key instant.Column, orderBy []string, limit int) string {
+	param := "?"
+	if lower(key.Native) == "decimal" {
+		param = "CAST(? AS DECIMAL(65,30))"
+	}
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = %s%s LIMIT %d", strings.Join(cols, ", "), from, d.Quote(key.Name), param, orderClause(orderBy), limit)
 }
 
 // Kind: TINYINT is an integer (as: boolean exposes the usual TINYINT(1) flags).

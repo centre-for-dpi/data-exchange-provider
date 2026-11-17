@@ -56,8 +56,8 @@ FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2 ORDE
 
 func (postgres) Quote(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
-func (postgres) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = $1%s LIMIT %d", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
+func (d postgres) SelectByKey(cols []string, from string, key instant.Column, orderBy []string, limit int) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = $1%s LIMIT %d", strings.Join(cols, ", "), from, d.Quote(key.Name), orderClause(orderBy), limit)
 }
 
 func (postgres) Kind(t string, _ sql.NullInt64) instant.Kind {

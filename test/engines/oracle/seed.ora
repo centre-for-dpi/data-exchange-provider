@@ -71,4 +71,10 @@ INSERT INTO salud.claves VALUES (NULL, 'nulo');
 COMMIT;
 CREATE VIEW salud.v_claves AS SELECT * FROM salud.claves;
 
+CREATE TABLE salud.decimales (id NUMBER(25,0) PRIMARY KEY, nombre VARCHAR2(20));
+INSERT INTO salud.decimales VALUES (12345678901234567890, 'uno');
+INSERT INTO salud.decimales VALUES (12345678901234567891, 'dos');
+COMMIT;
+CREATE VIEW salud.v_decimales AS SELECT * FROM salud.decimales;
+
 CREATE TABLE salud.escritura (id NUMBER(10) PRIMARY KEY, nota VARCHAR2(100));

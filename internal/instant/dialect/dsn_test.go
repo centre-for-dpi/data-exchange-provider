@@ -188,11 +188,12 @@ func TestSelectByKey(t *testing.T) {
 	for e, w := range want {
 		d, _ := For(e)
 		cols := []string{d.Quote("a"), d.Quote("b")}
-		if got := d.SelectByKey(cols, d.Quote("s")+"."+d.Quote("v"), d.Quote("k"), nil, 2); got != w[0] {
+		k := instant.Column{Name: "k", Native: "varchar", Kind: instant.KindString}
+		if got := d.SelectByKey(cols, d.Quote("s")+"."+d.Quote("v"), k, nil, 2); got != w[0] {
 			t.Errorf("%s: got %s want %s", e, got, w[0])
 		}
 		// many: ordered by the selected columns, so the same call gives the same list.
-		if got := d.SelectByKey(cols, d.Quote("s")+"."+d.Quote("v"), d.Quote("k"), cols, 11); got != w[1] {
+		if got := d.SelectByKey(cols, d.Quote("s")+"."+d.Quote("v"), k, cols, 11); got != w[1] {
 			t.Errorf("%s ordered: got %s want %s", e, got, w[1])
 		}
 	}
@@ -273,5 +274,19 @@ func TestOracleCatalogFallback(t *testing.T) {
 	q := f.ObjectsFallback()
 	if strings.Contains(q, "oracle_maintained") || !strings.Contains(q, "'SYS'") || !strings.Contains(q, "APEX") {
 		t.Fatalf("fallback: %s", q)
+	}
+}
+
+// Final review 2: MySQL compares a DECIMAL column with a string parameter as a double, so a long
+// key could match another row. The MySQL dialect compares DECIMAL keys as exact decimals.
+func TestMySQLDecimalKeysCompareExactly(t *testing.T) {
+	d, _ := For("mysql")
+	q := d.SelectByKey([]string{"`a`"}, "`s`.`v`", instant.Column{Name: "id", Native: "decimal", Kind: instant.KindNumber}, nil, 2)
+	if !strings.Contains(q, "`id` = CAST(? AS DECIMAL(65,30))") {
+		t.Fatalf("%s", q)
+	}
+	q = d.SelectByKey([]string{"`a`"}, "`s`.`v`", instant.Column{Name: "id", Native: "varchar", Kind: instant.KindString}, nil, 2)
+	if !strings.Contains(q, "`id` = ?") {
+		t.Fatalf("%s", q)
 	}
 }

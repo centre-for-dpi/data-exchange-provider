@@ -102,7 +102,7 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 		orderBy = selected
 	}
 	c.Probe = "SELECT " + strings.Join(selected, ", ") + " FROM " + d.Quote(obj.Schema) + "." + d.Quote(obj.Name) + " WHERE 1 = 0"
-	c.Query = d.SelectByKey(selected, d.Quote(obj.Schema)+"."+d.Quote(obj.Name), d.Quote(key.Name), orderBy, c.Limit)
+	c.Query = d.SelectByKey(selected, d.Quote(obj.Schema)+"."+d.Quote(obj.Name), key, orderBy, c.Limit)
 	return c, nil
 }
 

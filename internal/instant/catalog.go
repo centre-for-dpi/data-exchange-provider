@@ -39,7 +39,8 @@ type Dialect interface {
 	Quote(ident string) string
 	// SelectByKey reads at most limit rows by key; orderBy (the selected columns, for many) makes
 	// the list the same on every call.
-	SelectByKey(cols []string, from, key string, orderBy []string, limit int) string
+	// key is the catalog column (the dialect quotes it, and may cast the parameter by its type).
+	SelectByKey(cols []string, from string, key Column, orderBy []string, limit int) string
 	Kind(native string, scale sql.NullInt64) Kind
 	// BeginReadOnly starts the transaction every query runs in (READ ONLY where the engine has it).
 	BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, error)

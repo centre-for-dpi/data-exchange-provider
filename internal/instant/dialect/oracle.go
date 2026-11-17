@@ -76,8 +76,8 @@ FROM all_tab_columns WHERE owner = :1 AND table_name = :2 ORDER BY column_id`
 func (oracle) Quote(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
 // SelectByKey limits with ROWNUM over a subquery (ordered inside it): FETCH FIRST is 12c+.
-func (oracle) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
-	return fmt.Sprintf("SELECT * FROM (SELECT %s FROM %s WHERE %s = :1%s) WHERE ROWNUM <= %d", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
+func (d oracle) SelectByKey(cols []string, from string, key instant.Column, orderBy []string, limit int) string {
+	return fmt.Sprintf("SELECT * FROM (SELECT %s FROM %s WHERE %s = :1%s) WHERE ROWNUM <= %d", strings.Join(cols, ", "), from, d.Quote(key.Name), orderClause(orderBy), limit)
 }
 
 func (oracle) Kind(t string, scale sql.NullInt64) instant.Kind {

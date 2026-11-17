@@ -16,6 +16,9 @@ type Route struct {
 	Path        string
 	Handler     http.Handler
 	MaxInFlight int // concurrent requests to protect the entity's backend; default 32
+	// MaxRequestBytes is the service's body limit; the assertion check reads at most this much
+	// (and never more than maxAssertionBody). 0: maxAssertionBody.
+	MaxRequestBytes int64
 }
 
 type route struct {
@@ -89,7 +92,7 @@ func NewHandlerWith(nodeName string, routes []Route, logger *slog.Logger, o Opti
 			Problem(rec, http.StatusServiceUnavailable, "service_busy", "El servicio está ocupado; intenta de nuevo")
 			return
 		}
-		if o.Assertion != nil && !checkAssertion(rec, r, o) {
+		if o.Assertion != nil && !checkAssertion(rec, r, o, rt.MaxRequestBytes) {
 			return
 		}
 		rt.Handler.ServeHTTP(rec, strip(r, rt.Path))
@@ -171,19 +174,45 @@ const maxAssertionBody = 8 << 20
 
 // checkAssertion reads the body (restoring it for the service) and checks the call. It reports
 // whether the call may go on.
-func checkAssertion(w http.ResponseWriter, r *http.Request, o Options) bool {
+func checkAssertion(w http.ResponseWriter, r *http.Request, o Options, limit int64) bool {
+	header := r.Header.Get("X-RID-Assertion")
+	if header == "" && !o.RequireAssertion {
+		setAssertion(r, "absent") // nothing to check: the body streams as it would without the check
+		return true
+	}
+	if limit <= 0 || limit > maxAssertionBody {
+		limit = maxAssertionBody
+	}
 	var body []byte
 	if r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0 {
-		b, err := io.ReadAll(io.LimitReader(r.Body, maxAssertionBody+1))
-		if err != nil || len(b) > maxAssertionBody {
-			setAssertion(r, "invalid: body too large to verify")
-			Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+		b, err := io.ReadAll(io.LimitReader(r.Body, limit+1))
+		if err != nil {
+			setAssertion(r, "invalid: body unreadable")
+			Problem(w, http.StatusBadRequest, "invalid_request", "No se pudo leer el cuerpo de la petición")
 			return false
+		}
+		if int64(len(b)) > limit {
+			setAssertion(r, "invalid: body too large to verify")
+			if o.RequireAssertion {
+				Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+				return false
+			}
+			// verify never rejects: the service gets the whole body, what was read and the rest.
+			r.Body = struct {
+				io.Reader
+				io.Closer
+			}{io.MultiReader(bytes.NewReader(b), r.Body), r.Body}
+			return true
 		}
 		body = b
 		r.Body = io.NopCloser(bytes.NewReader(b))
 	}
-	result := o.Assertion(r.Context(), r.Header.Get("X-RID-Assertion"), r.Method, r.URL.RequestURI(), body)
+	// The request target as received: what the gateway hashed (upstream_uri).
+	uri := r.RequestURI
+	if uri == "" || !strings.HasPrefix(uri, "/") {
+		uri = r.URL.RequestURI()
+	}
+	result := o.Assertion(r.Context(), header, r.Method, uri, body)
 	setAssertion(r, result)
 	if o.RequireAssertion && result != "verified" {
 		Problem(w, http.StatusUnauthorized, "assertion_invalid", "La llamada no trae una aserción válida del gateway")

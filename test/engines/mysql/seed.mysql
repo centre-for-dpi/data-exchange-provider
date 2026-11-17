@@ -66,4 +66,8 @@ CREATE TABLE claves (clave VARCHAR(20), nombre VARCHAR(50));
 INSERT INTO claves VALUES ('ABC-1', 'mayusculas'), ('con espacio', 'espacio'), (NULL, 'nulo');
 CREATE VIEW v_claves AS SELECT * FROM claves;
 
+CREATE TABLE decimales (id DECIMAL(25,0) PRIMARY KEY, nombre VARCHAR(20));
+INSERT INTO decimales VALUES (12345678901234567890, 'uno'), (12345678901234567891, 'dos');
+CREATE VIEW v_decimales AS SELECT * FROM decimales;
+
 CREATE TABLE escritura (id INT PRIMARY KEY, nota VARCHAR(100));

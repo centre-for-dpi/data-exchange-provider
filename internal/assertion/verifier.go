@@ -11,7 +11,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"strings"
@@ -38,24 +41,30 @@ type Options struct {
 	Audience string       // this provider entity's slug (the assertion's aud)
 	Issuer   string       // the gateway's public URL (iss); unchecked when empty
 	HTTP     *http.Client // toward the portal (corporate proxy and roots)
+	Log      *slog.Logger // JWKS fetch failures (status or error class only); nil: none
 }
 
 // Verifier checks assertions. Safe for concurrent use.
 type Verifier struct {
-	opts         Options
-	now          func() time.Time
-	refreshEvery time.Duration // the least time between two JWKS fetches for an unknown kid
+	opts        Options
+	now         func() time.Time
+	minFetchGap time.Duration // the least time between two JWKS fetches (an unknown, maybe forged, kid; a failure)
+	maxKeyAge   time.Duration // the JWKS is fetched again after this, so a revoked key stops verifying
 
-	mu          sync.Mutex
+	mu          sync.Mutex // keys and fetch times
 	keys        map[string]*ecdsa.PublicKey
-	lastRefresh time.Time
-	seen        map[string]time.Time // jti → until when it is valid (replay window)
-	swept       time.Time
+	lastAttempt time.Time
+	lastLoad    time.Time
+	fetchMu     sync.Mutex // one fetch at a time; callers that arrive meanwhile wait for it
+
+	seenMu sync.Mutex           // the replay window, apart from the keys
+	seen   map[string]time.Time // jti → until when it is valid
+	swept  time.Time
 }
 
 // New builds a Verifier; it fetches the JWKS on the first assertion it sees.
 func New(o Options) *Verifier {
-	return &Verifier{opts: o, now: time.Now, refreshEvery: 30 * time.Second,
+	return &Verifier{opts: o, now: time.Now, minFetchGap: 5 * time.Second, maxKeyAge: 10 * time.Minute,
 		keys: map[string]*ecdsa.PublicKey{}, seen: map[string]time.Time{}}
 }
 
@@ -133,8 +142,8 @@ func decode(part string, v any) bool {
 }
 
 func (v *Verifier) remember(jti string, until, now time.Time) bool {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+	v.seenMu.Lock()
+	defer v.seenMu.Unlock()
 	if now.Sub(v.swept) >= time.Second { // at most once a second: under load the map holds a minute of calls
 		for id, end := range v.seen {
 			if end.Before(now) {
@@ -150,27 +159,48 @@ func (v *Verifier) remember(jti string, until, now time.Time) bool {
 	return true
 }
 
-// key is the public key for kid, fetching the JWKS when the kid is unknown (at most once per
-// refreshEvery, so a forged kid cannot make the node hammer the portal).
+// key is the public key for kid. The JWKS is fetched when the kid is unknown or the keys are
+// older than maxKeyAge, at most once per minFetchGap, one fetch at a time: callers that arrive
+// during a fetch wait for it. A failed or empty fetch keeps the keys the node already trusts.
 func (v *Verifier) key(ctx context.Context, kid string) *ecdsa.PublicKey {
-	v.mu.Lock()
-	k, ok := v.keys[kid]
-	due := v.lastRefresh.IsZero() || v.now().Sub(v.lastRefresh) >= v.refreshEvery
-	if !ok && due {
-		v.lastRefresh = v.now()
-	}
-	v.mu.Unlock()
-	if ok || !due {
+	if k, ok, fresh := v.lookup(kid); ok && fresh {
 		return k
 	}
-	keys, err := v.fetch(ctx)
-	if err != nil {
-		return nil
+	v.fetchMu.Lock()
+	defer v.fetchMu.Unlock()
+	k, ok, fresh := v.lookup(kid) // a fetch may have finished while this caller waited
+	if ok && fresh {
+		return k
 	}
 	v.mu.Lock()
-	v.keys = keys
+	due := v.lastAttempt.IsZero() || v.now().Sub(v.lastAttempt) >= v.minFetchGap
+	if due {
+		v.lastAttempt = v.now()
+	}
 	v.mu.Unlock()
-	return keys[kid]
+	if !due {
+		return k
+	}
+	keys, err := v.fetch(context.WithoutCancel(ctx)) // not the caller's request: its cancel must not waste the fetch
+	switch {
+	case err != nil:
+		if v.opts.Log != nil {
+			v.opts.Log.Warn("gateway JWKS fetch failed", "reason", err.Error())
+		}
+	case len(keys) > 0:
+		v.mu.Lock()
+		v.keys, v.lastLoad = keys, v.now()
+		v.mu.Unlock()
+	}
+	k, _, _ = v.lookup(kid)
+	return k
+}
+
+func (v *Verifier) lookup(kid string) (k *ecdsa.PublicKey, ok, fresh bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	k, ok = v.keys[kid]
+	return k, ok, !v.lastLoad.IsZero() && v.now().Sub(v.lastLoad) < v.maxKeyAge
 }
 
 func (v *Verifier) fetch(ctx context.Context) (map[string]*ecdsa.PublicKey, error) {
@@ -182,16 +212,16 @@ func (v *Verifier) fetch(ctx context.Context) (map[string]*ecdsa.PublicKey, erro
 	}
 	res, err := v.opts.HTTP.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("network") // the class only: the error text carries the URL
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("JWKS %d", res.StatusCode)
+		return nil, fmt.Errorf("status %d", res.StatusCode)
 	}
 	var set struct {
 		Keys []struct{ Kty, Crv, Kid, X, Y string } `json:"keys"`
 	}
-	if err := json.NewDecoder(res.Body).Decode(&set); err != nil {
+	if err := json.NewDecoder(io.LimitReader(res.Body, 64<<10)).Decode(&set); err != nil {
 		return nil, err
 	}
 	keys := map[string]*ecdsa.PublicKey{}

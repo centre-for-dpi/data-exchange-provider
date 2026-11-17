@@ -591,8 +591,13 @@ instant_add_resource() {
   printf '%s\n' "$updated" >"$file"
   node validate || fail "La configuración del servicio no es válida; no se aplicó ningún cambio"
   local openapi="$HOME_DIR/config/services/$name.openapi.json"
-  node openapi "$name" >"$openapi" || fail "No se pudo generar el OpenAPI; no se aplicó ningún cambio"
-  chmod 0644 "$openapi"
+  # Through a temporary file: a failure never leaves a truncated OpenAPI behind.
+  if ! node openapi "$name" >"$openapi.tmp"; then
+    rm -f "$openapi.tmp"
+    fail "No se pudo generar el OpenAPI; no se aplicó ningún cambio"
+  fi
+  chmod 0644 "$openapi.tmp"
+  mv -f "$openapi.tmp" "$openapi"
 }
 
 # instant_summary NAME PATH FILE TITLE: what the publisher needs in the portal.
