@@ -230,6 +230,7 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 	fs.StringVar(&o.Entity, "entity", "", "nombre de la entidad en el OpenAPI (por defecto, el del recurso)")
 	fs.StringVar(&o.Subject, "subject", "", "tipo de documento si la clave identifica a una persona")
 	fs.BoolVar(&o.Many, "many", false, "la clave puede traer varias filas")
+	printOnly := fs.Bool("print", false, "imprime el archivo resultante en vez de escribirlo (install.sh)")
 	if fs.Parse(args) != nil {
 		return 2
 	}
@@ -273,32 +274,39 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 		fmt.Fprintf(out, "✘ %v\n", err)
 		return 1
 	}
-	updated, err := appendResource(raw, r)
+	comment := ""
+	if len(skipped) > 0 {
+		comment = "Columnas omitidas por rid-node scaffold:\n- " + strings.Join(skipped, "\n- ")
+	}
+	updated, err := appendResource(raw, r, comment)
 	if err != nil {
 		fmt.Fprintf(out, "✘ no se pudo escribir el recurso: %v\n", err)
 		return 1
 	}
-	// Check the result (configuration and catalog) before replacing the file.
+	// Check the result (configuration and catalog) before anything is written.
+	next, err := config.ParseService(updated, *file)
+	if err == nil {
+		_, err = instant.Compile(next, cat, d)
+	}
+	if err != nil {
+		fmt.Fprintf(out, "✘ el recurso no es válido:\n%v\n", err)
+		return 1
+	}
+	if *printOnly {
+		_, _ = out.Write(updated)
+		return 0
+	}
 	tmp := filepath.Join(filepath.Dir(*file), "."+filepath.Base(*file)+".tmp")
-	info, _ := os.Stat(*file)
 	mode := os.FileMode(0o644)
-	if info != nil {
+	if info, err := os.Stat(*file); err == nil {
 		mode = info.Mode().Perm()
 	}
 	if err := os.WriteFile(tmp, updated, mode); err != nil {
 		fmt.Fprintf(out, "✘ %v\n", err)
 		return 1
 	}
-	defer os.Remove(tmp)
-	next, err := config.LoadServiceFile(tmp)
-	if err == nil {
-		_, err = instant.Compile(next, cat, d)
-	}
-	if err != nil {
-		fmt.Fprintf(out, "✘ el recurso no es válido:\n%s\n", strings.ReplaceAll(err.Error(), tmp, *file))
-		return 1
-	}
 	if err := os.Rename(tmp, *file); err != nil {
+		_ = os.Remove(tmp)
 		fmt.Fprintf(out, "✘ %v\n", err)
 		return 1
 	}
@@ -309,8 +317,9 @@ func scaffoldCmd(ctx context.Context, args []string, out io.Writer) int {
 	return 0
 }
 
-// appendResource adds a resource to the service file's resources, keeping the rest as written.
-func appendResource(raw []byte, r config.Resource) ([]byte, error) {
+// appendResource adds a resource to the service file's resources, keeping the rest as written;
+// comment (if any) goes over the new resource.
+func appendResource(raw []byte, r config.Resource, comment string) ([]byte, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(raw, &doc); err != nil {
 		return nil, err
@@ -322,6 +331,7 @@ func appendResource(raw []byte, r config.Resource) ([]byte, error) {
 	if err := rn.Encode(r); err != nil {
 		return nil, err
 	}
+	rn.HeadComment = comment
 	m := doc.Content[0]
 	var seq *yaml.Node
 	for i := 0; i+1 < len(m.Content); i += 2 {

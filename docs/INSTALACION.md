@@ -1,6 +1,6 @@
-# Guía de instalación del nodo (modo canal)
+# Guía de instalación del nodo
 
-Para el **equipo de infraestructura** de una entidad proveedora que ya tiene sus propias APIs y quiere publicarlas en la red de intercambio de datos.
+Para el **equipo de infraestructura** de una entidad proveedora que quiere publicar datos en la red de intercambio de datos: con sus propias APIs, o con APIs instantáneas sobre vistas de sus bases de datos.
 
 ## 1. Qué es el nodo
 
@@ -16,8 +16,10 @@ Hay dos modos:
 
 | Modo | Para quién |
 | :-- | :-- |
-| **canal** | La entidad ya tiene APIs propias. El nodo solo da el canal seguro. Es el de esta guía |
-| **completo** | Además, APIs instantáneas sobre vistas de bases de datos. Llega en una versión posterior del kit |
+| **canal** | La entidad ya tiene APIs propias. El nodo solo da el canal seguro |
+| **completo** | Además, **APIs instantáneas**: el nodo publica una vista de una base de datos de la entidad (SQL Server, PostgreSQL, MySQL u Oracle) como una API de consulta por clave, con su OpenAPI (sección 5) |
+
+El modo se elige al instalar y se cambia después con `sudo /opt/rid-node/install.sh modo canal|completo`, sin perder la identidad del nodo.
 
 ## 2. Antes de empezar
 
@@ -35,7 +37,8 @@ Hay dos modos:
 | :-- | :-- | :-- |
 | El hub de la red | **UDP 51820** | El túnel. Es indispensable: no pasa por un proxy HTTP |
 | El portal y el gateway | **TCP 443** | Enrolamiento, heartbeat y renovación. Puede pasar por el proxy corporativo |
-| La API interna de la entidad | El de la API | Lo que el nodo publica |
+| La API interna de la entidad | El de la API | Lo que el nodo publica (APIs propias) |
+| La base de datos de la entidad | El de la base (1433, 5432, 3306, 1521) | Las APIs instantáneas (modo completo) |
 
 No se abre ningún puerto de entrada. El operador de la red indica los nombres del portal y del gateway.
 
@@ -112,19 +115,78 @@ Para cambiar un servicio, quítalo y vuelve a agregarlo:
 sudo /opt/rid-node/install.sh servicio quitar certificados
 ```
 
-## 5. Publicar la versión en el portal
+## 5. Agregar una API instantánea (modo completo)
+
+Para una entidad que no tiene API propia: el nodo lee una **vista** de su base de datos y la publica como `GET {ruta}/{recurso}/{clave}`, con un OpenAPI generado que pasa el lint del portal.
+
+**Antes, en la base de datos (el DBA de la entidad):**
+
+1. Crea una **vista** con solo las columnas que se van a compartir, y con nombres simples (letras, números y `_`). La vista es el contrato: lo que no está en la vista no sale.
+2. Crea un **usuario de solo lectura** con permiso `SELECT` sobre esas vistas y nada más. `doctor` avisa con ✘ si el usuario puede escribir.
+3. Permite la conexión desde el servidor del nodo hacia la base.
+
+Después:
+
+```bash
+sudo /opt/rid-node/install.sh servicio
+```
+
+| Pregunta | Ejemplo |
+| :-- | :-- |
+| Tipo | `instant` |
+| Nombre del servicio | `afiliacion` |
+| Ruta en el nodo | `/afiliacion` |
+| Motor | `sqlserver`, `postgres`, `mysql` u `oracle` |
+| Servidor, puerto y base de datos (en Oracle, el nombre del servicio) | `bd.interna.entidad`, `5432`, `entidad` |
+| Usuario de solo lectura y su contraseña | `rid_reader` |
+| TLS hacia la base | `require` (cifrado), `verify` (cifrado y certificado verificado) o `disable` |
+| Vista a exponer | `salud.v_afiliados` |
+| Columna clave | `numero_documento` |
+| Tipo de documento, si la clave identifica a una persona | `CC`, o `ninguno` |
+| ¿Una clave puede traer varias filas? | `n` (una fila) o `s` (una lista, hasta 100 filas) |
+
+El instalador:
+
+1. Guarda la conexión y prueba que el usuario puede leer el catálogo. Si no puede, no deja nada escrito.
+2. Muestra las vistas y tablas que ese usuario puede leer, con sus columnas.
+3. Crea el recurso con todas las columnas de la vista que se pueden exponer. Las que no se pueden (binarias, por ejemplo) quedan anotadas como comentario en el archivo del servicio.
+4. Valida, reinicia el nodo y genera el OpenAPI en `/opt/rid-node/config/services/<nombre>.openapi.json`. Ese es el archivo que se sube al portal.
+
+**Cómo responde la API:**
+
+- `GET /afiliacion/afiliados/1000000001` devuelve el registro, con los nombres de columna de la vista.
+- Una clave que no existe da **404**. Una clave con un formato inválido da **400**, sin llegar a la base. Cualquier parámetro en la URL también da **400**.
+- Si la base no responde, el nodo contesta **503** y el portal ve el servicio con problemas. Cuando la base vuelve, el servicio se recupera solo.
+- Cada consulta corre en una **transacción de solo lectura** (en PostgreSQL, MySQL y Oracle). En SQL Server la garantía es el usuario de solo lectura.
+
+**Ajustes en el archivo del servicio** (`/opt/rid-node/config/services/<nombre>.yaml`):
+
+- Para no exponer una columna, quítala de `columns`.
+- Para cambiar cómo se publica una columna, agrégale `as`. Por ejemplo, `as: boolean` para un `NUMBER(1)` o un `TINYINT` que guarda sí o no, o `as: date` para un `DATE` de Oracle que no necesita la hora.
+- Para un patrón de clave propio, usa `key.pattern`. Por defecto, una clave de texto acepta letras, números y guiones, sin espacios.
+- Después de editar, valida y regenera el OpenAPI:
+
+```bash
+cd /opt/rid-node && sudo docker compose exec rid-node /rid-node validate
+sudo docker compose exec rid-node /rid-node openapi afiliacion | sudo tee config/services/afiliacion.openapi.json >/dev/null
+sudo docker compose restart rid-node
+```
+
+Si el OpenAPI cambió, hay que publicar una versión nueva en el portal.
+
+## 6. Publicar la versión en el portal
 
 El publicador, en el portal:
 
 1. Crea la API, o abre una existente, y crea una **nueva versión**.
-2. Sube el **mismo OpenAPI** que se dio en el paso anterior.
+2. Sube el **mismo OpenAPI** que se dio en el paso anterior. Para una API instantánea, es el archivo `config/services/<nombre>.openapi.json` que generó el instalador.
 3. En **¿Dónde vive el servicio?** elige **Nodo del kit de APIs instantáneas**. El modo canal usa la misma opción.
 4. En **Nodo del kit** elige el nodo instalado. En **Ruta del servicio en el nodo** escribe la ruta del servicio, por ejemplo `/certificados`.
 5. Completa la clasificación, los datos expuestos, la base legal y las finalidades, y **envía a revisión**.
 
 El portal prueba la conectividad a través del gateway y del nodo. Si la validación falla justo después de instalar el nodo, espera un minuto y pulsa **Repetir validaciones**: la red tarda unos segundos en conocer un nodo nuevo.
 
-## 6. Verificar y operar
+## 7. Verificar y operar
 
 | Comando | Para qué |
 | :-- | :-- |
@@ -135,7 +197,7 @@ El portal prueba la conectividad a través del gateway y del nodo. Si la validac
 
 Si el nodo deja de enviar señales por 5 minutos, el portal lo marca **Fuera de línea** y avisa a los administradores.
 
-## 7. Respaldo y actualización
+## 8. Respaldo y actualización
 
 **Respaldo**
 
@@ -175,7 +237,7 @@ Si la imagen anterior ya no está en el servidor, ejecútalo desde la carpeta de
 
 Si el portal exige una versión mínima del kit, `status` lo muestra como aviso.
 
-## 8. Re-enrolar
+## 9. Re-enrolar
 
 Hace falta en tres casos:
 
@@ -191,7 +253,7 @@ sudo /opt/rid-node/install.sh reenrolar
 
 El nodo nuevo tiene otra identidad: en el portal hay que elegirlo en las versiones que usaban el anterior.
 
-## 9. Problemas comunes
+## 10. Problemas comunes
 
 | Síntoma | Causa probable | Qué hacer |
 | :-- | :-- | :-- |
@@ -201,6 +263,10 @@ El nodo nuevo tiene otra identidad: en el portal hay que elegirlo en las version
 | Logs: "el token … existe pero el usuario del contenedor (uid 65532) no puede leerlo" | Permisos cambiados a mano | `sudo chown 65532:65532 /opt/rid-node/secrets/enrollment_token && sudo chmod 400 /opt/rid-node/secrets/enrollment_token` |
 | `doctor`: "no hay conexión TCP con el portal" | Salida 443 bloqueada, o hace falta el proxy corporativo | Abrir la salida, o configurar `HTTPS_PROXY` (sección 3) |
 | `status`: un servicio con ✘ | La API interna no responde | Revisar la API y su URL interna |
+| `doctor`: "no se pudo conectar con la base de datos" | Firewall, servidor o puerto errado, o contraseña equivocada | Probar la conexión desde el servidor del nodo y revisar el usuario. `doctor` muestra el mensaje de la base |
+| `doctor`: "el usuario … puede escribir en …" | El usuario de la base tiene permisos de más | Dejarle solo `SELECT` sobre las vistas expuestas |
+| `doctor` o `validate`: "la declaración no compila contra la base" | La vista cambió: una columna se renombró o se borró | Ajustar el archivo del servicio, o volver a crear el recurso |
+| Llamadas con 503 en una API instantánea | La base no responde | Revisar la base. El nodo se recupera solo cuando vuelve |
 | Validación del portal falla con 502 justo después de instalar | La red aún no conoce el nodo | Esperar un minuto y **Repetir validaciones** |
 | Llamadas con 504 | La API interna tarda más de 30 s | Revisar la API interna |
 

@@ -122,6 +122,10 @@ func readServiceFile(f string) (Service, error) {
 	if err != nil {
 		return Service{}, fmt.Errorf("no se pudo leer el servicio %s: %w", f, err)
 	}
+	return decodeService(raw, f)
+}
+
+func decodeService(raw []byte, f string) (Service, error) {
 	var s Service
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
@@ -139,7 +143,16 @@ func readServiceFile(f string) (Service, error) {
 // LoadServiceFile reads one services/<name>.yaml on its own (for the commands that work on a
 // single service), with defaults, and validates it.
 func LoadServiceFile(path string) (Service, error) {
-	s, err := readServiceFile(path)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return Service{}, fmt.Errorf("no se pudo leer el servicio %s: %w", path, err)
+	}
+	return ParseService(raw, path)
+}
+
+// ParseService is LoadServiceFile on content already in memory; path names it in errors.
+func ParseService(raw []byte, path string) (Service, error) {
+	s, err := decodeService(raw, path)
 	if err != nil {
 		return Service{}, err
 	}

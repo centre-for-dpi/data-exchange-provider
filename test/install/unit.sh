@@ -128,5 +128,69 @@ t_backup_rotation() (
 )
 check "backups are rotated (only rid-node-*.tar.gz, newest kept)" t_backup_rotation
 
+# --- servicio instant: database, secret, resource and OpenAPI, with the node's CLI stubbed -------
+instant_env() { # instant_env <dir> <tag suffix>: a fake installation; node, dc and friends stubbed
+  HOME_DIR=$1
+  ENV_FILE=$HOME_DIR/.env
+  mkdir -p "$HOME_DIR/config/services" "$HOME_DIR/secrets"
+  printf 'RID_NODE_VERSION=0.1.0\nRID_NODE_TAG_SUFFIX=%s\n' "$2" >"$ENV_FILE"
+  touch "$HOME_DIR/compose.yaml"
+  dc() { :; }
+  wait_online() { :; }
+  status_field() { echo rid-node-prueba; }
+  node() {
+    echo "node $*" >>"$HOME_DIR/calls"
+    case $1 in
+      catalog) [[ -f $HOME_DIR/catalog-fails ]] && { echo "✘ no se pudo conectar con la base de datos"; return 1; }
+        echo "salud.v_afiliados (vista)" ;;
+      scaffold) cat "$HOME_DIR/config/services/afiliacion.yaml"
+        printf 'resources:\n  - name: afiliados\n    entity: Afiliados\n    source: salud.v_afiliados\n    key:\n      column: numero_documento\n    columns:\n      - name: numero_documento\n' ;;
+      validate) return 0 ;;
+      openapi) echo '{"openapi": "3.1.0"}' ;;
+    esac
+  }
+}
+instant_answers() {
+  export RID_INSTALL_SERVICE_TYPE=instant RID_INSTALL_SERVICE_NAME=afiliacion RID_INSTALL_SERVICE_PATH=/salud \
+    RID_INSTALL_SERVICE_ENGINE=postgres RID_INSTALL_SERVICE_DB_HOST=bd.interna RID_INSTALL_SERVICE_DB_PORT=5432 \
+    RID_INSTALL_SERVICE_DB_NAME=entidad RID_INSTALL_SERVICE_DB_USER=rid_reader RID_INSTALL_SERVICE_DB_PASSWORD="p'w d#1" \
+    RID_INSTALL_SERVICE_DB_TLS=require RID_INSTALL_SERVICE_SOURCE=salud.v_afiliados RID_INSTALL_SERVICE_KEY=numero_documento \
+    RID_INSTALL_SERVICE_SUBJECT=CC RID_INSTALL_SERVICE_MANY=n
+}
+
+t_instant_service_yaml() (
+  src
+  instant_env "$(mktemp -d)" ""
+  instant_answers
+  cmd_servicio >/dev/null 2>&1 || return 1
+  local f=$HOME_DIR/config/services/afiliacion.yaml s=$HOME_DIR/secrets/afiliacion_db_password
+  grep -q "^type: instant" "$f" && grep -q "  engine: postgres" "$f" && grep -q "  port: 5432" "$f" &&
+    grep -q "  passwordFile: /run/secrets/afiliacion_db_password" "$f" && grep -q "  - name: afiliados" "$f" &&
+    [[ $(cat "$s") == "p'w d#1" && $(stat -c %a "$s") == 400 ]] &&
+    ! grep -q "p'w d#1" "$f" &&
+    [[ -s $HOME_DIR/config/services/afiliacion.openapi.json ]] &&
+    grep -q -- "node scaffold --print --service-file /etc/rid-node/services/afiliacion.yaml --source salud.v_afiliados --key numero_documento --subject CC$" "$HOME_DIR/calls"
+)
+check "servicio instant writes the database, the secret, the resource and the OpenAPI" t_instant_service_yaml
+
+t_instant_needs_completo() (
+  src
+  instant_env "$(mktemp -d)" -canal
+  instant_answers
+  out=$( (cmd_servicio) 2>&1 ) && return 1
+  [[ $out == *"modo completo"* && ! -e $HOME_DIR/config/services/afiliacion.yaml ]]
+)
+check "servicio instant in canal points to modo completo" t_instant_needs_completo
+
+t_instant_catalog_failure_undoes() (
+  src
+  instant_env "$(mktemp -d)" ""
+  touch "$HOME_DIR/catalog-fails"
+  instant_answers
+  out=$( (cmd_servicio) 2>&1 ) && return 1
+  [[ $out == *"no se pudo conectar"* && ! -e $HOME_DIR/config/services/afiliacion.yaml && ! -e $HOME_DIR/secrets/afiliacion_db_password ]]
+)
+check "a catalog that cannot be read undoes the service" t_instant_catalog_failure_undoes
+
 echo "passed $PASS, failed $FAILS"
 [[ $FAILS -eq 0 ]]

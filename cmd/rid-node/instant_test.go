@@ -132,6 +132,21 @@ func TestScaffoldAppendsResource(t *testing.T) {
 	if len(s.Instant.Resources) != 2 || !s.Instant.Resources[1].Many || s.Instant.Resources[1].Entity != "Novedad" {
 		t.Fatalf("%+v", s.Instant.Resources)
 	}
+	// The skipped columns stay in the file, as a comment over the resource.
+	if raw, _ := os.ReadFile(svc); !strings.Contains(string(raw), "# ") || !strings.Contains(string(raw), "foto") {
+		t.Fatalf("the skipped column is not noted in the file:\n%s", raw)
+	}
+	// --print (the installer: the container's config is read-only) prints the new file and leaves it alone.
+	before, _ := os.ReadFile(svc)
+	code, printed := cli(t, cfg, "scaffold", "--print", "--service-file", svc, "--source", "salud.v_afiliados", "--key", "numero_documento", "--resource", "tercero", "--entity", "Tercero")
+	if after, _ := os.ReadFile(svc); code != 0 || !bytes.Equal(before, after) {
+		t.Fatalf("--print must not write: code=%d\n%s", code, printed)
+	}
+	p := filepath.Join(t.TempDir(), "printed.yaml")
+	_ = os.WriteFile(p, []byte(printed), 0o600)
+	if s, err := config.LoadServiceFile(p); err != nil || len(s.Instant.Resources) != 3 || s.Instant.Resources[2].Name != "tercero" {
+		t.Fatalf("--print must print the whole valid file: %v\n%s", err, printed)
+	}
 	for _, bad := range [][]string{{"--source", "salud.no_existe", "--key", "id"}, {"--source", "salud.v_afiliados", "--key", "foto"}} {
 		before, _ := os.ReadFile(svc)
 		args := append([]string{"scaffold", "--service-file", svc, "--resource", "otro", "--entity", "Otro"}, bad...)

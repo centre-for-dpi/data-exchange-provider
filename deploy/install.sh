@@ -12,7 +12,8 @@ USAGE="Uso: sudo ./install.sh [comando]
   (sin comando)          instala el nodo, o lo repara sin perder su identidad ni sus secretos
   status                 estado: portal, túnel, certificado, servicios y avisos
   doctor                 revisa configuración, secretos, DNS, portal, reloj, APIs internas y túnel
-  servicio               agrega una API propia de la entidad
+  servicio               agrega un servicio: una API propia de la entidad o una API
+                         instantánea sobre una vista de una base de datos (modo completo)
   servicio quitar NOMBRE quita un servicio
   logs [-f]              logs del nodo (solo metadatos)
   backup                 respaldo del estado (claves, certificado, túnel), la configuración y los secretos
@@ -230,10 +231,7 @@ choose_mode() {
   fi
   case "$mode" in
     canal) env_set RID_NODE_TAG_SUFFIX -canal ;;
-    completo)
-      env_set RID_NODE_TAG_SUFFIX ""
-      warn "Las APIs instantáneas llegan en una versión posterior del kit; por ahora el modo completo sirve APIs propias igual que canal"
-      ;;
+    completo) env_set RID_NODE_TAG_SUFFIX "" ;;
     *) fail "Modo \"$mode\" desconocido: canal o completo" ;;
   esac
   ok "Modo $mode"
@@ -394,14 +392,23 @@ cmd_logs() { require_install; dc logs --tail 200 "$@" rid-node; }
 cmd_stop() { require_install; dc stop rid-node; ok "Nodo detenido (el estado se conserva)"; }
 cmd_start() { require_install; start_node; }
 
-# servicio: RID_INSTALL_SERVICE_NAME, _PATH, _UPSTREAM, _PLAIN_HTTP (s/n), _CREDENTIAL
-# (ninguna|cabecera|basic|certificado), _HEADER, _SECRET, _USER, _CERT, _KEY, _OPENAPI ("-" omits)
+# servicio: RID_INSTALL_SERVICE_TYPE (proxy|instant), _NAME, _PATH and, for proxy, _UPSTREAM,
+# _PLAIN_HTTP (s/n), _CREDENTIAL (ninguna|cabecera|basic|certificado), _HEADER, _SECRET, _USER,
+# _CERT, _KEY, _OPENAPI ("-" omits). For instant, see service_instant.
 CREATED=()
 undo_service() { [[ ${#CREATED[@]} -gt 0 ]] && rm -f "${CREATED[@]}"; return 0; }
 cmd_servicio() {
   require_install
   [[ ${1:-} == quitar ]] && { cmd_servicio_quitar "${2:-}"; return; }
-  step "Nuevo servicio (API propia de la entidad)"
+  step "Nuevo servicio"
+  local type=${RID_INSTALL_SERVICE_TYPE:-}
+  echo "  proxy    una API propia de la entidad: el nodo le da el canal seguro"
+  echo "  instant  una API instantánea: GET por clave sobre una vista de una base de datos (modo completo)"
+  ask type "¿Tipo? (proxy o instant)" proxy
+  [[ $type == proxy || $type == instant ]] || fail "Tipo \"$type\" desconocido: proxy o instant"
+  if [[ $type == instant && $(env_get RID_NODE_TAG_SUFFIX) == -canal ]]; then
+    fail "Las APIs instantáneas necesitan el modo completo: sudo $HOME_DIR/install.sh modo completo"
+  fi
   local name=${RID_INSTALL_SERVICE_NAME:-} path=${RID_INSTALL_SERVICE_PATH:-} upstream=${RID_INSTALL_SERVICE_UPSTREAM:-}
   local cred=${RID_INSTALL_SERVICE_CREDENTIAL:-} header=${RID_INSTALL_SERVICE_HEADER:-} secret=${RID_INSTALL_SERVICE_SECRET:-}
   local user=${RID_INSTALL_SERVICE_USER:-} cert=${RID_INSTALL_SERVICE_CERT:-} key=${RID_INSTALL_SERVICE_KEY:-}
@@ -412,6 +419,10 @@ cmd_servicio() {
   [[ -e $file ]] && fail "Ya existe el servicio \"$name\" ($file). Para cambiarlo: sudo $HOME_DIR/install.sh servicio quitar $name"
   ask path "Ruta en el nodo (es la \"ruta del servicio en el nodo\" del portal)" "/$name"
   [[ $path =~ ^/[A-Za-z0-9._~/-]*[A-Za-z0-9._~-]$ ]] || fail "Ruta \"$path\" inválida: empieza con / y usa letras, números y . _ ~ - /"
+  if [[ $type == instant ]]; then
+    service_instant "$name" "$path" "$file"
+    return
+  fi
   ask upstream "URL interna de la API (p. ej. https://api.interna.entidad/v1)"
   [[ $upstream =~ ^https?://[^[:space:]]+$ ]] || fail "La URL interna debe empezar con http:// o https://"
   trap undo_service EXIT
@@ -473,6 +484,101 @@ cmd_servicio() {
   echo "    Nodo del kit:                 $(status_field nodeName)"
   echo "    Ruta del servicio en el nodo: $path"
   [[ -n $sha ]] && echo "    OpenAPI:                      sube el mismo archivo (SHA-256 $sha)"
+  return 0
+}
+
+# service_instant NAME PATH FILE: RID_INSTALL_SERVICE_ENGINE (sqlserver|postgres|mysql|oracle),
+# _DB_HOST, _DB_PORT, _DB_NAME, _DB_USER, _DB_PASSWORD, _DB_TLS (require|verify|disable), _DB_CA
+# (verify, optional; "-" omits), _SOURCE (esquema.vista), _KEY, _SUBJECT (tipo de documento o
+# ninguno), _MANY (s/n). The connection is written first and checked against the catalog;
+# any failure removes everything this run created.
+service_instant() {
+  local name=$1 path=$2 file=$3
+  local engine=${RID_INSTALL_SERVICE_ENGINE:-} host=${RID_INSTALL_SERVICE_DB_HOST:-} port=${RID_INSTALL_SERVICE_DB_PORT:-}
+  local db=${RID_INSTALL_SERVICE_DB_NAME:-} user=${RID_INSTALL_SERVICE_DB_USER:-} password=${RID_INSTALL_SERVICE_DB_PASSWORD:-}
+  local tls=${RID_INSTALL_SERVICE_DB_TLS:-} ca=${RID_INSTALL_SERVICE_DB_CA:-} source=${RID_INSTALL_SERVICE_SOURCE:-}
+  local key=${RID_INSTALL_SERVICE_KEY:-} subject=${RID_INSTALL_SERVICE_SUBJECT:-} many=${RID_INSTALL_SERVICE_MANY:-}
+  step "Base de datos"
+  ask engine "Motor (sqlserver, postgres, mysql, oracle)"
+  local default_port
+  case "$engine" in
+    sqlserver) default_port=1433 ;;
+    postgres) default_port=5432 ;;
+    mysql) default_port=3306 ;;
+    oracle) default_port=1521 ;;
+    *) fail "Motor \"$engine\" desconocido: sqlserver, postgres, mysql u oracle" ;;
+  esac
+  ask host "Servidor de la base (nombre o IP dentro de la red de la entidad)"
+  ask port "Puerto" "$default_port"
+  [[ $port =~ ^[0-9]{1,5}$ ]] || fail "Puerto \"$port\" inválido"
+  if [[ $engine == oracle ]]; then
+    ask db "Nombre del servicio de Oracle (p. ej. ORCLPDB1)"
+  else
+    ask db "Nombre de la base de datos"
+  fi
+  ask user "Usuario de solo lectura (solo SELECT sobre las vistas que se exponen)"
+  ask_secret password "Contraseña de ese usuario (no se muestra)"
+  ask tls "TLS hacia la base (require: cifrado; verify: cifrado y certificado verificado; disable: sin cifrar)" require
+  [[ $tls =~ ^(require|verify|disable)$ ]] || fail "TLS \"$tls\" desconocido: require, verify o disable"
+  [[ $tls == disable ]] && warn "La conexión con la base irá sin cifrar (solo dentro de la red de la entidad)"
+
+  trap undo_service EXIT
+  CREATED=("$file")
+  local yaml
+  yaml="name: $(yq "$name")"$'\n'"path: $(yq "$path")"$'\n'"type: instant"$'\n'"database:"$'\n'
+  yaml+="  engine: $engine"$'\n'"  host: $(yq "$host")"$'\n'"  port: $port"$'\n'"  name: $(yq "$db")"$'\n'
+  yaml+="  user: $(yq "$user")"$'\n'"  passwordFile: /run/secrets/${name}_db_password"$'\n'"  tls: $tls"$'\n'
+  write_secret "${name}_db_password" "$password"
+  CREATED+=("$HOME_DIR/secrets/${name}_db_password")
+  if [[ $tls == verify && -n $ca && $ca != - ]]; then
+    [[ $engine != oracle ]] || fail "Con Oracle, verify usa las CA del sistema: no indiques un archivo de CA"
+    copy_secret "$ca" "${name}_db_ca.pem"
+    CREATED+=("$HOME_DIR/secrets/${name}_db_ca.pem")
+    yaml+="  caFile: /run/secrets/${name}_db_ca.pem"$'\n'
+  fi
+  printf '%s' "$yaml" >"$file"
+  chmod 0644 "$file"
+
+  local cfile=/etc/rid-node/services/$name.yaml catalog
+  if ! catalog=$(node catalog --service-file "$cfile" 2>&1); then
+    printf '%s\n' "$catalog" >&2
+    fail "No se pudo leer el catálogo de la base con ese usuario; no se aplicó ningún cambio"
+  fi
+  step "Vistas y tablas que el usuario puede leer"
+  printf '%s\n' "$catalog" | sed 's/^/  /'
+  ask source "Vista o tabla a exponer (esquema.objeto)"
+  ask key "Columna clave (la que viene en la URL)"
+  ask subject "Si la clave identifica a una persona, su tipo de documento (p. ej. CC); si no, ninguno" ninguno
+  if [[ -z $many ]]; then
+    if yes_no "¿Una misma clave puede traer varias filas (p. ej. un hogar con varias personas)?" n; then many=s; else many=n; fi
+  fi
+  local args=(scaffold --print --service-file "$cfile" --source "$source" --key "$key")
+  [[ $subject != ninguno ]] && args+=(--subject "$subject")
+  [[ $many == s ]] && args+=(--many)
+  local updated
+  if ! updated=$(node "${args[@]}"); then
+    printf '%s\n' "$updated" >&2
+    fail "No se pudo crear el recurso; no se aplicó ningún cambio"
+  fi
+  printf '%s\n' "$updated" >"$file"
+  node validate || fail "La configuración del servicio no es válida; no se aplicó ningún cambio"
+  local openapi="$HOME_DIR/config/services/$name.openapi.json"
+  CREATED+=("$openapi")
+  node openapi "$name" >"$openapi" || fail "No se pudo generar el OpenAPI; no se aplicó ningún cambio"
+  chmod 0644 "$openapi"
+  trap - EXIT
+  CREATED=()
+  dc up -d --force-recreate rid-node >/dev/null
+  wait_online || warn "El nodo no confirmó estar en línea; revisa sudo $HOME_DIR/install.sh doctor"
+  local sha
+  sha=$(sha256sum "$openapi" | cut -d' ' -f1)
+  step "Servicio $name listo"
+  echo "  La API responde GET $path/<recurso>/<clave>; los recursos y sus columnas están en $file"
+  echo "  En el portal, al registrar la versión:"
+  echo "    ¿Dónde vive el servicio?      Nodo del kit"
+  echo "    Nodo del kit:                 $(status_field nodeName)"
+  echo "    Ruta del servicio en el nodo: $path"
+  echo "    OpenAPI:                      sube $openapi (SHA-256 $sha)"
   return 0
 }
 
