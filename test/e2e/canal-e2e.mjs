@@ -576,6 +576,12 @@ async function main() {
   mkdirSync(resolve(here, '.run'), { recursive: true });
   writeFileSync(resolve(here, '.run/enrollment_token'), `${issued.token}\n`, { mode: 0o644 });
   copyFileSync(PORTAL_OPENAPI, resolve(CONFIG_DIR, 'salud.openapi.yaml'));
+  if (VPS) {
+    // The deployed portal is not in the repository: node.yaml comes from its template.
+    const portal = API.replace(/\/api\/v1$/, '');
+    const template = readFileSync(resolve(CONFIG_DIR, 'node.yaml.template'), 'utf8');
+    writeFileSync(resolve(CONFIG_DIR, 'node.yaml'), template.replace('@PORTAL@', portal));
+  }
   compose(['rm', '-sf', 'den-node']);
   spawnSync('docker', ['volume', 'rm', '-f', `${PROJECT}_den-node-state`]);
   compose(['up', '-d', 'den-node']);

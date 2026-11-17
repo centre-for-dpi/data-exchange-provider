@@ -2,3 +2,4 @@
 .run/
 config/salud.openapi.yaml
 config-vps/salud.openapi.yaml
+config-vps/node.yaml
