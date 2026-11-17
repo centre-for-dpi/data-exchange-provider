@@ -242,8 +242,8 @@ Todos los comandos corren con el mismo binario y la misma configuración: `docke
 | `run` | Punto de entrada del contenedor |
 | `status` | Estado del nodo: id, `online`/`offline`, último heartbeat, vencimiento del certificado, último handshake del túnel, salud por servicio y avisos. Lo lee de `status.json`, que el proceso actualiza |
 | `doctor` | Revisa conectividad y configuración: DNS, TCP 443 al portal, conexión a cada base y upstream, permisos de los secretos y hora del sistema |
-| `catalog <servicio>` | Vistas y tablas que ve el usuario de solo lectura, con sus columnas y si se pueden exponer |
-| `scaffold <servicio> --source esquema.vista --key columna` | Escribe una declaración inicial con todas las columnas exponibles |
+| `catalog --service-file <archivo>` | Vistas y tablas que ve el usuario de solo lectura, con sus columnas y si se pueden exponer |
+| `scaffold --service-file <archivo> --source esquema.vista --key columna [--resource] [--entity] [--subject] [--many] [--print]` | Agrega un recurso con todas las columnas exponibles. Con `--print` imprime el archivo resultante en vez de escribirlo (la configuración está montada de solo lectura en el contenedor) |
 | `validate` | Valida toda la configuración contra los catálogos |
 | `openapi <servicio>` | Imprime el OpenAPI que se sube al portal y su SHA-256 |
 | `version` | Versión del kit y del contrato |

@@ -387,7 +387,7 @@ details.faq[open] summary { color: var(--gov); }
       <p>Toda entidad proveedora se conecta por medio del <b>nodo</b>: un servicio pequeño que se instala <b>dentro de la red de la entidad</b> y abre el túnel hacia afuera. La entidad no abre puertos de entrada.</p>
       <figure>
         <div class="figscroll">
-          <svg viewBox="0 0 960 340" role="img" aria-label="El consumidor llama al gateway de la red. El gateway llega al hub WireGuard. El nodo, dentro de la red de la entidad, abre hacia afuera un túnel por 51820/udp hasta el hub, y las consultas llegan al nodo por ese túnel con mTLS. El nodo entrega la consulta a la API de la entidad en el modo canal, o la responde sobre vistas de la base de datos con un usuario de solo lectura en el modo completo, que llega en una versión posterior.">
+          <svg viewBox="0 0 960 340" role="img" aria-label="El consumidor llama al gateway de la red. El gateway llega al hub WireGuard. El nodo, dentro de la red de la entidad, abre hacia afuera un túnel por 51820/udp hasta el hub, y las consultas llegan al nodo por ese túnel con mTLS. El nodo entrega la consulta a la API de la entidad en el modo canal, o la responde sobre vistas de la base de datos con un usuario de solo lectura en el modo completo.">
             <defs>
               <marker id="n-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ah"></path></marker>
               <marker id="n-ahd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="d-ahd"></path></marker>
@@ -430,12 +430,11 @@ details.faq[open] summary { color: var(--gov); }
             <text x="842" y="119" text-anchor="middle" class="d-ts">URL interna</text>
             <line x1="680" y1="208" x2="758" y2="112" class="d-strong" marker-end="url(#n-ahd)"></line>
             <text x="700" y="140" class="d-lab">canal</text>
-            <rect x="760" y="226" width="165" height="50" rx="6" class="d-box" stroke-dasharray="5 4"></rect>
+            <rect x="760" y="226" width="165" height="50" rx="6" class="d-box"></rect>
             <text x="842" y="247" text-anchor="middle" class="d-tb">Base de datos</text>
             <text x="842" y="265" text-anchor="middle" class="d-ts">vistas · solo lectura</text>
-            <line x1="680" y1="236" x2="758" y2="248" class="d-dash" marker-end="url(#n-ah)"></line>
+            <line x1="680" y1="236" x2="758" y2="248" class="d-strong" marker-end="url(#n-ahd)"></line>
             <text x="690" y="290" class="d-lab">completo</text>
-            <text x="760" y="290" class="d-ts">· próximamente</text>
           </svg>
         </div>
         <figcaption>La flecha verde es la dirección de las consultas. La conexión la abre el nodo, hacia afuera: por eso la entidad no necesita puertos de entrada. Detrás del nodo hay una API de la entidad (modo canal) o las APIs instantáneas sobre su base de datos (modo completo).</figcaption>
@@ -455,18 +454,20 @@ details.faq[open] summary { color: var(--gov); }
           <p>La entidad ya tiene una API REST, propia o hecha con cualquier herramienta.</p>
           <ul class="ticks">
             <li>El nodo da el canal seguro y entrega cada consulta a la API, en su URL interna.</li>
+            <li>Imagen sin drivers de bases de datos. El modo se cambia después sin perder la identidad del nodo.</li>
             <li>La entidad responde por su API y por su contrato OpenAPI.</li>
           </ul>
           <span class="tag ok" style="justify-self:start">Disponible</span>
         </article>
         <article class="comp d">
           <div><h4>Modo completo</h4><span class="tech">APIs instantáneas</span></div>
-          <p>La entidad no tiene API.</p>
+          <p>La entidad no tiene API, o tiene las dos cosas.</p>
           <ul class="ticks">
-            <li>El nodo responde consultas por clave sobre las vistas que la entidad elige, con un usuario de solo lectura.</li>
-            <li>Genera la API y su OpenAPI.</li>
+            <li>El nodo responde consultas por clave sobre las vistas que la entidad elige, con un usuario de solo lectura: SQL Server, PostgreSQL, MySQL u Oracle.</li>
+            <li>Genera la API y su OpenAPI. La entidad decide qué columnas salen, creando la vista.</li>
+            <li>También sirve APIs propias.</li>
           </ul>
-          <span class="tag warn" style="justify-self:start">En una versión posterior del kit</span>
+          <span class="tag ok" style="justify-self:start">Disponible</span>
         </article>
         <article class="comp g">
           <div><h4>Otras conexiones</h4><span class="tech">sin nodo</span></div>
@@ -493,7 +494,8 @@ details.faq[open] summary { color: var(--gov); }
       <div class="ports">
         <div class="port"><span class="pn">51820/udp</span><b>Hacia el hub de la red</b><span>El túnel. Indispensable; no pasa por un proxy HTTP.</span></div>
         <div class="port"><span class="pn">443/tcp</span><b>Hacia el portal y el gateway</b><span>Enrolamiento, heartbeat y renovación. Puede pasar por el proxy corporativo, si acepta <code>CONNECT</code> sin usuario ni contraseña.</span></div>
-        <div class="port"><span class="pn">interna</span><b>Hacia la API de la entidad</b><span>Lo que el nodo publica, dentro de la red de la entidad.</span></div>
+        <div class="port"><span class="pn">interna</span><b>Hacia la API de la entidad</b><span>Lo que el nodo publica con una API propia, dentro de la red de la entidad.</span></div>
+        <div class="port"><span class="pn" style="font-size:0.95rem;overflow-wrap:anywhere">1433 · 5432 · 3306 · 1521</span><b>Hacia la base de datos</b><span>Las APIs instantáneas: SQL Server, PostgreSQL, MySQL u Oracle, o el puerto que use la entidad.</span></div>
       </div>
       <p>No se abre ningún puerto de entrada. El operador indica los nombres del portal y del gateway.</p>
 
@@ -504,8 +506,8 @@ details.faq[open] summary { color: var(--gov); }
           <tbody>
             <tr><td>Contrato OpenAPI 3</td><td class="wrap">El portal lo revisa al registrar la versión: <code>operationId</code> en cada operación, sin repetir; al menos una respuesta de éxito; solo <code>$ref</code> locales; en APIs con datos personales o sensibles, cada operación declara su titular (<code>x-rid-data-subject</code>) o <code>none</code>.</td></tr>
             <tr><td>Identificadores</td><td class="wrap"><b>Nunca en el query string.</b> Los números de documento van en la ruta (<code>/personas/{documento}</code>) o en el cuerpo de un POST, no en <code>?documento=…</code>.</td></tr>
-            <tr><td>Modo canal</td><td class="wrap">La URL interna de la API y, si la pide, su credencial: una cabecera, usuario y contraseña, o un certificado de cliente.</td></tr>
-            <tr><td>Modo completo</td><td class="wrap">Un <b>usuario de solo lectura</b> en la base de datos, con acceso solo a las vistas que se van a exponer.</td></tr>
+            <tr><td>API propia</td><td class="wrap">La URL interna de la API y, si la pide, su credencial: una cabecera, usuario y contraseña, o un certificado de cliente.</td></tr>
+            <tr><td>API instantánea</td><td class="wrap">Una <b>vista</b> por consulta, con solo las columnas que se van a compartir, y un <b>usuario de solo lectura</b> con <code>SELECT</code> sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en <a href="../APIS-INSTANTANEAS.md"><code>docs/APIS-INSTANTANEAS.md</code></a>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -520,7 +522,7 @@ details.faq[open] summary { color: var(--gov); }
       <p>El portal lleva esta lista por entidad (Mi entidad → Preparación del bootcamp) y el operador ve el avance de todas. Aquí puedes marcarla para tu propio control.</p>
       <div class="check" id="pre">
         <label><input type="checkbox" id="pre-1"><span><b>Servidor para el nodo</b> disponible, con los requisitos de la sección 4.</span></label>
-        <label><input type="checkbox" id="pre-2"><span><b>Usuario de solo lectura</b> en la base de datos. Solo con el modo completo; con el modo canal se marca cuando la API interna y su OpenAPI están listos.</span></label>
+        <label><input type="checkbox" id="pre-2"><span><b>Usuario de solo lectura</b> en la base de datos, con la vista a exponer. Solo con las APIs instantáneas; con una API propia se marca cuando la API interna y su OpenAPI están listos.</span></label>
         <label><input type="checkbox" id="pre-3"><span><b>Salida 443 y UDP 51820</b> hacia el gateway y su hub.</span></label>
         <label><input type="checkbox" id="pre-4"><span><b>Responsables designados.</b> El portal lo marca solo cuando hay un <code>api_publisher</code> y un <code>data_steward</code> activos.</span></label>
         <label><input type="checkbox" id="pre-5"><span><b>Caso de uso</b> definido: qué dato, para qué finalidad, con qué base legal y entre qué entidades.</span></label>
@@ -554,18 +556,18 @@ details.faq[open] summary { color: var(--gov); }
       <h2><span class="num">8</span>Instalar el nodo</h2>
       <ol class="steps">
         <li><span>El <code>entity_admin</code> va a <b>Mi entidad → Nodos del kit</b>, registra el nodo y copia el <b>token de enrolamiento</b>. Se muestra una sola vez, sirve para un solo nodo y vence en <b>72 horas</b>. Se lo pasa al equipo de infraestructura por un canal seguro.</span></li>
-        <li><span>El equipo de infraestructura <b>verifica el paquete</b> contra la huella publicada por el operador y lo instala. El instalador pregunta el modo (<code>canal</code>), el proxy, la URL del portal y el token.
+        <li><span>El equipo de infraestructura <b>verifica el paquete</b> contra la huella publicada por el operador y lo instala. El instalador pregunta el modo (<code>canal</code> o <code>completo</code>), el proxy, la URL del portal y el token.
           <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>sha256sum rid-node-kit-&lt;versión&gt;.tar.gz
 tar -xzf rid-node-kit-&lt;versión&gt;.tar.gz
 cd rid-node-kit-&lt;versión&gt;
 sudo ./install.sh</code></pre></div></span></li>
-        <li><span>Agrega la API de la entidad, y su sandbox si lo tiene, como servicio del nodo. Pide el nombre, la <b>ruta en el nodo</b> (por ejemplo <code>/certificados</code>), la URL interna, la credencial y el OpenAPI.
+        <li><span>Agrega el servicio, y su sandbox si lo tiene. Con una <b>API propia</b> (<code>proxy</code>) pide el nombre, la <b>ruta en el nodo</b> (por ejemplo <code>/certificados</code>), la URL interna, la credencial y el OpenAPI. Con una <b>API instantánea</b> (<code>instant</code>) pide la conexión a la base con el usuario de solo lectura, muestra las vistas que puede leer, pide la vista y la columna clave, y genera el OpenAPI en <code>/opt/rid-node/config/services/&lt;nombre&gt;.openapi.json</code>.
           <div class="code" style="margin-top:8px"><button class="copy" type="button">Copiar</button><pre><code>sudo /opt/rid-node/install.sh servicio</code></pre></div></span></li>
         <li><span>En el portal, el nodo aparece <b>En línea</b>.</span></li>
       </ol>
       <div class="callout info">
         <b>Guía de instalación del nodo</b>
-        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALACION.md"><code>docs/INSTALACION.md</code></a>, que también viene dentro del paquete.</p>
+        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALACION.md"><code>docs/INSTALACION.md</code></a>, que también viene dentro del paquete. La preparación de la base, el archivo del servicio, los tipos y las respuestas de las APIs instantáneas están en <a href="../APIS-INSTANTANEAS.md"><code>docs/APIS-INSTANTANEAS.md</code></a>.</p>
       </div>
     </section>
 
@@ -579,7 +581,7 @@ sudo ./install.sh</code></pre></div></span></li>
         <span class="st goal">publicada</span>
       </div>
       <ol class="steps">
-        <li><span>El <code>api_publisher</code> crea la API y su versión: sube el <b>mismo OpenAPI</b> que se dio al nodo; en <b>¿Dónde vive el servicio?</b> elige <b>Nodo del kit de APIs instantáneas</b> (el modo canal usa la misma opción), el nodo y la <b>Ruta del servicio en el nodo</b>; en <b>Servicio de pruebas (sandbox)</b>, el mismo nodo y la ruta del sandbox; completa la clasificación (pública, interna, personal o sensible), los datos expuestos, la base legal y las finalidades permitidas.</span></li>
+        <li><span>El <code>api_publisher</code> crea la API y su versión: sube el OpenAPI del servicio (el mismo que se dio al nodo para una API propia, o el que generó el nodo para una API instantánea); en <b>¿Dónde vive el servicio?</b> elige <b>Nodo del kit de APIs instantáneas</b> (el modo canal usa la misma opción), el nodo y la <b>Ruta del servicio en el nodo</b>; en <b>Servicio de pruebas (sandbox)</b>, el mismo nodo y la ruta del sandbox; completa la clasificación (pública, interna, personal o sensible), los datos expuestos, la base legal y las finalidades permitidas.</span></li>
         <li><span><b>Envía a revisión.</b> El portal prueba la conectividad a través del gateway y del nodo, y el contrato contra el sandbox. Si algo falla, el publicador corrige su servicio y pulsa <b>Repetir validaciones</b>.</span></li>
         <li><span>El operador revisa y aprueba; si es <b>sensible</b>, también el regulador. La API queda publicada y su ruta existe en el gateway en segundos, cerrada hasta que haya accesos aprobados.</span></li>
         <li><span>El <code>data_steward</code> recibe las solicitudes de acceso de los consumidores y decide cada una: finalidad, operaciones y vigencia.</span></li>

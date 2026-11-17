@@ -4,7 +4,7 @@ Versión 2.0 · noviembre 2026 · para la jornada de incorporación (bootcamp) c
 
 Esta guía explica qué tiene que **designar, disponer y hacer** una entidad para publicar sus datos en la Red de Intercambio de Datos (RID) como **proveedora**. Lo que hace una entidad **consumidora** está en la guía de entidades del portal (`docs/guias/entidades.md` del repositorio del portal). La plataforma central (portal y gateway) la opera el operador nacional: la entidad no instala nada de eso. Lo único que instala la proveedora es el **nodo**.
 
-El paso a paso de la instalación del nodo está en la [guía de instalación del nodo](../INSTALACION.md).
+El paso a paso de la instalación del nodo está en la [guía de instalación del nodo](../INSTALACION.md), y la preparación de la base y la configuración de las APIs instantáneas, en [APIs instantáneas: uso y configuración](../APIS-INSTANTANEAS.md).
 
 ## 1. Qué significa ser proveedora
 
@@ -40,12 +40,12 @@ Toda entidad proveedora se conecta por medio del **nodo**: un servicio pequeño 
 
 Detrás del nodo puede haber dos cosas, y el flujo en el portal es el mismo:
 
-| Modo del nodo | Cuándo | Qué hay detrás | Disponible |
-| :-- | :-- | :-- | :-- |
-| **canal** | La entidad ya tiene una API REST, propia o hecha con cualquier herramienta | La API de la entidad, en su URL interna | **Sí** |
-| **completo** | La entidad no tiene API | Las **APIs instantáneas** del nodo: consultas por clave sobre vistas de su base de datos, con un usuario de solo lectura | En una versión posterior del kit |
+| Modo del nodo | Cuándo | Qué hay detrás |
+| :-- | :-- | :-- |
+| **canal** | La entidad ya tiene una API REST, propia o hecha con cualquier herramienta | La API de la entidad, en su URL interna |
+| **completo** | La entidad no tiene API, o tiene las dos cosas | Las **APIs instantáneas** del nodo: consultas por clave sobre vistas de su base de datos (SQL Server, PostgreSQL, MySQL u Oracle), con un usuario de solo lectura. También sirve APIs propias |
 
-Con el modo canal, la entidad responde por su API y por su contrato OpenAPI. Con el modo completo, el nodo genera la API y el OpenAPI a partir de las vistas que la entidad elige.
+Con una API propia, la entidad responde por su API y por su contrato OpenAPI. Con una API instantánea, el nodo genera la API y el OpenAPI a partir de las vistas que la entidad elige: la entidad decide qué columnas salen, creando la vista. El modo se elige al instalar y se puede cambiar después sin perder la identidad del nodo.
 
 **Otras conexiones**
 
@@ -71,7 +71,8 @@ Con el modo canal, la entidad responde por su API y por su contrato OpenAPI. Con
 | :-- | :-- | :-- |
 | El hub de la red (nombre del gateway) | **UDP 51820** | El túnel. Es indispensable y no pasa por un proxy HTTP |
 | El portal y el gateway | **TCP 443** | Enrolamiento, heartbeat y renovación. Puede pasar por el proxy corporativo, si acepta `CONNECT` sin usuario ni contraseña |
-| La API interna de la entidad | El de la API | Lo que el nodo publica |
+| La API interna de la entidad | El de la API | Lo que el nodo publica (API propia) |
+| La base de datos de la entidad | El de la base (1433, 5432, 3306, 1521) | Las APIs instantáneas (modo completo) |
 
 No se abre ningún puerto de entrada. El operador indica los nombres del portal y del gateway.
 
@@ -84,7 +85,7 @@ No se abre ningún puerto de entrada. El operador indica los nombres del portal 
   - **ningún identificador en el query string:** los números de documento van en la ruta (`/personas/{documento}`) o en el cuerpo de un POST, nunca en `?documento=...`;
   - en APIs con datos personales o sensibles, cada operación declara dónde está el titular de los datos (`x-rid-data-subject`) o que no tiene (`none`).
 - **Con el modo canal:** la URL interna de la API y, si la pide, su credencial (una cabecera, usuario y contraseña, o un certificado de cliente).
-- **Con el modo completo:** un **usuario de solo lectura** en la base de datos, con acceso solo a las vistas que se van a exponer.
+- **Con las APIs instantáneas:** una **vista** por cada consulta, con solo las columnas que se van a compartir, y un **usuario de solo lectura** con `SELECT` sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en [APIs instantáneas: uso y configuración](../APIS-INSTANTANEAS.md#2-preparar-la-base-de-datos-dba).
 - **Un sandbox** (recomendado): el mismo servicio con **datos sintéticos**. Con él el portal prueba el contrato al enviar a revisión, y los consumidores integran sin tocar datos reales. Se publica por el mismo nodo, como un servicio más.
 
 ### 4.4 Lista de preparación
@@ -92,7 +93,7 @@ No se abre ningún puerto de entrada. El operador indica los nombres del portal 
 El portal tiene esta lista por entidad (Mi entidad → Preparación del bootcamp), y el operador ve el avance de todas:
 
 - [ ] **Servidor para el nodo** disponible, con los requisitos de 4.1.
-- [ ] **Usuario de solo lectura** en la base de datos. Solo hace falta con el modo completo; con el modo canal se marca cuando la API interna y su OpenAPI están listos.
+- [ ] **Usuario de solo lectura** en la base de datos, con la vista a exponer. Solo hace falta con las APIs instantáneas; con una API propia se marca cuando la API interna y su OpenAPI están listos.
 - [ ] **Salida 443 y UDP 51820** hacia el gateway y su hub.
 - [ ] **Responsables designados:** el portal lo marca solo cuando hay un `api_publisher` y un `data_steward` activos.
 - [ ] **Caso de uso** definido: qué dato, para qué finalidad, con qué base legal y entre qué entidades.
@@ -129,13 +130,14 @@ El script no puede probar el túnel (UDP 51820) sin un nodo. Eso lo comprueba el
    sha256sum rid-node-kit-<versión>.tar.gz   # debe coincidir con la huella publicada por el operador
    tar -xzf rid-node-kit-<versión>.tar.gz
    cd rid-node-kit-<versión>
-   sudo ./install.sh                          # modo canal; pide la URL del portal y el token
+   sudo ./install.sh                          # pide el modo (canal o completo), la URL del portal y el token
    ```
-3. Agrega la API de la entidad (y su sandbox, si lo tiene) como servicio del nodo:
+3. Agrega el servicio (y su sandbox, si lo tiene):
    ```bash
    sudo /opt/rid-node/install.sh servicio
    ```
-   Pide el nombre del servicio, su **ruta en el nodo** (por ejemplo `/certificados`), la URL interna, la credencial y el OpenAPI.
+   - **API propia** (tipo `proxy`): pide el nombre, la **ruta en el nodo** (por ejemplo `/certificados`), la URL interna, la credencial y el OpenAPI.
+   - **API instantánea** (tipo `instant`, modo completo): pide el nombre, la ruta en el nodo, la conexión a la base con el usuario de solo lectura, la vista y la columna clave. Muestra las vistas que el usuario puede leer y genera el OpenAPI en `/opt/rid-node/config/services/<nombre>.openapi.json`.
 4. En el portal, el nodo aparece **En línea**.
 
 El detalle de cada pregunta, el proxy corporativo, el respaldo y la actualización están en la [guía de instalación del nodo](../INSTALACION.md).
@@ -145,7 +147,7 @@ El detalle de cada pregunta, el proxy corporativo, el respaldo y la actualizaci�
 Estados de una API: **borrador → en revisión → aprobada por el operador → aprobada por el regulador** (solo si es sensible) **→ publicada**.
 
 1. El `api_publisher` crea la API y su versión:
-   - sube el **mismo OpenAPI** que se dio al nodo;
+   - sube el OpenAPI del servicio: el mismo que se dio al nodo para una API propia, o el que generó el nodo para una API instantánea;
    - en **¿Dónde vive el servicio?** elige **Nodo del kit de APIs instantáneas** (el modo canal usa la misma opción), el nodo instalado y la **Ruta del servicio en el nodo**, por ejemplo `/certificados`;
    - en **Servicio de pruebas (sandbox)** elige el mismo nodo y la ruta del servicio de pruebas;
    - completa la clasificación (pública, interna, personal o sensible), los datos expuestos, la base legal y las finalidades permitidas.

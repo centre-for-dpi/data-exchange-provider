@@ -174,6 +174,8 @@ sudo docker compose restart rid-node
 
 Si el OpenAPI cambió, hay que publicar una versión nueva en el portal.
 
+Los comandos para preparar la base en cada motor, todos los campos del archivo del servicio, los tipos, las respuestas y cómo agregar un segundo recurso están en [APIs instantáneas: uso y configuración](APIS-INSTANTANEAS.md).
+
 ## 6. Publicar la versión en el portal
 
 El publicador, en el portal:
