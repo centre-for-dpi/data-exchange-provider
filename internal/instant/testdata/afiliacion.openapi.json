@@ -138,7 +138,7 @@
                 }
               }
             },
-            "description": "La clave declarada no es única en la fuente, o la respuesta pasa de los registros o del tamaño que el servicio entrega"
+            "description": "La clave declarada no es única en la fuente, la respuesta pasa de los registros o del tamaño que el servicio entrega, o un valor de la fuente no cabe en su tipo"
           },
           "503": {
             "content": {
@@ -220,7 +220,7 @@
                 }
               }
             },
-            "description": "La clave declarada no es única en la fuente, o la respuesta pasa de los registros o del tamaño que el servicio entrega"
+            "description": "La clave declarada no es única en la fuente, la respuesta pasa de los registros o del tamaño que el servicio entrega, o un valor de la fuente no cabe en su tipo"
           },
           "503": {
             "content": {

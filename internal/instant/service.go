@@ -133,6 +133,14 @@ func (s *Service) Compile(ctx context.Context) error {
 		return err
 	}
 	rs, err := Compile(s.cfg, cat, s.d)
+	if err == nil {
+		err = s.probe(ctx, rs)
+	}
+	var de *DBError
+	if errors.As(err, &de) {
+		s.setErr(err) // the database failed: keep serving what compiled before
+		return err
+	}
 	if err != nil {
 		s.set.Store(nil)
 		s.setErr(err)
@@ -290,3 +298,21 @@ func (s *Service) served(err error) {
 
 // String is for logs and messages.
 func (s *Service) String() string { return fmt.Sprintf("instant:%s", s.cfg.Name) }
+
+// probe runs each resource's empty SELECT: the catalog of MySQL and Oracle lists objects the user
+// holds any privilege on, so only a real SELECT tells whether it can read them.
+func (s *Service) probe(ctx context.Context, rs []Compiled) error {
+	var errs []error
+	for _, r := range rs {
+		rows, err := s.db.QueryContext(ctx, r.Probe)
+		if err != nil {
+			if c := errorClass(err); c == "connection" || c == "timeout" || c == "canceled" {
+				return dbError(err)
+			}
+			errs = append(errs, fmt.Errorf("recurso %q: el usuario de la base no puede leer %s con SELECT (revisa sus permisos sobre la vista y sus columnas)", r.Name, r.Source))
+			continue
+		}
+		_ = rows.Close()
+	}
+	return errors.Join(errs...)
+}

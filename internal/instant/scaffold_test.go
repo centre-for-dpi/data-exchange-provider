@@ -41,3 +41,22 @@ func TestScaffold(t *testing.T) {
 		}
 	}
 }
+
+// Columns that differ only in case (PostgreSQL "Nombre" and "nombre") would collide once lower
+// cased: both are left out, with a note.
+func TestScaffoldSkipsCaseCollisions(t *testing.T) {
+	cat := upperCatalog()
+	cat[0].Columns = append(cat[0].Columns, Column{Name: "Nombres", Native: "varchar", Kind: KindString})
+	r, skipped, err := Scaffold(cat, ScaffoldOptions{Source: "salud.v_afiliados", Key: "numero_documento"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range r.Columns {
+		if c.Name == "nombres" {
+			t.Fatalf("a colliding column was kept: %+v", r.Columns)
+		}
+	}
+	if !strings.Contains(strings.Join(skipped, "|"), "Nombres") || !strings.Contains(strings.Join(skipped, "|"), "NOMBRES") {
+		t.Fatalf("skipped: %v", skipped)
+	}
+}

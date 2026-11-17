@@ -30,7 +30,8 @@ type DB struct {
 	ReadOnly    int                         // read-only transactions begun
 	ByKey       int                         // queries by key run
 	Catalogue   int
-	ColumnReads int // column queries run (one per object read)                         // catalog reads
+	ColumnReads int   // column queries run (one per object read)
+	ProbeErr    error // a SELECT without parameters (the compile's permission probe) fails with this                         // catalog reads
 }
 
 var (
@@ -116,6 +117,11 @@ func (c *fakeConn) QueryContext(_ context.Context, query string, args []driver.N
 		return &fakeRows{cols: []string{"name", "type", "len", "scale", "nullable"}, rows: f.Columns[fmt.Sprint(args[0].Value)+"."+fmt.Sprint(args[1].Value)]}, nil
 	case query == "WRITES":
 		return &fakeRows{cols: []string{"n"}, rows: [][]driver.Value{{f.Writes}}}, nil
+	case strings.HasPrefix(query, "SELECT ") && len(args) == 0:
+		if f.ProbeErr != nil {
+			return nil, f.ProbeErr
+		}
+		return &fakeRows{}, nil
 	case strings.HasPrefix(query, "SELECT "):
 		f.ByKey++
 		if f.QueryErr != nil {

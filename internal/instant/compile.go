@@ -20,6 +20,7 @@ type Compiled struct {
 	KeyColumn       Column
 	KeyRegexp       *regexp.Regexp
 	Object          Object // the catalog object, as the catalog spells it (without columns)
+	Probe           string // SELECT of the columns that returns no rows: checks the user may read them
 	Limit           int    // rows read: 2 for one row (a second one means the key is not unique), maxRows+1 for many
 }
 
@@ -100,6 +101,7 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 	if r.Many {
 		orderBy = selected
 	}
+	c.Probe = "SELECT " + strings.Join(selected, ", ") + " FROM " + d.Quote(obj.Schema) + "." + d.Quote(obj.Name) + " WHERE 1 = 0"
 	c.Query = d.SelectByKey(selected, d.Quote(obj.Schema)+"."+d.Quote(obj.Name), d.Quote(key.Name), orderBy, c.Limit)
 	return c, nil
 }
@@ -159,7 +161,7 @@ func keyPattern(key Column, declared string) (string, error) {
 		n = min(n, maxKeyBytes) // regexp repeat counts stop at 1000; keys never exceed maxKeyBytes
 		return fmt.Sprintf(`^[A-Za-z0-9-]{1,%d}$`, n), nil
 	case KindInteger:
-		return `^[0-9]{1,18}$`, nil
+		return `^[0-9]{1,38}$`, nil // beyond int64, decimal columns get the key as text
 	case KindNumber:
 		return `^[0-9]{1,38}$`, nil
 	case KindUUID:

@@ -23,7 +23,8 @@ func (fakeDialect) Columns() string                                  { return "C
 func (fakeDialect) WritePrivileges() string                          { return "WRITES" }
 func (fakeDialect) Quote(s string) string                            { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 func (fakeDialect) Kind(native string, _ sql.NullInt64) Kind {
-	return map[string]Kind{"varchar": KindString, "int": KindInteger, "integer": KindInteger, "date": KindDate, "timestamp": KindDateTime}[native]
+	return map[string]Kind{"varchar": KindString, "int": KindInteger, "integer": KindInteger, "NUMBER": KindInteger,
+		"numeric": KindNumber, "date": KindDate, "timestamp": KindDateTime}[native]
 }
 func (fakeDialect) BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
 	return db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})

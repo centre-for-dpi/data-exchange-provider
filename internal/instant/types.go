@@ -260,3 +260,54 @@ func mssqlGUIDOrder(b []byte) []byte {
 	return []byte{b[3], b[2], b[1], b[0], b[5], b[4], b[7], b[6],
 		b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]}
 }
+
+var (
+	datePattern     = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
+	dateTimePattern = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?$`)
+	uuidPattern     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+)
+
+// fits reports whether a ToJSON result matches the JSON Schema of the exposed kind. A zero time
+// (MySQL's 0000-00-00, a driver's empty time) does not.
+func fits(k Kind, v any) bool {
+	if v == nil {
+		return true
+	}
+	switch k {
+	case KindInteger:
+		switch x := v.(type) {
+		case int64, int32, int16, int8, int, uint64, uint32, uint16, uint8:
+			return true
+		case json.Number:
+			return !strings.ContainsAny(string(x), ".eE")
+		}
+		return false
+	case KindNumber:
+		switch v.(type) {
+		case int64, int32, int16, int8, int, uint64, uint32, uint16, uint8, json.Number:
+			return true
+		}
+		return false
+	case KindBoolean:
+		_, ok := v.(bool)
+		return ok
+	case KindDate:
+		s, ok := v.(string)
+		return ok && datePattern.MatchString(s) && !strings.HasPrefix(s, "0001-01-01")
+	case KindDateTime:
+		s, ok := v.(string)
+		return ok && dateTimePattern.MatchString(s) && !strings.HasPrefix(s, "0001-01-01")
+	case KindDateTimeTZ:
+		s, ok := v.(string)
+		if !ok || strings.HasPrefix(s, "0001-01-01") {
+			return false
+		}
+		_, err := time.Parse(time.RFC3339Nano, s)
+		return err == nil
+	case KindUUID:
+		s, ok := v.(string)
+		return ok && uuidPattern.MatchString(s)
+	}
+	_, ok := v.(string)
+	return ok
+}

@@ -19,6 +19,7 @@ import (
 const (
 	titleTooManyRows = "La clave trae más registros de los que este servicio entrega"
 	titleTooLarge    = "La respuesta es más grande de lo que este servicio entrega"
+	titleNotFitting  = "Un valor de la fuente no se puede representar con el tipo que declara el OpenAPI"
 	titleMethod      = "Este servicio solo acepta GET"
 	// maxKeyBytes bounds any key, whatever the declared pattern.
 	maxKeyBytes = 256
@@ -68,7 +69,13 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 	case KindInteger:
 		n, err := strconv.ParseInt(key, 10, 64)
 		if err != nil {
-			server.Problem(w, http.StatusBadRequest, "invalid_key", titleInvalidKey)
+			// Beyond int64: a decimal column (Oracle NUMBER(p,0), up to 38 digits) takes it as
+			// text; a binary integer column cannot hold it, so no row has it.
+			if decimalNative(r.KeyColumn.Native) {
+				arg = key
+				break
+			}
+			server.Problem(w, http.StatusNotFound, "not_found", titleNotFound)
 			return
 		}
 		if strings.EqualFold(r.KeyColumn.Native, "integer") && (n > math.MaxInt32 || n < math.MinInt32) {
@@ -89,6 +96,12 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 	items, err := s.query(req.Context(), r, arg)
 	if errors.Is(err, errTooLarge) {
 		server.Problem(w, http.StatusInternalServerError, "response_too_large", titleTooLarge)
+		return
+	}
+	var nf *notFitting
+	if errors.As(err, &nf) {
+		s.log.Warn("unrepresentable value", "resource", r.Name, "column", nf.column, "kind", string(nf.kind))
+		server.Problem(w, http.StatusInternalServerError, "unrepresentable_value", titleNotFitting)
 		return
 	}
 	s.served(err)
@@ -145,7 +158,11 @@ func (s *Service) query(ctx context.Context, r *Compiled, arg any) ([]map[string
 		item := make(map[string]any, len(vals))
 		for i, c := range r.Columns {
 			spec := r.Resource.Columns[i]
-			item[spec.Name] = ToJSON(c, spec.As, vals[i]) // JSON names are the declaration's
+			v := ToJSON(c, spec.As, vals[i]) // JSON names are the declaration's
+			if !fits(r.Exposed[i], v) {
+				return nil, &notFitting{column: spec.Name, kind: r.Exposed[i]}
+			}
+			item[spec.Name] = v
 		}
 		items = append(items, item)
 	}
@@ -163,6 +180,24 @@ func (s *Service) root(w http.ResponseWriter, req *http.Request) {
 	}
 	writeJSON(w, map[string]string{"status": "ok"})
 }
+
+// decimalNative is a column type that stores integers as decimals of any length.
+func decimalNative(native string) bool {
+	switch strings.ToLower(strings.TrimSpace(native)) {
+	case "number", "numeric", "decimal":
+		return true
+	}
+	return false
+}
+
+// notFitting is a value that ToJSON could not turn into its column's exposed kind (NaN, Infinity,
+// a zero date): serving it would break the OpenAPI.
+type notFitting struct {
+	column string
+	kind   Kind
+}
+
+func (e *notFitting) Error() string { return "value does not fit " + string(e.kind) }
 
 // errTooLarge stops reading rows once a response passes maxResponseBytes.
 var errTooLarge = errors.New("response too large")

@@ -62,6 +62,8 @@ func openWith(t *testing.T, d Dialect, prepare func(f *instanttest.DB), resource
 		{"ACTIVO", "int", nil, int64(0), "NO"},
 		{"ID", "integer", nil, int64(0), "YES"},
 		{"FECHA", "date", nil, nil, "YES"},
+		{"PUNTAJE", "numeric", nil, int64(2), "YES"},
+		{"NUM", "NUMBER", nil, int64(0), "YES"},
 	}
 	f.Rows["123"] = [][]driver.Value{{"123", []byte("Ana"), int64(1)}}
 	f.Rows["dup"] = [][]driver.Value{{"dup", "A", int64(1)}, {"dup", "B", int64(0)}}
@@ -433,5 +435,57 @@ func TestResponseTooLarge(t *testing.T) {
 	}
 	if code, _, _ := fx.get(t, "/salud/historial/chico"); code != 200 {
 		t.Fatalf("under the cap: %d", code)
+	}
+}
+
+// A table the catalog lists but the user cannot SELECT (MySQL and Oracle list objects with any
+// privilege): the compile says so, instead of every request failing.
+func TestCompileChecksSelectPermission(t *testing.T) {
+	fx := open(t, func(f *instanttest.DB) { f.ProbeErr = errors.New("ORA-01031: insufficient privileges") })
+	deadline := time.Now().Add(2 * time.Second)
+	for fx.svc.Err() == nil && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	err := fx.svc.Err()
+	if fx.svc.Ready() || err == nil || !strings.Contains(err.Error(), "SELECT") || !strings.Contains(err.Error(), "salud.v_afiliados") ||
+		strings.Contains(err.Error(), "ORA-01031") {
+		t.Fatalf("ready=%v err=%v", fx.svc.Ready(), err)
+	}
+}
+
+// Values that do not fit the column's schema (NaN, a zero date) are refused, never served
+// against the OpenAPI: the response is 500 and the log names the column, never the value.
+func TestUnrepresentableValue(t *testing.T) {
+	fx := open(t, func(f *instanttest.DB) {
+		f.Rows["nan"] = [][]driver.Value{{"nan", "x", int64(1), nil, nil, "NaN", nil}}
+		f.Rows["cero"] = [][]driver.Value{{"cero", "x", int64(1), nil, time.Time{}, "1.5", nil}}
+	}, config.Resource{Name: "puntajes", Entity: "Puntaje", Source: "salud.v_afiliados", MaxRows: 100,
+		Key: config.KeySpec{Column: "numero_documento"}, Columns: []config.ColumnSpec{{Name: "puntaje"}, {Name: "fecha"}}})
+	fx.waitReady(t)
+	for _, key := range []string{"nan", "cero"} {
+		if code, m, _ := fx.get(t, "/salud/puntajes/"+key); code != 500 || m["code"] != "unrepresentable_value" {
+			t.Fatalf("%s: %d %v", key, code, m)
+		}
+	}
+	if logs := fx.logs.String(); !strings.Contains(logs, `"column":"puntaje"`) || strings.Contains(logs, "NaN") {
+		t.Fatalf("the log names the column, never the value: %s", logs)
+	}
+}
+
+// Oracle NUMBER(p,0) keys can have up to 38 digits: beyond int64 they are bound as text; an
+// integer column that cannot hold the key answers 404 without a query.
+func TestLongIntegerKeys(t *testing.T) {
+	long := "1234567890123456789012345"
+	fx := open(t, func(f *instanttest.DB) { f.Rows[long] = [][]driver.Value{{long, "Ana", int64(1)}} },
+		config.Resource{Name: "por-num", Entity: "PorNum", Source: "salud.v_afiliados", MaxRows: 100,
+			Key: config.KeySpec{Column: "num"}, Columns: []config.ColumnSpec{{Name: "nombres"}}},
+		config.Resource{Name: "por-id", Entity: "PorId", Source: "salud.v_afiliados", MaxRows: 100,
+			Key: config.KeySpec{Column: "id"}, Columns: []config.ColumnSpec{{Name: "nombres"}}})
+	fx.waitReady(t)
+	if code, _, body := fx.get(t, "/salud/por-num/"+long); code != 200 {
+		t.Fatalf("NUMBER key with 25 digits: %d %s", code, body)
+	}
+	if code, m, _ := fx.get(t, "/salud/por-id/"+long); code != 404 {
+		t.Fatalf("integer column: %d %v", code, m)
 	}
 }

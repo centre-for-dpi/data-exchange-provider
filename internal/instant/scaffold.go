@@ -55,8 +55,14 @@ func Scaffold(catalog []Object, o ScaffoldOptions) (config.Resource, []string, e
 		r.DataSubject = &config.SubjectSpec{DocumentType: o.Subject}
 	}
 	var skipped []string
+	lowered := map[string]int{}
+	for _, c := range obj.Columns {
+		lowered[strings.ToLower(c.Name)]++
+	}
 	for _, c := range obj.Columns {
 		switch {
+		case lowered[strings.ToLower(c.Name)] > 1:
+			skipped = append(skipped, fmt.Sprintf("%s: otra columna solo cambia en mayúsculas; renómbrala en la vista", c.Name))
 		case !plainColumn.MatchString(c.Name):
 			skipped = append(skipped, fmt.Sprintf("%s: el nombre no es simple; renómbrala en la vista", c.Name))
 		case c.Kind == KindUnsupported:
