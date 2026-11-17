@@ -11,10 +11,12 @@ import (
 	"log/slog"
 	"net/netip"
 	"os"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/agent"
+	"github.com/centre-for-dpi/data-exchange-provider/internal/assertion"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/contract"
@@ -100,6 +102,12 @@ func runNode(ctx context.Context, o runOptions) error {
 		return errors.New("el estado no tiene la raíz de la red; usa install.sh reenrolar")
 	}
 
+	opts, err := assertionOptions(cfg, st, o.PortalRoots, log)
+	if err != nil {
+		return err
+	}
+	opts.Metrics = metrics
+
 	tcfg, err := tunnelConfig(st)
 	if err != nil {
 		return err
@@ -118,7 +126,7 @@ func runNode(ctx context.Context, o runOptions) error {
 	serveErr := make(chan error, 1)
 	go func() {
 		serveErr <- server.Serve(ctx, l, server.TLSConfig(server.Identity{NodeName: st.NodeName, GatewayClientName: st.GatewayClientName,
-			Roots: roots, Certificate: live.Load}), server.NewHandlerWithMetrics(st.NodeName, routes, log, metrics), log)
+			Roots: roots, Certificate: live.Load}), server.NewHandlerWith(st.NodeName, routes, log, opts), log)
 	}()
 	ctl := agent.NewController(st, enroller.Store, contract.NewControl(st.ControlURL, cfg.ControlDialAddress, roots, live.Load),
 		live, services, tun, buildinfo.Version, log)
@@ -163,4 +171,48 @@ func tunnelConfig(st *state.State) (tunnel.Config, error) {
 	}
 	return tunnel.Config{Address: addr, PrivateKey: priv, HubPublicKey: hub, HubEndpoint: w.HubEndpoint,
 		AllowedIPs: allowed, Keepalive: keepalive}, nil
+}
+
+// assertionAudience is the provider entity's slug the gateway's assertions are addressed to: the
+// configured one, or the one in the gateway's client name (rid-gateway.<slug>). Unknown, the
+// verification is off (a warning), or the node does not start when it is required.
+func assertionAudience(a config.GatewayAssertion, gatewayClientName string) (string, error) {
+	if a.Audience != "" {
+		return a.Audience, nil
+	}
+	if slug, ok := strings.CutPrefix(gatewayClientName, "rid-gateway."); ok && slug != "" {
+		return slug, nil
+	}
+	if a.Mode == "require" {
+		return "", fmt.Errorf("gatewayAssertion: no se puede saber el slug de la entidad desde %q; escríbelo en gatewayAssertion.audience", gatewayClientName)
+	}
+	return "", nil
+}
+
+// assertionOptions builds the server's assertion check from the configuration.
+func assertionOptions(cfg *config.Node, st *state.State, portalRoots *x509.CertPool, log *slog.Logger) (server.Options, error) {
+	a := cfg.GatewayAssertion
+	if a.Mode == "off" {
+		log.Info("gateway assertion", "mode", "off")
+		return server.Options{}, nil
+	}
+	audience, err := assertionAudience(a, st.GatewayClientName)
+	if err != nil {
+		return server.Options{}, err
+	}
+	if audience == "" {
+		log.Warn("gateway assertion not verified: unknown provider slug; set gatewayAssertion.audience", "gateway_client", st.GatewayClientName)
+		return server.Options{}, nil
+	}
+	v := assertion.New(assertion.Options{
+		JWKSURL: strings.TrimRight(cfg.Portal, "/") + "/api/v1/gateway/jwks", Audience: audience, Issuer: a.Issuer,
+		HTTP: contract.NewPortalHTTPClient(portalRoots),
+	})
+	log.Info("gateway assertion", "mode", a.Mode, "audience", audience)
+	return server.Options{
+		Assertion: func(ctx context.Context, header, method, uri string, body []byte) string {
+			return string(v.Check(ctx, header, method, uri, body))
+		},
+		RequireAssertion: a.Mode == "require",
+	}, nil
 }

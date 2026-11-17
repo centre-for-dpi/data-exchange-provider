@@ -70,7 +70,11 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 
 ## K4 — Endurecimiento y lo que viene del portal
 
-- Verificación de `X-RID-Assertion`, cuando el portal la active (M6-10).
+- ✅ Verificación de `X-RID-Assertion` (2026-11-17; el portal la hizo en M6-10). Cada llamada se verifica con el JWKS del portal: firma ES256, `aud` (el *slug* de la entidad), `iss` si se configura, vencimiento, método, URI tal como llega al nodo, cuerpo y repetición del `jti`. Modos en `node.yaml`, `gatewayAssertion.mode`:
+  - `verify` (por defecto): registra el resultado en el log de acceso y nunca rechaza;
+  - `require`: responde 401 sin una aserción válida;
+  - `off`.
+  El portal desplegado en el VPS aún no publica el JWKS, así que ahí sale `absent`.
 - Sandbox con datos sintéticos.
 - ✅ Métricas (2026-11-17): cada servicio cuenta sus peticiones desde el arranque (4xx y 5xx aparte) y su latencia p50/p95 sobre las últimas 1024. Van en `status.json` y se ven con `install.sh status`. No hay endpoint Prometheus, porque el nodo no abre puertos; si el operador lo pide, se puede exponer solo en `127.0.0.1`.
 - ✅ Firma y SBOM (2026-11-16): el paquete lleva un SBOM CycloneDX por variante (`tools/licensecheck -cyclonedx`), y con `RID_SIGN_KEY` se firma con `ssh-keygen -Y` (la entidad verifica con OpenSSH, sin instalar nada). Las imágenes van dentro del paquete y las cubre `SHA256SUMS`. Falta que el operador cree su clave y publique `allowed_signers`.
@@ -88,3 +92,5 @@ No se implementan aquí; la frontera es el contrato v1.
 - **SPEC §3.1:** `node` es el canal de cualquier proveedor, no solo de las APIs instantáneas.
 - **`/config`:** devolver la raíz de la red y `gatewayClientName`, para no tener que re-enrolar si cambian (ARCHITECTURE §5).
 - **Guía de entidades:** Ubuntu Server LTS con Docker como requisito del nodo (ADR-0002).
+- **Slug de la entidad en el contrato:** la aserción del gateway lleva `aud` = el *slug* de la entidad, pero el contrato v1 no se lo da al nodo. Hoy el nodo lo deduce de `gatewayClientName` (`rid-gateway.<slug>`), una convención no escrita. Proponer `entitySlug` en la respuesta del enrolamiento y en `/config`.
+- **Aserción y API propia detrás del nodo:** el gateway firma la URI que recibe el nodo. El nodo la verifica y reenvía la cabecera, pero la API interna recibe otra ruta (la base del upstream) y no puede verificarla por su cuenta. Definir si el nodo debe pasar la URI original (por ejemplo `X-RID-Original-URI`) o si basta con su verificación y su log.

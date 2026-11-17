@@ -21,8 +21,22 @@ type Node struct {
 	Portal string `yaml:"portal"` // portal API, used to enroll
 	// ControlDialAddress (development only) is the host:port dialed for the control channel
 	// instead of the controlUrl's host; the TLS name stays the controlUrl's.
-	ControlDialAddress string    `yaml:"controlDialAddress"`
-	Services           []Service `yaml:"services"`
+	ControlDialAddress string           `yaml:"controlDialAddress"`
+	GatewayAssertion   GatewayAssertion `yaml:"gatewayAssertion"`
+	Services           []Service        `yaml:"services"`
+}
+
+// GatewayAssertion is how the node treats the gateway's signed assertion (X-RID-Assertion, the
+// portal's ADR-0024).
+type GatewayAssertion struct {
+	// Mode: verify (default: verify and log the result, never reject; the network may have the
+	// assertion off), require (401 without a valid one) or off.
+	Mode string `yaml:"mode"`
+	// Audience is the provider entity's slug; empty: taken from the gateway's client name
+	// (rid-gateway.<slug>) given at enrollment.
+	Audience string `yaml:"audience"`
+	// Issuer is the gateway's public URL (the assertion's iss); empty: not checked.
+	Issuer string `yaml:"issuer"`
 }
 
 // Service is one servicePath prefix the node serves.
@@ -86,6 +100,9 @@ func Load(path string) (*Node, error) {
 		return nil, err
 	}
 	n.Services = append(n.Services, more...)
+	if n.GatewayAssertion.Mode == "" {
+		n.GatewayAssertion.Mode = "verify"
+	}
 	for i := range n.Services {
 		n.Services[i].applyDefaults()
 	}

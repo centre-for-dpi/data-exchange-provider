@@ -31,6 +31,11 @@ func (n *Node) Validate() error {
 			add("controlDialAddress %q debe ser host:puerto", n.ControlDialAddress)
 		}
 	}
+	switch n.GatewayAssertion.Mode {
+	case "verify", "require", "off":
+	default:
+		add("gatewayAssertion.mode %q no existe (verify, require u off)", n.GatewayAssertion.Mode)
+	}
 	errs = append(errs, validateServices(n.Services)...)
 	return errors.Join(errs...)
 }

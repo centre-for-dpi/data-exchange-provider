@@ -241,3 +241,15 @@ func TestServiceFileWithSeveralDocumentsRefused(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 }
+
+func TestGatewayAssertionConfig(t *testing.T) {
+	n, err := load(t, "portal: https://portal.red.example\n")
+	if err != nil || n.GatewayAssertion.Mode != "verify" {
+		t.Fatalf("default mode is verify (log, never reject): %+v %v", n.GatewayAssertion, err)
+	}
+	n, err = load(t, "portal: https://portal.red.example\ngatewayAssertion: { mode: require, audience: salud, issuer: https://gw.red.example }\n")
+	if err != nil || n.GatewayAssertion.Mode != "require" || n.GatewayAssertion.Audience != "salud" {
+		t.Fatalf("%+v %v", n.GatewayAssertion, err)
+	}
+	mustFail(t, "portal: https://portal.red.example\ngatewayAssertion: { mode: maybe }\n", "gatewayAssertion.mode")
+}

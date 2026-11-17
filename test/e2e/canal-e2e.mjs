@@ -730,6 +730,10 @@ async function main() {
   expect(access, 'the node did not log the call');
   info(`  access: ${JSON.stringify(access)}`);
   expect(access.client === 'rid-gateway.salud', 'the node did not see the gateway by name');
+  // The gateway's signed assertion (portal ADR-0024): verified where the network signs, absent
+  // where it does not yet; never invalid.
+  expect(access.assertion === 'verified' || access.assertion === 'absent', `gateway assertion: ${access.assertion}`);
+  info(`  aserción del gateway: ${access.assertion}`);
   expect(access.route === ROUTE_TEMPLATE, `route template ${access.route}`);
   expect(!nodeLogs().some((l) => l.includes(PERSON)), 'the node logged the document number');
   ok('El nodo vio al gateway por su nombre, registró la plantilla de la ruta y no el número de documento');

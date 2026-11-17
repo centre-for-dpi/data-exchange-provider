@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -39,6 +41,12 @@ func NewHandler(nodeName string, routes []Route, logger *slog.Logger) http.Handl
 // NewHandlerWithMetrics is NewHandler that also counts each service's requests in m (nil: no
 // counting).
 func NewHandlerWithMetrics(nodeName string, routes []Route, logger *slog.Logger, m *Metrics) http.Handler {
+	return NewHandlerWith(nodeName, routes, logger, Options{Metrics: m})
+}
+
+// NewHandlerWith is NewHandler with its optional parts.
+func NewHandlerWith(nodeName string, routes []Route, logger *slog.Logger, o Options) http.Handler {
+	m := o.Metrics
 	rs := make([]*route, 0, len(routes))
 	for _, r := range routes {
 		if r.MaxInFlight <= 0 {
@@ -79,6 +87,9 @@ func NewHandlerWithMetrics(nodeName string, routes []Route, logger *slog.Logger,
 			defer func() { <-rt.slots }()
 		default:
 			Problem(rec, http.StatusServiceUnavailable, "service_busy", "El servicio está ocupado; intenta de nuevo")
+			return
+		}
+		if o.Assertion != nil && !checkAssertion(rec, r, o) {
 			return
 		}
 		rt.Handler.ServeHTTP(rec, strip(r, rt.Path))
@@ -130,4 +141,53 @@ func strip(r *http.Request, prefix string) *http.Request {
 
 func withRouteSlot(r *http.Request, slot *string) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), routeKey{}, slot))
+}
+
+type assertionKey struct{}
+
+func withAssertionSlot(r *http.Request, slot *string) *http.Request {
+	return r.WithContext(context.WithValue(r.Context(), assertionKey{}, slot))
+}
+
+func setAssertion(r *http.Request, result string) {
+	if p, ok := r.Context().Value(assertionKey{}).(*string); ok {
+		*p = result
+	}
+}
+
+// Options are the optional parts of the handler.
+type Options struct {
+	Metrics *Metrics // per-service counts (nil: none)
+	// Assertion checks the gateway's signed assertion of a call (nil: not checked). It receives
+	// the X-RID-Assertion header, the method, the URI as received (service path and query) and
+	// the body, and returns verified, absent or "invalid: <reason>".
+	Assertion func(ctx context.Context, header, method, uri string, body []byte) string
+	// RequireAssertion answers 401 to a call whose assertion is not verified.
+	RequireAssertion bool
+}
+
+// maxAssertionBody is the most of a body the node reads to check its assertion.
+const maxAssertionBody = 8 << 20
+
+// checkAssertion reads the body (restoring it for the service) and checks the call. It reports
+// whether the call may go on.
+func checkAssertion(w http.ResponseWriter, r *http.Request, o Options) bool {
+	var body []byte
+	if r.Body != nil && r.Body != http.NoBody && r.ContentLength != 0 {
+		b, err := io.ReadAll(io.LimitReader(r.Body, maxAssertionBody+1))
+		if err != nil || len(b) > maxAssertionBody {
+			setAssertion(r, "invalid: body too large to verify")
+			Problem(w, http.StatusRequestEntityTooLarge, "payload_too_large", "El cuerpo de la petición supera el máximo permitido")
+			return false
+		}
+		body = b
+		r.Body = io.NopCloser(bytes.NewReader(b))
+	}
+	result := o.Assertion(r.Context(), r.Header.Get("X-RID-Assertion"), r.Method, r.URL.RequestURI(), body)
+	setAssertion(r, result)
+	if o.RequireAssertion && result != "verified" {
+		Problem(w, http.StatusUnauthorized, "assertion_invalid", "La llamada no trae una aserción válida del gateway")
+		return false
+	}
+	return true
 }

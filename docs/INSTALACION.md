@@ -209,6 +209,16 @@ El portal prueba la conectividad a través del gateway y del nodo. Si la validac
 
 Si el nodo deja de enviar señales por 5 minutos, el portal lo marca **Fuera de línea** y avisa a los administradores.
 
+**La aserción firmada del gateway.** Cuando la red la tiene activa, el gateway firma cada llamada (quién consulta, para qué y con qué suscripción) en la cabecera `X-RID-Assertion`. El nodo la verifica con las claves públicas del portal y anota el resultado en su log, en el campo `assertion`: `verified`, `absent` o `invalid: <motivo>`. Por defecto nunca rechaza una llamada por esto. Para exigirla, en `/opt/rid-node/config/node.yaml`:
+
+```yaml
+gatewayAssertion:
+  mode: require        # verify (por defecto) | require | off
+  # audience: salud    # el identificador corto de la entidad; por defecto sale del certificado del gateway
+```
+
+Con `require`, una llamada sin aserción válida recibe 401. Actívalo solo cuando el operador confirme que la red ya firma las llamadas.
+
 ## 8. Respaldo y actualización
 
 **Respaldo**

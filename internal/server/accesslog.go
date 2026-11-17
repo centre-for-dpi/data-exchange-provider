@@ -57,8 +57,9 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		route := "(unknown)"
+		assertion := ""
 		rec := &statusRecorder{ResponseWriter: w}
-		next.ServeHTTP(rec, withRouteSlot(r, &route))
+		next.ServeHTTP(rec, withAssertionSlot(withRouteSlot(r, &route), &assertion))
 		if rec.status == 0 {
 			rec.status = http.StatusOK
 		}
@@ -82,6 +83,7 @@ func accessLog(logger *slog.Logger, next http.Handler) http.Handler {
 			"client", client,
 			"rid_headers", ridHeaders,
 			"query_present", r.URL.RawQuery != "",
+			"assertion", assertion, // verified | absent | invalid: <reason> | "" (not checked)
 		)
 	})
 }
