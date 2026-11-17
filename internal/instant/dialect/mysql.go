@@ -140,3 +140,5 @@ func (mysqlDialect) WritePrivileges() string {
        AND (FIND_IN_SET('Insert', r.privilege_type) OR FIND_IN_SET('Update', r.privilege_type) OR FIND_IN_SET('Delete', r.privilege_type)))
 FROM (SELECT ? AS s, ? AS n) a`
 }
+
+func (mysqlDialect) ServerVersion() string { return `SELECT CONCAT('MySQL ', VERSION())` }

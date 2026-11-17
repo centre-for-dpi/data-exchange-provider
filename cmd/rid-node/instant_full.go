@@ -119,7 +119,11 @@ func doctorInstant(ctx context.Context, s config.Service, c *checker) {
 		c.fail("servicio %s: %s en %s:%d", s.Name, detail(err), db.Host, db.Port)
 		return
 	}
-	c.ok("servicio %s: conexión con la base de datos %s:%d (%s)", s.Name, db.Host, db.Port, db.Engine)
+	server := db.Engine
+	if v, err := svc.ServerVersion(ctx); err == nil && v != "" {
+		server = v
+	}
+	c.ok("servicio %s: conexión con la base de datos %s:%d (%s)", s.Name, db.Host, db.Port, server)
 	switch {
 	case len(s.Instant.Resources) == 0:
 		c.warn("servicio %s: todavía no tiene recursos (install.sh servicio)", s.Name)
@@ -205,6 +209,9 @@ func catalogCmd(ctx context.Context, args []string, out io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(out, "✘ %s\n", detail(err))
 		return 1
+	}
+	if v, err := svc.ServerVersion(ctx); err == nil && v != "" {
+		fmt.Fprintf(out, "base de datos: %s\n", v)
 	}
 	if len(cat) == 0 {
 		fmt.Fprintf(out, "el usuario %s no puede leer ninguna vista ni tabla: dale SELECT sobre las vistas que vas a exponer\n", s.Instant.Database.User)

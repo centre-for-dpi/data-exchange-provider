@@ -553,3 +553,15 @@ func TestPostgresTLSVerify(t *testing.T) {
 		}
 	})
 }
+
+// The server version (catalog and doctor show it, so an entity's version is known on install).
+func TestServerVersion(t *testing.T) {
+	want := map[string]string{"postgres": "17", "mysql": "8.4", "sqlserver": "15.", "oracle": "23", "oracle21": "21", "oracle11": "11"}
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		v, err := reader(t, e).ServerVersion(context.Background())
+		if err != nil || !strings.Contains(v, want[e.label]) {
+			t.Fatalf("version %q (want %s): %v (%v)", v, want[e.label], err, errors_unwrap(err))
+		}
+		t.Logf("%s: %s", e.label, v)
+	})
+}

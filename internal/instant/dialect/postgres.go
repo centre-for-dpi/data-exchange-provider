@@ -93,3 +93,7 @@ func (postgres) WritePrivileges() string {
   + has_table_privilege(o, 'DELETE')::int
 FROM (SELECT quote_ident($1) || '.' || quote_ident($2) AS o) x`
 }
+
+func (postgres) ServerVersion() string {
+	return `SELECT 'PostgreSQL ' || current_setting('server_version')`
+}

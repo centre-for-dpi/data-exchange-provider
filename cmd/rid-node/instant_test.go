@@ -42,6 +42,7 @@ func (fakeDialect) DSN(db config.Database, _ string) (string, error) { return db
 func (fakeDialect) Objects() string                                  { return "OBJECTS" }
 func (fakeDialect) Columns() string                                  { return "COLUMNS" }
 func (fakeDialect) WritePrivileges() string                          { return "WRITES" }
+func (fakeDialect) ServerVersion() string                            { return "VERSION" }
 func (fakeDialect) Quote(s string) string                            { return `"` + s + `"` }
 func (fakeDialect) Kind(native string, _ sql.NullInt64) instant.Kind {
 	return map[string]instant.Kind{"varchar": instant.KindString, "int": instant.KindInteger}[native]
@@ -101,7 +102,7 @@ func cli(t *testing.T, configPath string, args ...string) (int, string) {
 func TestCatalogCommand(t *testing.T) {
 	cfg, svc, _ := instantSetup(t, "https://portal.red.example", "postgres", "")
 	code, out := cli(t, cfg, "catalog", "--service-file", svc)
-	if code != 0 || !strings.Contains(out, "SALUD.V_AFILIADOS") || !strings.Contains(out, "NUMERO_DOCUMENTO") ||
+	if code != 0 || !strings.Contains(out, "FakeDB 1.0") || !strings.Contains(out, "SALUD.V_AFILIADOS") || !strings.Contains(out, "NUMERO_DOCUMENTO") ||
 		!strings.Contains(out, "FOTO") || !strings.Contains(out, "no se puede exponer") {
 		t.Fatalf("code=%d\n%s", code, out)
 	}
@@ -200,7 +201,7 @@ func TestDoctorInstant(t *testing.T) {
 	portal := portalWithDate(t, 0)
 	cfg, _, db := instantSetup(t, portal.URL, "postgres", afiliadosYAML)
 	code, out := doctorAt(t, portal, cfg)
-	if code != 0 || !strings.Contains(out, "✔ servicio afiliacion: conexión con la base de datos") || !strings.Contains(out, "no puede escribir en las fuentes expuestas") || !strings.Contains(out, "solo lectura") {
+	if code != 0 || !strings.Contains(out, "✔ servicio afiliacion: conexión con la base de datos") || !strings.Contains(out, "FakeDB 1.0") || !strings.Contains(out, "no puede escribir en las fuentes expuestas") || !strings.Contains(out, "solo lectura") {
 		t.Fatalf("code=%d\n%s", code, out)
 	}
 	db.Set(func(f *instanttest.DB) { f.Writes = 1 })

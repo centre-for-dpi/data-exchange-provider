@@ -142,3 +142,9 @@ func (oracle) BindKey(c instant.Column, value string) any {
 	}
 	return value
 }
+
+// ServerVersion reads product_component_version, which every user can read (v$version may not be
+// granted).
+func (oracle) ServerVersion() string {
+	return `SELECT product || ' ' || version FROM product_component_version WHERE product LIKE 'Oracle%' AND ROWNUM = 1`
+}

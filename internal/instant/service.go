@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -324,4 +325,17 @@ func (s *Service) CheckReadOnly(ctx context.Context) error {
 		return dbError(err)
 	}
 	return tx.Rollback()
+}
+
+// ServerVersion is the database server's version, when the dialect knows how to ask ("" if not).
+func (s *Service) ServerVersion(ctx context.Context) (string, error) {
+	v, ok := s.d.(ServerVersioner)
+	if !ok {
+		return "", nil
+	}
+	var out string
+	if err := s.db.QueryRowContext(ctx, v.ServerVersion()).Scan(&out); err != nil {
+		return "", dbError(err)
+	}
+	return strings.TrimSpace(out), nil
 }

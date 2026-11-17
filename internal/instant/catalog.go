@@ -130,3 +130,9 @@ type KeyBinder interface {
 type ObjectsFallbacker interface {
 	ObjectsFallback() string
 }
+
+// ServerVersioner gives the query that returns the database server's version (one row, one
+// column), for catalog and doctor.
+type ServerVersioner interface {
+	ServerVersion() string
+}

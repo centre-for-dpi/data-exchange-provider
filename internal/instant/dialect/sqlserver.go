@@ -111,3 +111,7 @@ func (sqlServer) WritePrivileges() string {
 	return `SELECT HAS_PERMS_BY_NAME(o, 'OBJECT', 'INSERT') + HAS_PERMS_BY_NAME(o, 'OBJECT', 'UPDATE') + HAS_PERMS_BY_NAME(o, 'OBJECT', 'DELETE')
 FROM (SELECT QUOTENAME(@p1) + '.' + QUOTENAME(@p2) AS o) x`
 }
+
+func (sqlServer) ServerVersion() string {
+	return `SELECT 'SQL Server ' + CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(64)) + ' ' + CAST(SERVERPROPERTY('Edition') AS nvarchar(128))`
+}
