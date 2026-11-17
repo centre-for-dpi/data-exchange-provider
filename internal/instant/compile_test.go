@@ -23,7 +23,7 @@ func (fakeDialect) Columns() string                                  { return "C
 func (fakeDialect) WritePrivileges() string                          { return "WRITES" }
 func (fakeDialect) Quote(s string) string                            { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 func (fakeDialect) Kind(native string, _ sql.NullInt64) Kind {
-	return map[string]Kind{"varchar": KindString, "int": KindInteger, "timestamp": KindDateTime}[native]
+	return map[string]Kind{"varchar": KindString, "int": KindInteger, "integer": KindInteger, "date": KindDate, "timestamp": KindDateTime}[native]
 }
 func (fakeDialect) BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
 	return db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -243,5 +243,18 @@ func TestToJSONNeverEmitsInvalidJSONNumbers(t *testing.T) {
 		if !json.Valid(b) {
 			t.Fatalf("%v gave invalid JSON %s", in, b)
 		}
+	}
+}
+
+// Final review C1: a VARCHAR2(4000) key must not panic (regexp repeat counts stop at 1000).
+func TestLongTextKeyDoesNotPanic(t *testing.T) {
+	cat := upperCatalog()
+	cat[0].Columns[0].MaxLength = 4000
+	rs, err := Compile(service(afiliados()), cat, fakeDialect{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rs[0].KeyRegexp.MatchString(strings.Repeat("a", 257)) || !rs[0].KeyRegexp.MatchString(strings.Repeat("a", 256)) {
+		t.Fatalf("a long text key is capped at %d: %s", maxKeyBytes, rs[0].KeyRegexp)
 	}
 }

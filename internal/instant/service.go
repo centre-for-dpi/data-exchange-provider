@@ -35,7 +35,12 @@ type Service struct {
 	lastErr error // why the last compile failed (nil once it compiles)
 
 	retryMin, retryMax time.Duration
+	recompileEvery     time.Duration // the least time between two catalog reads asked by errors
+	maxResponseBytes   int           // the values a response may carry; beyond it, 500 response_too_large
 }
+
+// DefaultMaxResponseBytes bounds one response (the container has 256 MiB for every service).
+const DefaultMaxResponseBytes = 8 << 20
 
 type compiledSet struct {
 	list   []Compiled
@@ -69,7 +74,7 @@ func Open(svc config.Service, d Dialect, log *slog.Logger) (*Service, error) {
 	pool.SetConnMaxIdleTime(5 * time.Minute)
 	pool.SetConnMaxLifetime(30 * time.Minute)
 	return &Service{cfg: svc, d: d, db: pool, log: log.With("service", svc.Name), recompile: make(chan struct{}, 1),
-		retryMin: time.Second, retryMax: 30 * time.Second}, nil
+		retryMin: time.Second, retryMax: 30 * time.Second, recompileEvery: 30 * time.Second, maxResponseBytes: DefaultMaxResponseBytes}, nil
 }
 
 // Close closes the pool.
@@ -80,6 +85,7 @@ func (s *Service) Start(ctx context.Context) {
 	go func() {
 		wait := s.retryMin
 		for {
+			last := time.Now()
 			err := s.Compile(ctx)
 			if ctx.Err() != nil {
 				return
@@ -91,8 +97,14 @@ func (s *Service) Start(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-s.recompile:
-					continue
 				}
+				// Errors never make the node scan the catalog more than once per recompileEvery.
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(time.Until(last.Add(s.recompileEvery))):
+				}
+				continue
 			}
 			s.logError("instant service not ready", err)
 			select {
@@ -110,7 +122,11 @@ func (s *Service) Start(ctx context.Context) {
 func (s *Service) Compile(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, max(30*time.Second, 6*s.cfg.Instant.Database.QueryTimeout))
 	defer cancel()
-	cat, err := ReadCatalog(ctx, s.db, s.d)
+	sources := []string{}
+	for _, r := range s.cfg.Instant.Resources {
+		sources = append(sources, r.Source)
+	}
+	cat, err := ReadCatalog(ctx, s.db, s.d, sources)
 	if err != nil {
 		err = dbError(err)
 		s.setErr(err)
@@ -142,7 +158,7 @@ func (s *Service) Ready() bool { return s.set.Load() != nil }
 
 // Catalog lists the tables and views the user can SELECT.
 func (s *Service) Catalog(ctx context.Context) ([]Object, error) {
-	cat, err := ReadCatalog(ctx, s.db, s.d)
+	cat, err := ReadCatalog(ctx, s.db, s.d, nil)
 	if err != nil {
 		return nil, dbError(err)
 	}
@@ -258,7 +274,9 @@ func (s *Service) served(err error) {
 		s.streak.Store(0)
 		return
 	}
-	if errorClass(err) == "canceled" {
+	// Only connection failures and timeouts point at the database (a failover, a restart);
+	// query errors can come from a consumer's key and must not make the node scan the catalog.
+	if c := errorClass(err); c != "connection" && c != "timeout" {
 		return
 	}
 	if s.streak.Add(1) >= recompileAfter {

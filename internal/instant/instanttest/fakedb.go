@@ -20,16 +20,17 @@ import (
 
 // DB is one fake database. Change it with Set; read the counters under Mu.
 type DB struct {
-	Mu        sync.Mutex
-	Down      bool  // connections and queries fail as if the server were unreachable
-	QueryErr  error // every query by key fails with this error (a driver message)
-	Objects   [][]driver.Value
-	Columns   map[string][][]driver.Value // "schema.name" → (name, type, maxLength, scale, nullable)
-	Rows      map[string][][]driver.Value // key → rows of the selected columns
-	Writes    int64                       // what WritePrivileges answers
-	ReadOnly  int                         // read-only transactions begun
-	ByKey     int                         // queries by key run
-	Catalogue int                         // catalog reads
+	Mu          sync.Mutex
+	Down        bool  // connections and queries fail as if the server were unreachable
+	QueryErr    error // every query by key fails with this error (a driver message)
+	Objects     [][]driver.Value
+	Columns     map[string][][]driver.Value // "schema.name" → (name, type, maxLength, scale, nullable)
+	Rows        map[string][][]driver.Value // key → rows of the selected columns
+	Writes      int64                       // what WritePrivileges answers
+	ReadOnly    int                         // read-only transactions begun
+	ByKey       int                         // queries by key run
+	Catalogue   int
+	ColumnReads int // column queries run (one per object read)                         // catalog reads
 }
 
 var (
@@ -111,6 +112,7 @@ func (c *fakeConn) QueryContext(_ context.Context, query string, args []driver.N
 		f.Catalogue++
 		return &fakeRows{cols: []string{"schema", "name", "kind"}, rows: f.Objects}, nil
 	case query == "COLUMNS":
+		f.ColumnReads++
 		return &fakeRows{cols: []string{"name", "type", "len", "scale", "nullable"}, rows: f.Columns[fmt.Sprint(args[0].Value)+"."+fmt.Sprint(args[1].Value)]}, nil
 	case query == "WRITES":
 		return &fakeRows{cols: []string{"n"}, rows: [][]driver.Value{{f.Writes}}}, nil

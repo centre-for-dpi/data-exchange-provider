@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	_ "github.com/sijms/go-ora/v2" // driver "oracle", pure Go (no Instant Client)
 
@@ -109,4 +110,17 @@ func (oracle) WritePrivileges() string {
   + (SELECT COUNT(*) FROM session_privs WHERE privilege IN ('INSERT ANY TABLE', 'UPDATE ANY TABLE', 'DELETE ANY TABLE'))
   + CASE WHEN a.s = USER THEN 3 ELSE 0 END
 FROM (SELECT :1 AS s, :2 AS n FROM dual) a`
+}
+
+// BindKey pads CHAR and NCHAR keys to the column's length: Oracle compares blank-padded only when
+// both sides are CHAR, and go-ora binds a string as VARCHAR2, so "ABC" would never match a
+// CHAR(10) "ABC       ".
+func (oracle) BindKey(c instant.Column, value string) any {
+	switch lower(c.Native) {
+	case "char", "nchar":
+		if n := utf8.RuneCountInString(value); c.MaxLength > n {
+			return value + strings.Repeat(" ", c.MaxLength-n)
+		}
+	}
+	return value
 }

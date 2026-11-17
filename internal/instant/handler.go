@@ -5,16 +5,20 @@ package instant
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/server"
 )
 
 const (
 	titleTooManyRows = "La clave trae más registros de los que este servicio entrega"
+	titleTooLarge    = "La respuesta es más grande de lo que este servicio entrega"
 	titleMethod      = "Este servicio solo acepta GET"
 	// maxKeyBytes bounds any key, whatever the declared pattern.
 	maxKeyBytes = 256
@@ -60,15 +64,33 @@ func (s *Service) serve(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var arg any = key
-	if r.KeyColumn.Kind == KindInteger {
+	switch r.KeyColumn.Kind {
+	case KindInteger:
 		n, err := strconv.ParseInt(key, 10, 64)
 		if err != nil {
 			server.Problem(w, http.StatusBadRequest, "invalid_key", titleInvalidKey)
 			return
 		}
+		if strings.EqualFold(r.KeyColumn.Native, "integer") && (n > math.MaxInt32 || n < math.MinInt32) {
+			// PostgreSQL's 4-byte integer: no row can have it (and the driver refuses to bind it).
+			server.Problem(w, http.StatusNotFound, "not_found", titleNotFound)
+			return
+		}
 		arg = n
+	case KindDate:
+		if _, err := time.Parse("2006-01-02", key); err != nil {
+			server.Problem(w, http.StatusBadRequest, "invalid_key", titleInvalidKey)
+			return
+		}
+	}
+	if b, ok := s.d.(KeyBinder); ok && r.KeyColumn.Kind != KindInteger {
+		arg = b.BindKey(r.KeyColumn, key)
 	}
 	items, err := s.query(req.Context(), r, arg)
+	if errors.Is(err, errTooLarge) {
+		server.Problem(w, http.StatusInternalServerError, "response_too_large", titleTooLarge)
+		return
+	}
 	s.served(err)
 	if err != nil {
 		s.logError("database error", err, "resource", r.Name)
@@ -104,6 +126,7 @@ func (s *Service) query(ctx context.Context, r *Compiled, arg any) ([]map[string
 	}
 	defer rows.Close()
 	var items []map[string]any
+	size := 0
 	for rows.Next() {
 		vals := make([]any, len(r.Columns))
 		ptrs := make([]any, len(vals))
@@ -112,6 +135,12 @@ func (s *Service) query(ctx context.Context, r *Compiled, arg any) ([]map[string
 		}
 		if err := rows.Scan(ptrs...); err != nil {
 			return nil, dbError(err)
+		}
+		for _, v := range vals {
+			size += valueSize(v)
+		}
+		if size > s.maxResponseBytes {
+			return nil, errTooLarge
 		}
 		item := make(map[string]any, len(vals))
 		for i, c := range r.Columns {
@@ -133,6 +162,20 @@ func (s *Service) root(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	writeJSON(w, map[string]string{"status": "ok"})
+}
+
+// errTooLarge stops reading rows once a response passes maxResponseBytes.
+var errTooLarge = errors.New("response too large")
+
+// valueSize approximates what a scanned value adds to the response.
+func valueSize(v any) int {
+	switch x := v.(type) {
+	case string:
+		return len(x) + 8
+	case []byte:
+		return len(x) + 8
+	}
+	return 32
 }
 
 func writeJSON(w http.ResponseWriter, v any) {

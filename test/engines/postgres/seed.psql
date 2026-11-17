@@ -56,13 +56,23 @@ INSERT INTO salud.tipos VALUES
   (2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 CREATE VIEW salud.v_tipos AS SELECT * FROM salud.tipos;
 
+-- A fixed-width key (CHAR), as legacy schemas keep document numbers.
+CREATE TABLE salud.codigos (codigo char(10) PRIMARY KEY, nombre varchar(50));
+INSERT INTO salud.codigos VALUES ('ABC', 'Uno');
+CREATE VIEW salud.v_codigos AS SELECT * FROM salud.codigos;
+
 -- A table someone can write to, for the read-only checks.
 CREATE TABLE salud.escritura (id integer PRIMARY KEY, nota varchar(100));
 
 CREATE ROLE rid_reader LOGIN PASSWORD :'reader_pw';
 GRANT USAGE ON SCHEMA salud TO rid_reader;
-GRANT SELECT ON salud.v_afiliados, salud.v_hogares, salud.v_tipos TO rid_reader;
+GRANT SELECT ON salud.v_afiliados, salud.v_hogares, salud.v_tipos, salud.v_codigos TO rid_reader;
 
 CREATE ROLE rid_writer LOGIN PASSWORD :'writer_pw';
 GRANT USAGE ON SCHEMA salud TO rid_writer;
 GRANT SELECT, INSERT, UPDATE, DELETE ON salud.escritura TO rid_writer;
+
+-- Writes through a column-level grant only.
+CREATE ROLE rid_column_writer LOGIN PASSWORD :'writer_pw';
+GRANT USAGE ON SCHEMA salud TO rid_column_writer;
+GRANT SELECT, UPDATE (nota) ON salud.escritura TO rid_column_writer;

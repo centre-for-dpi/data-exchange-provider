@@ -61,9 +61,11 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 		pattern, err := keyPattern(key, r.Key.Pattern)
 		if err != nil {
 			errs = append(errs, err)
+		} else if re, err := regexp.Compile(pattern); err != nil {
+			errs = append(errs, fmt.Errorf("el patrón de la clave %q no es válido: %v", pattern, err))
 		} else {
 			c.Key.Pattern = pattern
-			c.KeyRegexp = regexp.MustCompile(pattern)
+			c.KeyRegexp = re
 		}
 	}
 	var selected []string
@@ -150,6 +152,7 @@ func keyPattern(key Column, declared string) (string, error) {
 		if n <= 0 {
 			n = defaultStringKeyLength
 		}
+		n = min(n, maxKeyBytes) // regexp repeat counts stop at 1000; keys never exceed maxKeyBytes
 		return fmt.Sprintf(`^[A-Za-z0-9-]{1,%d}$`, n), nil
 	case KindInteger:
 		return `^[0-9]{1,18}$`, nil

@@ -27,8 +27,11 @@ func (sqlServer) DSN(db config.Database, password string) (string, error) {
 	q.Set("app name", "rid-node")
 	q.Set("dial timeout", strconv.Itoa(timeoutSeconds(db.QueryTimeout)))
 	switch db.TLS {
-	case "disable": // "false": only the login is encrypted, which every SQL Server accepts
+	case "disable":
+		// "false" still encrypts the login, and go-mssqldb would verify the server's (usually
+		// self-signed) certificate for it: trust it, there is nothing to verify without TLS.
 		q.Set("encrypt", "false")
+		q.Set("trustservercertificate", "true")
 	case "require":
 		q.Set("encrypt", "true")
 		q.Set("trustservercertificate", "true")

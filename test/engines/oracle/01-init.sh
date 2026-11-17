@@ -11,6 +11,7 @@ GRANT CREATE SESSION TO rid_reader;
 GRANT SELECT ON salud.v_afiliados TO rid_reader;
 GRANT SELECT ON salud.v_hogares TO rid_reader;
 GRANT SELECT ON salud.v_tipos TO rid_reader;
+GRANT SELECT ON salud.v_codigos TO rid_reader;
 CREATE USER rid_writer IDENTIFIED BY "$RID_WRITER_PASSWORD";
 GRANT CREATE SESSION TO rid_writer;
 GRANT SELECT, INSERT, UPDATE, DELETE ON salud.escritura TO rid_writer;

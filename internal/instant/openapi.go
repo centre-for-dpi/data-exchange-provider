@@ -88,7 +88,7 @@ func OpenAPI(svc config.Service, rs []Compiled) ([]byte, error) {
 				"200": map[string]any{"description": ok, "content": map[string]any{"application/json": map[string]any{"schema": body}}},
 				"400": problem(titleInvalidKey + ", o la URL trae parámetros"),
 				"404": problem(titleNotFound),
-				"500": problem("La clave declarada no es única en la fuente, o trae más registros de los que el servicio entrega"),
+				"500": problem("La clave declarada no es única en la fuente, o la respuesta pasa de los registros o del tamaño que el servicio entrega"),
 				"503": problem(titleUnavailable),
 			},
 		}

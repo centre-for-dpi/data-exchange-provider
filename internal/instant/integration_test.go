@@ -148,7 +148,7 @@ func TestCatalogOnlyGranted(t *testing.T) {
 			got = append(got, strings.ToLower(o.Schema+"."+o.Name))
 		}
 		slices.Sort(got)
-		if want := []string{"salud.v_afiliados", "salud.v_hogares", "salud.v_tipos"}; !slices.Equal(got, want) {
+		if want := []string{"salud.v_afiliados", "salud.v_codigos", "salud.v_hogares", "salud.v_tipos"}; !slices.Equal(got, want) {
 			t.Fatalf("the reader sees %v, want %v", got, want)
 		}
 	})
@@ -328,5 +328,50 @@ func TestWriteCheckFlagsWriter(t *testing.T) {
 		if err != nil || !slices.Equal(got, []string{"salud.escritura"}) {
 			t.Fatalf("the writer must be flagged: %v %v", got, err)
 		}
+	})
+}
+
+// Final review I4: a CHAR(10) key ("ABC" stored blank-padded) answers on every engine.
+func TestCharKey(t *testing.T) {
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		s := reader(t, e, config.Resource{Name: "codigos", Entity: "Codigo", Source: "salud.v_codigos", MaxRows: 100,
+			Key: config.KeySpec{Column: "codigo"}, Columns: []config.ColumnSpec{{Name: "nombre"}}})
+		compile(t, s)
+		code, body := get(t, s, "/codigos/ABC")
+		if code != 200 || !strings.Contains(string(body), `"nombre":"Uno"`) {
+			t.Fatalf("%d %s", code, body)
+		}
+	})
+}
+
+// Final review I6: writers through a column-level grant (PostgreSQL, MySQL) or a role (MySQL)
+// are flagged too.
+func TestWriteCheckFlagsIndirectWriters(t *testing.T) {
+	escritura := config.Resource{Name: "escritura", Entity: "Escritura", Source: "salud.escritura", MaxRows: 100,
+		Key: config.KeySpec{Column: "id"}, Columns: []config.ColumnSpec{{Name: "id"}, {Name: "nota"}}}
+	users := map[string][]string{"postgres": {"rid_column_writer"}, "mysql": {"rid_column_writer", "rid_role_writer"}}
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		if users[e.engine] == nil {
+			t.Skip("no indirect writer in this engine's seed")
+		}
+		for _, user := range users[e.engine] {
+			w := open(t, e, user, os.Getenv("RID_IT_WRITER_PASSWORD"), escritura)
+			compile(t, w)
+			got, err := w.WriteCheck(context.Background())
+			if err != nil || !slices.Equal(got, []string{"salud.escritura"}) {
+				t.Fatalf("%s must be flagged: %v %v", user, got, err)
+			}
+		}
+	})
+}
+
+// Final review I3: tls: disable works against SQL Server's default self-signed certificate.
+func TestSQLServerTLSDisable(t *testing.T) {
+	forEachEngine(t, func(t *testing.T, e engineIT) {
+		if e.engine != "sqlserver" {
+			t.Skip("SQL Server only")
+		}
+		e.tls = "disable"
+		compile(t, reader(t, e, afiliados()))
 	})
 }

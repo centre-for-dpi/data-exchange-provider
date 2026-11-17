@@ -135,7 +135,7 @@ func doctorInstant(ctx context.Context, s config.Service, c *checker) {
 	case len(writable) > 0:
 		c.fail("servicio %s: el usuario %s puede escribir en %s: usa un usuario de solo lectura (solo SELECT sobre las vistas)", s.Name, db.User, strings.Join(writable, ", "))
 	default:
-		c.ok("servicio %s: el usuario %s solo puede leer", s.Name, db.User)
+		c.ok("servicio %s: el usuario %s no puede escribir en las fuentes expuestas (%d)", s.Name, db.User, len(s.Instant.Resources))
 	}
 	if db.Engine == "sqlserver" {
 		c.info("servicio %s: SQL Server no tiene transacciones de solo lectura; la garantía es el usuario de solo lectura", s.Name)

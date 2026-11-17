@@ -87,6 +87,9 @@ func (postgres) BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, error) 
 }
 
 func (postgres) WritePrivileges() string {
-	return `SELECT has_table_privilege(o, 'INSERT')::int + has_table_privilege(o, 'UPDATE')::int + has_table_privilege(o, 'DELETE')::int
+	// Column-level INSERT and UPDATE grants count too (has_any_column_privilege).
+	return `SELECT (has_table_privilege(o, 'INSERT') OR has_any_column_privilege(o, 'INSERT'))::int
+  + (has_table_privilege(o, 'UPDATE') OR has_any_column_privilege(o, 'UPDATE'))::int
+  + has_table_privilege(o, 'DELETE')::int
 FROM (SELECT quote_ident($1) || '.' || quote_ident($2) AS o) x`
 }

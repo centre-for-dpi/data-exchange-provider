@@ -198,7 +198,7 @@ func TestDoctorInstant(t *testing.T) {
 	portal := portalWithDate(t, 0)
 	cfg, _, db := instantSetup(t, portal.URL, "postgres", afiliadosYAML)
 	code, out := doctorAt(t, portal, cfg)
-	if code != 0 || !strings.Contains(out, "✔ servicio afiliacion: conexión con la base de datos") || !strings.Contains(out, "solo lectura") {
+	if code != 0 || !strings.Contains(out, "✔ servicio afiliacion: conexión con la base de datos") || !strings.Contains(out, "no puede escribir en las fuentes expuestas") || !strings.Contains(out, "solo lectura") {
 		t.Fatalf("code=%d\n%s", code, out)
 	}
 	db.Set(func(f *instanttest.DB) { f.Writes = 1 })

@@ -73,7 +73,7 @@ func TestDSN(t *testing.T) {
 		{"postgres", "require", "", urlParams(map[string]string{"sslmode": "require"})},
 		{"postgres", "verify", "", urlParams(map[string]string{"sslmode": "verify-full", "sslrootcert": ""})},
 		{"postgres", "verify", ca, urlParams(map[string]string{"sslmode": "verify-full", "sslrootcert": ca})},
-		{"sqlserver", "disable", "", urlParams(map[string]string{"encrypt": "false", "database": "entidad"})},
+		{"sqlserver", "disable", "", urlParams(map[string]string{"encrypt": "false", "trustservercertificate": "true", "database": "entidad"})},
 		{"sqlserver", "require", "", urlParams(map[string]string{"encrypt": "true", "trustservercertificate": "true"})},
 		{"sqlserver", "verify", ca, urlParams(map[string]string{"encrypt": "true", "trustservercertificate": "false", "certificate": ca})},
 		{"oracle", "disable", "", urlParams(map[string]string{"SSL": ""})},
@@ -187,6 +187,30 @@ func TestSelectByKey(t *testing.T) {
 		got := d.SelectByKey([]string{d.Quote("a"), d.Quote("b")}, d.Quote("s")+"."+d.Quote("v"), d.Quote("k"), 2)
 		if got != w {
 			t.Errorf("%s:\n got %s\nwant %s", e, got, w)
+		}
+	}
+}
+
+// Final review I4: Oracle compares CHAR blank-padded only against CHAR; a VARCHAR2 bind of "ABC"
+// never equals a CHAR(10) "ABC       ". The Oracle dialect pads fixed-width keys.
+func TestOracleBindsCharKeysPadded(t *testing.T) {
+	d, _ := For("oracle")
+	b, ok := d.(instant.KeyBinder)
+	if !ok {
+		t.Fatal("the Oracle dialect must bind keys")
+	}
+	if got := b.BindKey(instant.Column{Native: "CHAR", MaxLength: 10}, "ABC"); got != "ABC       " {
+		t.Fatalf("%q", got)
+	}
+	if got := b.BindKey(instant.Column{Native: "NCHAR", MaxLength: 5}, "ñandú"); got != "ñandú" {
+		t.Fatalf("already full: %q", got)
+	}
+	if got := b.BindKey(instant.Column{Native: "VARCHAR2", MaxLength: 10}, "ABC"); got != "ABC" {
+		t.Fatalf("VARCHAR2 keys are bound as they come: %q", got)
+	}
+	for _, e := range []string{"postgres", "mysql", "sqlserver"} {
+		if d, _ := For(e); func() bool { _, ok := d.(instant.KeyBinder); return ok }() {
+			t.Fatalf("%s compares CHAR without padding the bind: it must not pad", e)
 		}
 	}
 }

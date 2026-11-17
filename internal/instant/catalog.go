@@ -46,8 +46,10 @@ type Dialect interface {
 	WritePrivileges() string
 }
 
-// ReadCatalog lists the tables and views the connected user can SELECT, with their columns.
-func ReadCatalog(ctx context.Context, db *sql.DB, d Dialect) ([]Object, error) {
+// ReadCatalog lists the tables and views the connected user can SELECT, with their columns. With
+// sources, it reads the columns only of the objects that match them (without case), so compiling
+// costs a few round trips however broad the user's grants are; nil reads every object.
+func ReadCatalog(ctx context.Context, db *sql.DB, d Dialect, sources []string) ([]Object, error) {
 	rows, err := db.QueryContext(ctx, d.Objects())
 	if err != nil {
 		return nil, err
@@ -59,7 +61,9 @@ func ReadCatalog(ctx context.Context, db *sql.DB, d Dialect) ([]Object, error) {
 			rows.Close()
 			return nil, err
 		}
-		objs = append(objs, o)
+		if sources == nil || matchesAny(o, sources) {
+			objs = append(objs, o)
+		}
 	}
 	if err := closeRows(rows); err != nil {
 		return nil, err
@@ -98,4 +102,19 @@ func closeRows(rows *sql.Rows) error {
 		err = cerr
 	}
 	return err
+}
+
+func matchesAny(o Object, sources []string) bool {
+	for _, src := range sources {
+		if strings.EqualFold(o.Schema+"."+o.Name, src) {
+			return true
+		}
+	}
+	return false
+}
+
+// KeyBinder is implemented by dialects that must adapt the key before binding it (Oracle compares
+// a CHAR column blank-padded only against another CHAR, so its fixed-width keys are padded).
+type KeyBinder interface {
+	BindKey(key Column, value string) any
 }

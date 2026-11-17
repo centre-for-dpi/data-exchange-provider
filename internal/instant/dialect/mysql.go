@@ -110,13 +110,26 @@ func (mysqlDialect) BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, err
 	return beginReadOnly(ctx, db) // START TRANSACTION READ ONLY
 }
 
-// WritePrivileges counts INSERT, UPDATE and DELETE granted globally, on the schema or on the object.
+// WritePrivileges counts INSERT, UPDATE and DELETE granted to the user globally, on the schema, on
+// the object or on one of its columns, plus what the roles enabled in the session grant on the
+// object or its columns (MySQL 8: information_schema.role_*_grants, privileges as a set such as
+// "Select,Insert"). Wildcard schema grants (`app%`.*) are not resolved.
 func (mysqlDialect) WritePrivileges() string {
-	return `SELECT COUNT(DISTINCT p.privilege_type) FROM (SELECT ? AS s, ? AS n) a JOIN (
-  SELECT privilege_type, NULL AS table_schema, NULL AS table_name, grantee FROM information_schema.user_privileges
-  UNION ALL SELECT privilege_type, table_schema, NULL, grantee FROM information_schema.schema_privileges
-  UNION ALL SELECT privilege_type, table_schema, table_name, grantee FROM information_schema.table_privileges
-) p ON (p.table_schema IS NULL OR p.table_schema = a.s) AND (p.table_name IS NULL OR p.table_name = a.n)
-WHERE p.privilege_type IN ('INSERT', 'UPDATE', 'DELETE')
-  AND p.grantee = CONCAT('''', SUBSTRING_INDEX(CURRENT_USER(), '@', 1), '''@''', SUBSTRING_INDEX(CURRENT_USER(), '@', -1), '''')`
+	return `SELECT
+  (SELECT COUNT(DISTINCT p.privilege_type) FROM (
+     SELECT privilege_type, NULL AS table_schema, NULL AS table_name, grantee FROM information_schema.user_privileges
+     UNION ALL SELECT privilege_type, table_schema, NULL, grantee FROM information_schema.schema_privileges
+     UNION ALL SELECT privilege_type, table_schema, table_name, grantee FROM information_schema.table_privileges
+     UNION ALL SELECT privilege_type, table_schema, table_name, grantee FROM information_schema.column_privileges
+   ) p
+   WHERE (p.table_schema IS NULL OR p.table_schema = a.s) AND (p.table_name IS NULL OR p.table_name = a.n)
+     AND p.privilege_type IN ('INSERT', 'UPDATE', 'DELETE')
+     AND p.grantee = CONCAT('''', SUBSTRING_INDEX(CURRENT_USER(), '@', 1), '''@''', SUBSTRING_INDEX(CURRENT_USER(), '@', -1), ''''))
+  + (SELECT COUNT(*) FROM (
+       SELECT table_schema, table_name, privilege_type FROM information_schema.role_table_grants
+       UNION ALL SELECT table_schema, table_name, privilege_type FROM information_schema.role_column_grants
+     ) r
+     WHERE r.table_schema = a.s AND r.table_name = a.n
+       AND (FIND_IN_SET('Insert', r.privilege_type) OR FIND_IN_SET('Update', r.privilege_type) OR FIND_IN_SET('Delete', r.privilege_type)))
+FROM (SELECT ? AS s, ? AS n) a`
 }

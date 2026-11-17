@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -47,6 +48,11 @@ type fixture struct {
 // open starts a service on a fresh fake database holding SALUD.V_AFILIADOS.
 func open(t *testing.T, prepare func(f *instanttest.DB), resources ...config.Resource) *fixture {
 	t.Helper()
+	return openWith(t, fakeDialect{}, prepare, resources...)
+}
+
+func openWith(t *testing.T, d Dialect, prepare func(f *instanttest.DB), resources ...config.Resource) *fixture {
+	t.Helper()
 	name := strings.ReplaceAll(t.Name(), "/", "_")
 	f := instanttest.New(name)
 	f.Objects = [][]driver.Value{{"SALUD", "V_AFILIADOS", "view"}}
@@ -54,6 +60,8 @@ func open(t *testing.T, prepare func(f *instanttest.DB), resources ...config.Res
 		{"NUMERO_DOCUMENTO", "varchar", int64(12), nil, "NO"},
 		{"NOMBRES", "varchar", int64(80), nil, "YES"},
 		{"ACTIVO", "int", nil, int64(0), "NO"},
+		{"ID", "integer", nil, int64(0), "YES"},
+		{"FECHA", "date", nil, nil, "YES"},
 	}
 	f.Rows["123"] = [][]driver.Value{{"123", []byte("Ana"), int64(1)}}
 	f.Rows["dup"] = [][]driver.Value{{"dup", "A", int64(1)}, {"dup", "B", int64(0)}}
@@ -76,11 +84,11 @@ func open(t *testing.T, prepare func(f *instanttest.DB), resources ...config.Res
 	}}
 	logs := &syncBuffer{}
 	log := slog.New(slog.NewJSONHandler(logs, nil))
-	s, err := Open(cfg, fakeDialect{}, log)
+	s, err := Open(cfg, d, log)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.retryMin, s.retryMax = 10*time.Millisecond, 50*time.Millisecond
+	s.retryMin, s.retryMax, s.recompileEvery = 10*time.Millisecond, 50*time.Millisecond, 0
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(func() { cancel(); s.Close() })
 	s.Start(ctx)
@@ -277,26 +285,71 @@ func TestDBErrorNotLogged(t *testing.T) {
 	}
 }
 
+func catalogReads(fx *fixture) int {
+	fx.db.Mu.Lock()
+	defer fx.db.Mu.Unlock()
+	return fx.db.Catalogue
+}
+
+// Connection failures (a failover, a restart) make the service read the catalog again.
 func TestRecompileAfterRepeatedErrors(t *testing.T) {
 	fx := open(t, nil)
 	fx.waitReady(t)
-	before := fx.db.Catalogue
-	fx.db.Set(func(f *instanttest.DB) { f.QueryErr = errors.New("relation does not exist") })
+	before := catalogReads(fx)
+	fx.db.Set(func(f *instanttest.DB) { f.QueryErr = instanttest.ErrRefused })
 	for i := 0; i < recompileAfter; i++ {
 		fx.get(t, "/salud/afiliados/123")
 	}
 	deadline := time.Now().Add(2 * time.Second)
-	for {
-		fx.db.Mu.Lock()
-		n := fx.db.Catalogue
-		fx.db.Mu.Unlock()
-		if n > before {
-			break
-		}
+	for catalogReads(fx) == before {
 		if time.Now().After(deadline) {
 			t.Fatal("the catalog was not read again")
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+// Final review I1: query errors a consumer can provoke never make the node scan the catalog, and
+// connection errors do it at most once per recompileEvery.
+func TestRecompileIsBounded(t *testing.T) {
+	fx := open(t, nil)
+	fx.waitReady(t)
+	fx.svc.recompileEvery = time.Second
+	before := catalogReads(fx)
+	fx.db.Set(func(f *instanttest.DB) { f.QueryErr = errors.New("invalid input syntax") })
+	for i := 0; i < 3*recompileAfter; i++ {
+		fx.get(t, "/salud/afiliados/123")
+	}
+	time.Sleep(100 * time.Millisecond)
+	if n := catalogReads(fx); n != before {
+		t.Fatalf("query errors made the node read the catalog %d times", n-before)
+	}
+	fx.db.Set(func(f *instanttest.DB) { f.QueryErr = instanttest.ErrRefused })
+	for i := 0; i < 4*recompileAfter; i++ {
+		fx.get(t, "/salud/afiliados/123")
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if n := catalogReads(fx); n-before > 1 {
+		t.Fatalf("%d catalog reads within recompileEvery", n-before)
+	}
+}
+
+// Final review I1: keys that fit the pattern but cannot exist never reach the database.
+func TestKeysThatCannotExist(t *testing.T) {
+	fx := open(t, nil, config.Resource{Name: "por-fecha", Entity: "PorFecha", Source: "salud.v_afiliados", MaxRows: 100,
+		Key: config.KeySpec{Column: "fecha"}, Columns: []config.ColumnSpec{{Name: "fecha"}}},
+		config.Resource{Name: "por-id", Entity: "PorId", Source: "salud.v_afiliados", MaxRows: 100,
+			Key: config.KeySpec{Column: "id"}, Columns: []config.ColumnSpec{{Name: "id"}}})
+	fx.waitReady(t)
+	if code, m, _ := fx.get(t, "/salud/por-fecha/2024-02-30"); code != 400 || m["code"] != "invalid_key" {
+		t.Fatalf("an impossible date: %d %v", code, m)
+	}
+	if code, m, _ := fx.get(t, "/salud/por-id/9999999999"); code != 404 || m["code"] != "not_found" {
+		t.Fatalf("beyond an integer column's range: %d %v", code, m)
+	}
+	if fx.db.ByKey != 0 {
+		t.Fatal("no query may run")
 	}
 }
 
@@ -327,5 +380,58 @@ func TestWriteCheck(t *testing.T) {
 	fx.db.Set(func(f *instanttest.DB) { f.Writes = 2 })
 	if w, err := fx.svc.WriteCheck(context.Background()); err != nil || len(w) != 1 || w[0] != "salud.v_afiliados" {
 		t.Fatalf("%v %v", w, err)
+	}
+}
+
+// Final review I2: compiling reads the columns of the declared sources only, not of every object
+// the user can see (a broad grant would mean thousands of round trips at each compile).
+func TestCompileReadsOnlyDeclaredSources(t *testing.T) {
+	fx := open(t, func(f *instanttest.DB) {
+		for i := 0; i < 50; i++ {
+			f.Objects = append(f.Objects, []driver.Value{"OTRO", fmt.Sprintf("T%d", i), "table"})
+		}
+	})
+	fx.waitReady(t)
+	fx.db.Mu.Lock()
+	n := fx.db.ColumnReads
+	fx.db.Mu.Unlock()
+	if n != 1 {
+		t.Fatalf("compiling one resource read the columns of %d objects", n)
+	}
+	cat, err := fx.svc.Catalog(context.Background())
+	if err != nil || len(cat) != 51 {
+		t.Fatalf("catalog (for catalog and scaffold) still lists everything: %d %v", len(cat), err)
+	}
+}
+
+type paddingDialect struct{ fakeDialect }
+
+func (paddingDialect) BindKey(c Column, key string) any { return key + "*" }
+
+// The handler binds the key through the dialect when it has a KeyBinder (Oracle CHAR keys).
+func TestHandlerUsesKeyBinder(t *testing.T) {
+	fx := openWith(t, paddingDialect{}, func(f *instanttest.DB) { f.Rows["123*"] = f.Rows["123"] })
+	fx.waitReady(t)
+	if code, _, body := fx.get(t, "/salud/afiliados/123"); code != 200 {
+		t.Fatalf("%d %s", code, body)
+	}
+}
+
+// Final review I5: a response larger than maxResponseBytes is refused before it fills the
+// container's memory.
+func TestResponseTooLarge(t *testing.T) {
+	big := strings.Repeat("x", 600)
+	fx := open(t, func(f *instanttest.DB) {
+		f.Rows["grande"] = [][]driver.Value{{"grande", big, int64(1)}, {"grande", big, int64(1)}}
+		f.Rows["chico"] = [][]driver.Value{{"chico", big, int64(1)}}
+	}, config.Resource{Name: "historial", Entity: "Novedad", Source: "salud.v_afiliados", Many: true, MaxRows: 10,
+		Key: config.KeySpec{Column: "numero_documento"}, Columns: []config.ColumnSpec{{Name: "nombres"}}})
+	fx.waitReady(t)
+	fx.svc.maxResponseBytes = 1000
+	if code, m, _ := fx.get(t, "/salud/historial/grande"); code != 500 || m["code"] != "response_too_large" {
+		t.Fatalf("%d %v", code, m)
+	}
+	if code, _, _ := fx.get(t, "/salud/historial/chico"); code != 200 {
+		t.Fatalf("under the cap: %d", code)
 	}
 }
