@@ -88,6 +88,10 @@ func TestResourceValidation(t *testing.T) {
 		{"empty document type", "dataSubject: { documentType: CC }", "dataSubject: { documentType: '' }", "documentType"},
 		{"bad maxRows", "key: { column: numero_documento }", "key: { column: numero_documento }\n        maxRows: 5000", "maxRows"},
 		{"duplicate column", "- { name: activo, as: boolean }", "- { name: NUMERO_documento }", "repetida"},
+		{"no columns", "        columns:\n          - { name: numero_documento }\n          - { name: activo, as: boolean }\n", "", "columns"},
+		{"column name not an identifier", "- { name: activo, as: boolean }", "- { name: 'activo; drop' }", "activo; drop"},
+		{"key column not an identifier", "key: { column: numero_documento }", "key: { column: 'numero documento' }", "numero documento"},
+		{"reserved entity", "entity: Afiliado", "entity: Problem", "Problem"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -78,6 +78,9 @@ var Engines = []string{"sqlserver", "postgres", "mysql", "oracle"}
 
 var (
 	entityPattern = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
+	// Column names are also path parameter names and JSON properties: plain identifiers only.
+	// A view can rename any other column (AS).
+	columnPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,127}$`)
 	asValues      = []string{"string", "integer", "number", "boolean", "date", "date-time"}
 	tlsValues     = []string{"disable", "require", "verify"}
 )
@@ -167,6 +170,8 @@ func (s InstantSpec) validate() []error {
 		names[r.Name] = true
 		if !entityPattern.MatchString(r.Entity) {
 			add("%s: entity %q debe empezar con mayúscula y usar solo letras y números (por ejemplo Afiliado)", label, r.Entity)
+		} else if r.Entity == "Problem" {
+			add("%s: entity %q está reservada para los errores del OpenAPI; usa otro nombre", label, r.Entity)
 		} else if entities[r.Entity] {
 			add("%s: la entidad %q está repetida", label, r.Entity)
 		}
@@ -174,8 +179,10 @@ func (s InstantSpec) validate() []error {
 		if parts := strings.Split(r.Source, "."); len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
 			add("%s: source %q debe tener la forma esquema.objeto (por ejemplo salud.v_afiliados)", label, r.Source)
 		}
-		if strings.TrimSpace(r.Key.Column) == "" {
+		if r.Key.Column == "" {
 			add("%s: falta key.column, la columna que se busca con la clave", label)
+		} else if !columnPattern.MatchString(r.Key.Column) {
+			add("%s: key.column %q debe ser un nombre simple (letras, números y _); renombra la columna en la vista", label, r.Key.Column)
 		}
 		if r.Key.Pattern != "" {
 			if _, err := regexp.Compile(r.Key.Pattern); err != nil {
@@ -188,12 +195,17 @@ func (s InstantSpec) validate() []error {
 		if r.DataSubject != nil && strings.TrimSpace(r.DataSubject.DocumentType) == "" {
 			add("%s: dataSubject.documentType no puede estar vacío (o quita dataSubject si la clave no identifica a una persona)", label)
 		}
+		if len(r.Columns) == 0 {
+			add("%s: columns no puede estar vacío: lista las columnas que se exponen", label)
+		}
 		cols := map[string]bool{}
 		for _, c := range r.Columns {
 			lower := strings.ToLower(c.Name)
 			switch {
-			case strings.TrimSpace(c.Name) == "":
+			case c.Name == "":
 				add("%s: una columna no tiene name", label)
+			case !columnPattern.MatchString(c.Name):
+				add("%s: la columna %q debe ser un nombre simple (letras, números y _); renombra la columna en la vista", label, c.Name)
 			case cols[lower]:
 				add("%s: la columna %q está repetida", label, c.Name)
 			}
