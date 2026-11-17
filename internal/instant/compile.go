@@ -96,7 +96,11 @@ func compileResource(r config.Resource, catalog []Object, d Dialect) (Compiled, 
 	if r.Many {
 		c.Limit = r.MaxRows + 1
 	}
-	c.Query = d.SelectByKey(selected, d.Quote(obj.Schema)+"."+d.Quote(obj.Name), d.Quote(key.Name), c.Limit)
+	var orderBy []string
+	if r.Many {
+		orderBy = selected
+	}
+	c.Query = d.SelectByKey(selected, d.Quote(obj.Schema)+"."+d.Quote(obj.Name), d.Quote(key.Name), orderBy, c.Limit)
 	return c, nil
 }
 

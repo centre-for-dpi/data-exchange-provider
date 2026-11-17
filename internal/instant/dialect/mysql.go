@@ -77,25 +77,32 @@ ORDER BY 1, 2`
 }
 
 func (mysqlDialect) Columns() string {
-	return `SELECT column_name, data_type, character_maximum_length, numeric_scale, is_nullable
+	// For BIT the "scale" position carries the number of bits (numeric_precision): only BIT(1) is a
+	// boolean.
+	return `SELECT column_name, data_type, character_maximum_length,
+  CASE WHEN data_type = 'bit' THEN numeric_precision ELSE numeric_scale END, is_nullable
 FROM information_schema.columns WHERE table_schema = ? AND table_name = ? ORDER BY ordinal_position`
 }
 
 func (mysqlDialect) Quote(s string) string { return "`" + strings.ReplaceAll(s, "`", "``") + "`" }
 
-func (mysqlDialect) SelectByKey(cols []string, from, key string, limit int) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = ? LIMIT %d", strings.Join(cols, ", "), from, key, limit)
+func (mysqlDialect) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = ?%s LIMIT %d", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
 }
 
 // Kind: TINYINT is an integer (as: boolean exposes the usual TINYINT(1) flags).
-func (mysqlDialect) Kind(t string, _ sql.NullInt64) instant.Kind {
+func (mysqlDialect) Kind(t string, scale sql.NullInt64) instant.Kind {
+	if lower(t) == "bit" { // BIT(n > 1) is a bit field, not a boolean
+		if scale.Valid && scale.Int64 == 1 {
+			return instant.KindBoolean
+		}
+		return instant.KindUnsupported
+	}
 	switch lower(t) {
 	case "varchar", "char", "text", "tinytext", "mediumtext", "longtext", "enum":
 		return instant.KindString
 	case "int", "smallint", "tinyint", "mediumint", "bigint", "year":
 		return instant.KindInteger
-	case "bit":
-		return instant.KindBoolean
 	case "decimal", "float", "double":
 		return instant.KindNumber
 	case "date":

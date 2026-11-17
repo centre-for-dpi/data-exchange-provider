@@ -31,6 +31,14 @@ func For(engine string) (instant.Dialect, error) {
 
 func lower(t string) string { return strings.ToLower(strings.TrimSpace(t)) }
 
+// orderClause is " ORDER BY a, b", or nothing.
+func orderClause(cols []string) string {
+	if len(cols) == 0 {
+		return ""
+	}
+	return " ORDER BY " + strings.Join(cols, ", ")
+}
+
 func timeoutSeconds(d interface{ Seconds() float64 }) int {
 	s := int(d.Seconds())
 	if s < 1 {

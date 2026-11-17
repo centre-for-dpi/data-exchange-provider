@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	_ "github.com/microsoft/go-mssqldb" // driver "sqlserver"
+	mssql "github.com/microsoft/go-mssqldb" // driver "sqlserver"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/instant"
@@ -65,8 +65,18 @@ WHERE c.object_id = OBJECT_ID(QUOTENAME(@p1) + '.' + QUOTENAME(@p2)) ORDER BY c.
 
 func (sqlServer) Quote(s string) string { return "[" + strings.ReplaceAll(s, "]", "]]") + "]" }
 
-func (sqlServer) SelectByKey(cols []string, from, key string, limit int) string {
-	return fmt.Sprintf("SELECT TOP (%d) %s FROM %s WHERE %s = @p1", limit, strings.Join(cols, ", "), from, key)
+func (sqlServer) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
+	return fmt.Sprintf("SELECT TOP (%d) %s FROM %s WHERE %s = @p1%s", limit, strings.Join(cols, ", "), from, key, orderClause(orderBy))
+}
+
+// BindKey binds varchar and char keys as varchar: a Go string goes as nvarchar, and comparing a
+// varchar column with nvarchar forces CONVERT_IMPLICIT, which can turn an index seek into a scan.
+func (sqlServer) BindKey(c instant.Column, value string) any {
+	switch lower(c.Native) {
+	case "varchar", "char":
+		return mssql.VarChar(value)
+	}
+	return value
 }
 
 func (sqlServer) Kind(t string, _ sql.NullInt64) instant.Kind {

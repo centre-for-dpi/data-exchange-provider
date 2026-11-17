@@ -26,7 +26,8 @@ func (oracle) Driver() string { return "oracle" }
 // tls: verify uses the system's roots (go-ora takes no CA file; config rejects caFile).
 func (oracle) DSN(db config.Database, password string) (string, error) {
 	q := url.Values{}
-	q.Set("TIMEOUT", strconv.Itoa(timeoutSeconds(db.QueryTimeout)))
+	q.Set("TIMEOUT", strconv.Itoa(timeoutSeconds(db.QueryTimeout)))         // read timeout
+	q.Set("CONNECT TIMEOUT", strconv.Itoa(timeoutSeconds(db.QueryTimeout))) // go-ora's default is 60 s
 	switch db.TLS {
 	case "require":
 		q.Set("SSL", "enable")
@@ -58,8 +59,8 @@ FROM all_tab_columns WHERE owner = :1 AND table_name = :2 ORDER BY column_id`
 
 func (oracle) Quote(s string) string { return `"` + strings.ReplaceAll(s, `"`, `""`) + `"` }
 
-func (oracle) SelectByKey(cols []string, from, key string, limit int) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = :1 FETCH FIRST %d ROWS ONLY", strings.Join(cols, ", "), from, key, limit)
+func (oracle) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE %s = :1%s FETCH FIRST %d ROWS ONLY", strings.Join(cols, ", "), from, key, orderClause(orderBy), limit)
 }
 
 func (oracle) Kind(t string, scale sql.NullInt64) instant.Kind {

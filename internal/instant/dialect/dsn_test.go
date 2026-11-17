@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	mssql "github.com/microsoft/go-mssqldb"
 
 	"github.com/centre-for-dpi/data-exchange-provider/internal/config"
 	"github.com/centre-for-dpi/data-exchange-provider/internal/instant"
@@ -158,7 +159,7 @@ func TestKinds(t *testing.T) {
 		{"postgres", "timestamp without time zone", sql.NullInt64{}, instant.KindDateTime},
 		{"postgres", "bytea", sql.NullInt64{}, instant.KindUnsupported},
 		{"mysql", "tinyint", sql.NullInt64{}, instant.KindInteger},
-		{"mysql", "bit", sql.NullInt64{}, instant.KindBoolean},
+		{"mysql", "bit", sql.NullInt64{Int64: 1, Valid: true}, instant.KindBoolean},
 		{"mysql", "blob", sql.NullInt64{}, instant.KindUnsupported},
 		{"oracle", "NUMBER", scale0, instant.KindInteger},
 		{"oracle", "NUMBER", sql.NullInt64{}, instant.KindNumber},
@@ -176,18 +177,62 @@ func TestKinds(t *testing.T) {
 }
 
 func TestSelectByKey(t *testing.T) {
-	want := map[string]string{
-		"sqlserver": "SELECT TOP (2) [a], [b] FROM [s].[v] WHERE [k] = @p1",
-		"postgres":  `SELECT "a", "b" FROM "s"."v" WHERE "k" = $1 LIMIT 2`,
-		"mysql":     "SELECT `a`, `b` FROM `s`.`v` WHERE `k` = ? LIMIT 2",
-		"oracle":    `SELECT "a", "b" FROM "s"."v" WHERE "k" = :1 FETCH FIRST 2 ROWS ONLY`,
+	want := map[string][2]string{
+		"sqlserver": {"SELECT TOP (2) [a], [b] FROM [s].[v] WHERE [k] = @p1", "SELECT TOP (11) [a], [b] FROM [s].[v] WHERE [k] = @p1 ORDER BY [a], [b]"},
+		"postgres":  {`SELECT "a", "b" FROM "s"."v" WHERE "k" = $1 LIMIT 2`, `SELECT "a", "b" FROM "s"."v" WHERE "k" = $1 ORDER BY "a", "b" LIMIT 11`},
+		"mysql":     {"SELECT `a`, `b` FROM `s`.`v` WHERE `k` = ? LIMIT 2", "SELECT `a`, `b` FROM `s`.`v` WHERE `k` = ? ORDER BY `a`, `b` LIMIT 11"},
+		"oracle":    {`SELECT "a", "b" FROM "s"."v" WHERE "k" = :1 FETCH FIRST 2 ROWS ONLY`, `SELECT "a", "b" FROM "s"."v" WHERE "k" = :1 ORDER BY "a", "b" FETCH FIRST 11 ROWS ONLY`},
 	}
 	for e, w := range want {
 		d, _ := For(e)
-		got := d.SelectByKey([]string{d.Quote("a"), d.Quote("b")}, d.Quote("s")+"."+d.Quote("v"), d.Quote("k"), 2)
-		if got != w {
-			t.Errorf("%s:\n got %s\nwant %s", e, got, w)
+		cols := []string{d.Quote("a"), d.Quote("b")}
+		if got := d.SelectByKey(cols, d.Quote("s")+"."+d.Quote("v"), d.Quote("k"), nil, 2); got != w[0] {
+			t.Errorf("%s: got %s want %s", e, got, w[0])
 		}
+		// many: ordered by the selected columns, so the same call gives the same list.
+		if got := d.SelectByKey(cols, d.Quote("s")+"."+d.Quote("v"), d.Quote("k"), cols, 11); got != w[1] {
+			t.Errorf("%s ordered: got %s want %s", e, got, w[1])
+		}
+	}
+}
+
+func TestMySQLBitIsBooleanOnlyWithOneBit(t *testing.T) {
+	d, _ := For("mysql")
+	if k := d.Kind("bit", sql.NullInt64{Int64: 1, Valid: true}); k != instant.KindBoolean {
+		t.Fatalf("bit(1): %q", k)
+	}
+	if k := d.Kind("bit", sql.NullInt64{Int64: 8, Valid: true}); k != instant.KindUnsupported {
+		t.Fatalf("bit(8) is a bit field, not a boolean: %q", k)
+	}
+	if !strings.Contains(d.Columns(), "numeric_precision") {
+		t.Fatal("MySQL's columns query must give bit's precision in the scale position")
+	}
+}
+
+func TestOracleConnectTimeout(t *testing.T) {
+	d, _ := For("oracle")
+	dsn, _ := d.DSN(db("oracle", "disable"), "x")
+	if u, _ := url.Parse(dsn); u.Query().Get("CONNECT TIMEOUT") != "5" {
+		t.Fatalf("go-ora's TIMEOUT is the read timeout; the connect timeout needs its own option: %s", dsn)
+	}
+}
+
+// A Go string is bound as nvarchar; against a varchar key that forces CONVERT_IMPLICIT and a
+// scan. The SQL Server dialect binds varchar keys as varchar.
+func TestSQLServerBindsVarcharKeys(t *testing.T) {
+	d, _ := For("sqlserver")
+	b, ok := d.(instant.KeyBinder)
+	if !ok {
+		t.Fatal("the SQL Server dialect must bind keys")
+	}
+	if _, ok := b.BindKey(instant.Column{Native: "varchar", MaxLength: 20}, "ABC").(mssql.VarChar); !ok {
+		t.Fatal("varchar key not bound as varchar")
+	}
+	if v, ok := b.BindKey(instant.Column{Native: "char", MaxLength: 10}, "ABC").(mssql.VarChar); !ok || v != "ABC" {
+		t.Fatalf("char key: %#v (SQL Server ignores trailing spaces: no padding)", v)
+	}
+	if _, ok := b.BindKey(instant.Column{Native: "nvarchar", MaxLength: 20}, "ABC").(string); !ok {
+		t.Fatal("nvarchar keys stay strings")
 	}
 }
 
@@ -208,7 +253,7 @@ func TestOracleBindsCharKeysPadded(t *testing.T) {
 	if got := b.BindKey(instant.Column{Native: "VARCHAR2", MaxLength: 10}, "ABC"); got != "ABC" {
 		t.Fatalf("VARCHAR2 keys are bound as they come: %q", got)
 	}
-	for _, e := range []string{"postgres", "mysql", "sqlserver"} {
+	for _, e := range []string{"postgres", "mysql"} {
 		if d, _ := For(e); func() bool { _, ok := d.(instant.KeyBinder); return ok }() {
 			t.Fatalf("%s compares CHAR without padding the bind: it must not pad", e)
 		}

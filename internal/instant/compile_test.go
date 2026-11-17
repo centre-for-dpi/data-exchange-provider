@@ -28,7 +28,7 @@ func (fakeDialect) Kind(native string, _ sql.NullInt64) Kind {
 func (fakeDialect) BeginReadOnly(ctx context.Context, db *sql.DB) (*sql.Tx, error) {
 	return db.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 }
-func (fakeDialect) SelectByKey(cols []string, from, key string, limit int) string {
+func (fakeDialect) SelectByKey(cols []string, from, key string, orderBy []string, limit int) string {
 	return "SELECT " + strings.Join(cols, ", ") + " FROM " + from + " WHERE " + key + " = $1 LIMIT " + itoa(limit)
 }
 
