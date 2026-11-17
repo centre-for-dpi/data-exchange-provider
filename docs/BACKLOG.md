@@ -83,7 +83,7 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 
 ## Pendientes del portal (se llevan a `../data-exchange`)
 
-No se implementan aquí; la frontera es el contrato v1.
+No se implementan aquí; la frontera es el contrato v1. Redactadas para el equipo del portal en `docs/propuestas-portal.md`.
 
 - **`direct`:** dejarlo como excepción aprobada por el operador, con mTLS obligatorio y una prueba de que la API rechaza certificados que no son del gateway (ADR-0001).
 - **Carrera al enviar a revisión:** una versión enviada en el mismo segundo del enrolamiento da 502, porque el hub aún no tiene la ruta SNI del nodo (S-2). El portal no debería validar antes de que el hub esté sincronizado.
