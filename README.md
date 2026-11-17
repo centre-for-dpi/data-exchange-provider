@@ -6,6 +6,8 @@ A node installed at each provider entity of the Data Exchange Network. It expose
 
 Status: the `canal` mode (secure channel for the entity's own APIs) and the `completo` mode (instant APIs over SQL Server, PostgreSQL, MySQL and Oracle) are built and tested end to end against the portal (milestones K0–K3; K4 hardening in progress, see `docs/BACKLOG.md`). Design: `docs/ARCHITECTURE.md`.
 
+Documentation site: https://centre-for-dpi.github.io/data-exchange-provider/
+
 For entities:
 
 - [docs/guides/providers.md](docs/guides/providers.md) — what a provider entity designates, provides and does (presentation version: `providers.html`)

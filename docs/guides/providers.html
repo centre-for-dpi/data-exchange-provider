@@ -508,7 +508,7 @@ details.faq[open] summary { color: var(--gov); }
             <tr><td>OpenAPI 3 contract</td><td class="wrap">The portal checks it when the version is registered: an <code>operationId</code> on every operation, with no duplicates; at least one success response; only local <code>$ref</code>; in APIs with personal or sensitive data, each operation declares its data subject (<code>x-den-data-subject</code>) or <code>none</code>.</td></tr>
             <tr><td>Identifiers</td><td class="wrap"><b>Never in the query string.</b> Document numbers go in the path (<code>/personas/{documento}</code>) or in the body of a POST, not in <code>?documento=…</code>.</td></tr>
             <tr><td>Own API</td><td class="wrap">The API's internal URL and, if it requires one, its credential: a header, a username and password, or a client certificate.</td></tr>
-            <tr><td>Instant API</td><td class="wrap">One <b>view</b> per query, with only the columns that will be shared, and a <b>read-only user</b> with <code>SELECT</code> on those views and nothing else. The node generates the OpenAPI. The commands for each engine are in <a href="../INSTANT-APIS.md"><code>docs/INSTANT-APIS.md</code></a>.</td></tr>
+            <tr><td>Instant API</td><td class="wrap">One <b>view</b> per query, with only the columns that will be shared, and a <b>read-only user</b> with <code>SELECT</code> on those views and nothing else. The node generates the OpenAPI. The commands for each engine are in <a href="../INSTANT-APIS.html"><code>docs/INSTANT-APIS.md</code></a>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -568,7 +568,7 @@ sudo ./install.sh</code></pre></div></span></li>
       </ol>
       <div class="callout info">
         <b>Node installation guide</b>
-        <p>The details of each question, the corporate proxy, backup, updates and common problems are in <a href="../INSTALL.md"><code>docs/INSTALL.md</code></a>, which also ships inside the bundle. Preparing the database, the service file, the types and the responses of the instant APIs are in <a href="../INSTANT-APIS.md"><code>docs/INSTANT-APIS.md</code></a>.</p>
+        <p>The details of each question, the corporate proxy, backup, updates and common problems are in <a href="../INSTALL.html"><code>docs/INSTALL.md</code></a>, which also ships inside the bundle. Preparing the database, the service file, the types and the responses of the instant APIs are in <a href="../INSTANT-APIS.html"><code>docs/INSTANT-APIS.md</code></a>.</p>
       </div>
     </section>
 
@@ -612,7 +612,7 @@ sudo ./install.sh</code></pre></div></span></li>
           </tbody>
         </table>
       </div>
-      <p>When the network has it enabled, the gateway also signs each call in an <code>X-DEN-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway. The node verifies that signature and records the result in its log. By default it never rejects a call because of it; it can be set to require it once the operator confirms the network signs calls (see <a href="../INSTALL.md"><code>docs/INSTALL.md</code></a>, section 7).</p>
+      <p>When the network has it enabled, the gateway also signs each call in an <code>X-DEN-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway. The node verifies that signature and records the result in its log. By default it never rejects a call because of it; it can be set to require it once the operator confirms the network signs calls (see <a href="../INSTALL.html"><code>docs/INSTALL.md</code></a>, section 7).</p>
     </section>
 
     <section id="recomendaciones">

@@ -1,0 +1,24 @@
+# GitHub Pages (https://centre-for-dpi.github.io/data-exchange-provider/), built by GitHub's
+# Jekyll from this folder: Markdown becomes HTML (links between .md files keep working), and the
+# presentation guides (*.html without front matter) are served as they are.
+title: DEN provider node kit
+description: Secure channel and instant APIs for each provider entity of the Data Exchange Network (DEN)
+theme: jekyll-theme-primer
+
+# Working notes and history, not documentation for entities or operators.
+exclude:
+  - BACKLOG.md
+  - superpowers/
+  - spikes/
+
+# The Markdown text of the two documents that also have a presentation version (*.html) gets
+# its own address, so the presentation page keeps its name.
+defaults:
+  - scope: { path: INSTANT-APIS.md }
+    values: { permalink: /INSTANT-APIS-text.html }
+  - scope: { path: es/INSTANT-APIS.md }
+    values: { permalink: /es/INSTANT-APIS-text.html }
+  - scope: { path: guides/providers.md }
+    values: { permalink: /guides/providers-text.html }
+  - scope: { path: es/guides/providers.md }
+    values: { permalink: /es/guides/providers-text.html }

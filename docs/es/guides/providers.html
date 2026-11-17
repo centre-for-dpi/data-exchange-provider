@@ -508,7 +508,7 @@ details.faq[open] summary { color: var(--gov); }
             <tr><td>Contrato OpenAPI 3</td><td class="wrap">El portal lo revisa al registrar la versión: <code>operationId</code> en cada operación, sin repetir; al menos una respuesta de éxito; solo <code>$ref</code> locales; en APIs con datos personales o sensibles, cada operación declara su titular (<code>x-den-data-subject</code>) o <code>none</code>.</td></tr>
             <tr><td>Identificadores</td><td class="wrap"><b>Nunca en el query string.</b> Los números de documento van en la ruta (<code>/personas/{documento}</code>) o en el cuerpo de un POST, no en <code>?documento=…</code>.</td></tr>
             <tr><td>API propia</td><td class="wrap">La URL interna de la API y, si la pide, su credencial: una cabecera, usuario y contraseña, o un certificado de cliente.</td></tr>
-            <tr><td>API instantánea</td><td class="wrap">Una <b>vista</b> por consulta, con solo las columnas que se van a compartir, y un <b>usuario de solo lectura</b> con <code>SELECT</code> sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en <a href="../INSTANT-APIS.md"><code>docs/es/INSTANT-APIS.md</code></a>.</td></tr>
+            <tr><td>API instantánea</td><td class="wrap">Una <b>vista</b> por consulta, con solo las columnas que se van a compartir, y un <b>usuario de solo lectura</b> con <code>SELECT</code> sobre esas vistas y nada más. El OpenAPI lo genera el nodo. Los comandos de cada motor están en <a href="../INSTANT-APIS.html"><code>docs/es/INSTANT-APIS.md</code></a>.</td></tr>
           </tbody>
         </table>
       </div>
@@ -568,7 +568,7 @@ sudo ./install.sh</code></pre></div></span></li>
       </ol>
       <div class="callout info">
         <b>Guía de instalación del nodo</b>
-        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALL.md"><code>docs/es/INSTALL.md</code></a>, que también viene dentro del paquete. La preparación de la base, el archivo del servicio, los tipos y las respuestas de las APIs instantáneas están en <a href="../INSTANT-APIS.md"><code>docs/es/INSTANT-APIS.md</code></a>.</p>
+        <p>El detalle de cada pregunta, el proxy corporativo, el respaldo, la actualización y los problemas comunes están en <a href="../INSTALL.html"><code>docs/es/INSTALL.md</code></a>, que también viene dentro del paquete. La preparación de la base, el archivo del servicio, los tipos y las respuestas de las APIs instantáneas están en <a href="../INSTANT-APIS.html"><code>docs/es/INSTANT-APIS.md</code></a>.</p>
       </div>
     </section>
 
@@ -612,7 +612,7 @@ sudo ./install.sh</code></pre></div></span></li>
           </tbody>
         </table>
       </div>
-      <p>Cuando la red lo tiene activado, el gateway además firma cada llamada en una cabecera <code>X-DEN-Assertion</code>, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway. El nodo verifica esa firma y registra el resultado en su log. Por defecto nunca rechaza una llamada por eso; se puede configurar para exigirla cuando el operador confirme que la red ya firma (ver <a href="../INSTALL.md"><code>docs/es/INSTALL.md</code></a>, sección 7).</p>
+      <p>Cuando la red lo tiene activado, el gateway además firma cada llamada en una cabecera <code>X-DEN-Assertion</code>, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway. El nodo verifica esa firma y registra el resultado en su log. Por defecto nunca rechaza una llamada por eso; se puede configurar para exigirla cuando el operador confirme que la red ya firma (ver <a href="../INSTALL.html"><code>docs/es/INSTALL.md</code></a>, sección 7).</p>
     </section>
 
     <section id="recomendaciones">
