@@ -58,7 +58,15 @@ sha256sum rid-node-kit-<versión>.tar.gz
 # debe coincidir con la huella publicada por el operador; si no coincide, no lo instales
 ```
 
-Dentro del paquete, el instalador verifica además cada archivo contra `SHA256SUMS`.
+Si el operador firma el paquete, entrega también `rid-node-kit-<versión>.tar.gz.sig` y publica su clave pública en un archivo `allowed_signers`. La firma se verifica con OpenSSH, que ya trae Ubuntu:
+
+```bash
+ssh-keygen -Y verify -f allowed_signers -I <identidad del operador> -n rid-kit \
+  -s rid-node-kit-<versión>.tar.gz.sig < rid-node-kit-<versión>.tar.gz
+# debe decir: Good "rid-kit" signature for <identidad del operador>
+```
+
+Dentro del paquete, el instalador verifica además cada archivo contra `SHA256SUMS`. El paquete trae también la lista de componentes de cada imagen (SBOM, `sbom-completo.cdx.json` y `sbom-canal.cdx.json`, en formato CycloneDX) y sus licencias (`LICENSES.txt`).
 
 ```bash
 tar -xzf rid-node-kit-<versión>.tar.gz

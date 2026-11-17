@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Builds the delivery bundle: dist/rid-node-kit-<version>.tar.gz with install.sh, compose.yaml,
-# both images (for servers without access to a registry), the guide, licenses and SHA256SUMS.
+# both images (for servers without access to a registry), the guides, licenses, an SBOM per variant
+# and SHA256SUMS. With RID_SIGN_KEY (an OpenSSH private key, kept outside the repo) it also signs
+# the bundle: dist/rid-node-kit-<version>.tar.gz.sig (ssh-keygen -Y, namespace rid-kit).
 #   deploy/bundle.sh <version>
 set -euo pipefail
 VERSION=${1:?usage: deploy/bundle.sh <version>}
@@ -25,13 +27,19 @@ done
 echo "$VERSION" >"$OUT/VERSION"
 {
   echo "# Go modules linked into rid-node $VERSION (completo; canal is a subset)"
-  go run ./tools/licensecheck ./cmd/rid-node
+  go run ./tools/licensecheck -cyclonedx "$(native_path "$OUT/sbom-completo.cdx.json")" -version "$VERSION" ./cmd/rid-node
 } >"$OUT/LICENSES.txt"
+go run ./tools/licensecheck -tags canal -cyclonedx "$(native_path "$OUT/sbom-canal.cdx.json")" -version "$VERSION" ./cmd/rid-node >/dev/null
 sums=$(cd "$OUT" && find . -type f | sed 's|^\./||' | sort | xargs sha256sum)
 printf '%s\n' "$sums" >"$OUT/SHA256SUMS"
 tar -C "$ROOT/dist" -czf "$ROOT/dist/rid-node-kit-$VERSION.tar.gz" "rid-node-kit-$VERSION"
 # The bundle's own checksum is published apart from the bundle (portal, operator's channel), so
 # an entity can tell a genuine bundle from a tampered one before opening it.
 (cd "$ROOT/dist" && sha256sum "rid-node-kit-$VERSION.tar.gz" >"rid-node-kit-$VERSION.tar.gz.sha256")
+rm -f "$ROOT/dist/rid-node-kit-$VERSION.tar.gz.sig"
+if [[ -n ${RID_SIGN_KEY:-} ]]; then
+  ssh-keygen -q -Y sign -f "$RID_SIGN_KEY" -n rid-kit "$ROOT/dist/rid-node-kit-$VERSION.tar.gz"
+  echo "dist/rid-node-kit-$VERSION.tar.gz.sig  (firma; se verifica con la clave pública del operador)"
+fi
 echo "dist/rid-node-kit-$VERSION.tar.gz"
 echo "dist/rid-node-kit-$VERSION.tar.gz.sha256  (publícalo por un canal distinto al del paquete)"

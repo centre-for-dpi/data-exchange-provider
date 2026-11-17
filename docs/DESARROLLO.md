@@ -34,7 +34,20 @@ make check                 # gofmt, vet, go mod verify, pruebas, licencias, vuln
 make image image-canal     # imágenes rid-node:<versión> y rid-node:<versión>-canal
 make e2e                   # imagen canal + punta a punta contra el portal real
 make test-engines          # APIs instantáneas contra SQL Server, PostgreSQL, MySQL y Oracle reales
+make bundle                # paquete de entrega en dist/ (las dos variantes, amd64 y arm64, SBOM y SHA256SUMS)
 ```
+
+### Firma del paquete
+
+`make bundle` con `RID_SIGN_KEY` firma el paquete: `dist/rid-node-kit-<versión>.tar.gz.sig`. `RID_SIGN_KEY` es la ruta de una clave privada OpenSSH del operador, que nunca entra al repositorio. Se firma con `ssh-keygen -Y sign`, en el espacio de nombres `rid-kit`:
+
+```
+ssh-keygen -t ed25519 -C "operador@red" -f ~/.config/rid-node/firma   # una vez, fuera del repositorio
+RID_SIGN_KEY=~/.config/rid-node/firma make bundle
+echo "operador@red $(cut -d' ' -f1,2 ~/.config/rid-node/firma.pub)" > allowed_signers   # se publica junto a la huella
+```
+
+Las imágenes van dentro del paquete y las cubre `SHA256SUMS`, así que firmar el paquete firma también las imágenes. Cada variante lleva su SBOM en formato CycloneDX (`sbom-completo.cdx.json` y `sbom-canal.cdx.json`), generado por `tools/licensecheck -cyclonedx`.
 
 ### Motores de base de datos para las APIs instantáneas
 

@@ -1,7 +1,7 @@
 // Command licensecheck fails when a Go module linked into the given packages has a license
 // outside the kit's allowed list (CLAUDE.md, rule 1).
 //
-//	go run ./tools/licensecheck [-tags canal] ./cmd/rid-node
+//	go run ./tools/licensecheck [-tags canal] [-cyclonedx sbom.json -version 0.1.0] ./cmd/rid-node
 package main
 
 import (
@@ -20,6 +20,8 @@ const mainModule = "github.com/centre-for-dpi/data-exchange-provider"
 func main() {
 	tags := flag.String("tags", "", "build tags")
 	exceptionsFile := flag.String("exceptions", "tools/licensecheck/exceptions.json", "reviewed exceptions: module → reason")
+	sbomFile := flag.String("cyclonedx", "", "also write a CycloneDX SBOM of the linked modules to this file")
+	version := flag.String("version", "dev", "the kit's version, for the SBOM")
 	flag.Parse()
 	exceptions, err := loadExceptions(*exceptionsFile)
 	if err != nil {
@@ -37,6 +39,7 @@ func main() {
 	}
 	seen := map[string]bool{}
 	var lines []string
+	var mods []module
 	failed := false
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		parts := strings.Split(line, "\t")
@@ -50,11 +53,26 @@ func main() {
 			mark, failed = "NOT ALLOWED", true
 		}
 		lines = append(lines, fmt.Sprintf("%-12s %-55s %s %s", mark, parts[0], parts[1], spdx))
+		mods = append(mods, module{Path: parts[0], Version: parts[1], License: spdx})
 	}
 	sort.Strings(lines)
 	fmt.Println(strings.Join(lines, "\n"))
 	if failed {
 		os.Exit(1)
+	}
+	if *sbomFile != "" {
+		variant := "completo"
+		if strings.Contains(*tags, "canal") {
+			variant = "canal"
+		}
+		b, err := cyclonedx("rid-node", *version, variant, mods)
+		if err == nil {
+			err = os.WriteFile(*sbomFile, b, 0o644)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "licensecheck: sbom:", err)
+			os.Exit(2)
+		}
 	}
 }
 

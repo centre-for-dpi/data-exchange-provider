@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -82,5 +83,44 @@ func TestExceptionsFile(t *testing.T) {
 func TestNoLicenseFileIsViolation(t *testing.T) {
 	if _, ok := judge("example.com/none", nil, nil); ok {
 		t.Fatal("a module without license files must not pass")
+	}
+}
+
+// K4: the same modules and licenses as a CycloneDX SBOM, shipped in the bundle.
+func TestCycloneDX(t *testing.T) {
+	b, err := cyclonedx("rid-node", "0.1.0", "completo", []module{
+		{Path: "github.com/sijms/go-ora/v2", Version: "v2.9.0", License: "MIT"},
+		{Path: "example.com/odd", Version: "v1.0.0", License: "PostgreSQL — OSI approved, reviewed 2026-11-16"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		BOMFormat, SpecVersion string
+		Metadata               struct {
+			Component struct{ Name, Version string }
+		}
+		Components []struct {
+			Name, Version, Purl string
+			Licenses            []struct {
+				License struct{ ID, Name string }
+			}
+		}
+	}
+	if err := json.Unmarshal(b, &doc); err != nil {
+		t.Fatal(err)
+	}
+	c := doc.Components
+	if doc.BOMFormat != "CycloneDX" || doc.SpecVersion != "1.5" || doc.Metadata.Component.Name != "rid-node" || len(c) != 2 ||
+		c[1].Purl != "pkg:golang/github.com/sijms/go-ora/v2@v2.9.0" || c[1].Licenses[0].License.ID != "MIT" ||
+		c[0].Licenses[0].License.ID != "" || c[0].Licenses[0].License.Name == "" {
+		t.Fatalf("%s", b)
+	}
+	again, _ := cyclonedx("rid-node", "0.1.0", "completo", []module{
+		{Path: "github.com/sijms/go-ora/v2", Version: "v2.9.0", License: "MIT"},
+		{Path: "example.com/odd", Version: "v1.0.0", License: "PostgreSQL — OSI approved, reviewed 2026-11-16"},
+	})
+	if string(again) != string(b) {
+		t.Fatal("the SBOM must be deterministic (sorted, no timestamp)")
 	}
 }

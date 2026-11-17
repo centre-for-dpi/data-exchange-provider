@@ -73,8 +73,8 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
 - Verificación de `X-RID-Assertion`, cuando el portal la active (M6-10).
 - Sandbox con datos sintéticos.
 - Métricas.
-- Firma de imágenes y SBOM.
-- Prueba de carga del túnel.
+- ✅ Firma y SBOM (2026-11-16): el paquete lleva un SBOM CycloneDX por variante (`tools/licensecheck -cyclonedx`), y con `RID_SIGN_KEY` se firma con `ssh-keygen -Y` (la entidad verifica con OpenSSH, sin instalar nada). Las imágenes van dentro del paquete y las cubre `SHA256SUMS`. Falta que el operador cree su clave y publique `allowed_signers`.
+- ✅ Prueba de carga del túnel (2026-11-16): `TestTunnelLoad`, 32 clientes HTTP del hub al nodo por WireGuard en espacio de usuario, con lecturas pequeñas y documentos de 256 KiB. En la máquina de desarrollo da unas 680 peticiones/s, p50 de 10 ms, p99 de 620 ms y 18 MiB/s, sin errores. `RID_LOAD_SECONDS` la alarga.
 - ✅ Salud real de los servicios `proxy` (2026-11-16): además de la prueba TCP, cuentan las respuestas del último minuto. Con 3 o más errores (502, 503 o 504, del nodo o de la API) que sean al menos la mitad, el servicio sale con problemas, aunque acepte la conexión. Se mantiene la regla del nodo: `degraded` si fallan algunos servicios, `failing` si fallan todos.
 
 ## Pendientes del portal (se llevan a `../data-exchange`)
