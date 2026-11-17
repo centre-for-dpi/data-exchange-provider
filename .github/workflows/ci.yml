@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Format, vet, tests, canal deps, licenses, vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+      # gofmt, the canal variant without database drivers (ADR-0001), go vet in both variants,
+      # go mod verify, the tests in both variants, the license policy (rule 1) and govulncheck.
+      - run: make check
+      # The integration tests compile even when they do not run here.
+      - run: go vet -tags integration ./internal/instant/...
+
+  installer:
+    name: Installer unit tests and both images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      # install.sh's functions with stubbed commands, on the Ubuntu it supports (ADR-0002).
+      - run: docker run --rm -v "$PWD:/w" -w /w ubuntu:24.04 bash test/install/unit.sh
+      - run: make image image-canal
+
+  engines:
+    name: Instant APIs against PostgreSQL, MySQL, SQL Server and Oracle
+    # Large images (SQL Server, Oracle): on main and on demand, not on every pull request.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: data-exchange-provider
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: data-exchange-provider
+      # The portal's OpenAPI lint checks what each engine generated (the node contract's side).
+      - uses: actions/checkout@v7
+        with:
+          repository: centre-for-dpi/data-exchange-admin-portal
+          path: data-exchange
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: data-exchange-provider/go.mod
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: data-exchange/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: data-exchange/.node-version
+          cache: pnpm
+          cache-dependency-path: data-exchange/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: data-exchange
+      # Passwords of this run only: SQL Server asks for upper and lower case, digits and a symbol;
+      # Oracle 11g for at most 30 characters, starting with a letter.
+      - name: Engine passwords
+        run: |
+          umask 077
+          for v in ADMIN READER WRITER; do echo "DEN_IT_${v}_PASSWORD=Den_$(openssl rand -hex 8)A1"; done > "$RUNNER_TEMP/engines.env"
+      - run: make test-engines DEN_IT_ENV="$RUNNER_TEMP/engines.env"
+      - if: failure()
+        run: docker compose -f test/engines/compose.yaml --env-file "$RUNNER_TEMP/engines.env" logs --tail 80
+      - if: always()
+        run: docker compose -f test/engines/compose.yaml --env-file "$RUNNER_TEMP/engines.env" down -v

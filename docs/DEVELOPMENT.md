@@ -79,6 +79,16 @@ The tests cover, on all four engines:
 
 The engine images (including SQL Server Developer and Oracle Free) are test infrastructure only: they are never bundled in the kit.
 
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+
+- **check**: `make check` (gofmt, the `canal` variant without database drivers, `go vet` and the tests in both variants, `go mod verify`, the license policy and govulncheck), plus `go vet` of the integration tests.
+- **installer**: `test/install/unit.sh` on Ubuntu 24.04, and both images.
+- **engines**: `make test-engines` against the four engines, with passwords generated for that run and the portal's OpenAPI lint (it checks out the portal next to the kit). It runs on `main` and on demand (`workflow_dispatch`), not on pull requests, because of the size of the SQL Server and Oracle images.
+
+The end-to-end test against a deployed portal (`test/e2e`) is not in CI: it needs the deployment and its credentials, and is part of each delivery.
+
 ## Variants
 
 - The `canal` variant is built with `-tags canal`. It does not include instant APIs or database drivers.

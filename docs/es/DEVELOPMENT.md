@@ -79,6 +79,16 @@ Las pruebas cubren, en los cuatro motores:
 
 Las imágenes de los motores (incluidas SQL Server Developer y Oracle Free) son solo infraestructura de prueba: nunca se empaquetan en el kit.
 
+### Integración continua
+
+`.github/workflows/ci.yml` corre en cada push a `main` y en cada pull request:
+
+- **check**: `make check` (gofmt, la variante `canal` sin drivers de bases de datos, `go vet` y las pruebas en las dos variantes, `go mod verify`, la política de licencias y govulncheck), más `go vet` de las pruebas de integración.
+- **installer**: `test/install/unit.sh` en Ubuntu 24.04, y las dos imágenes.
+- **engines**: `make test-engines` contra los cuatro motores, con contraseñas generadas para esa corrida y el lint de OpenAPI del portal (clona el portal junto al kit). Corre en `main` y a pedido (`workflow_dispatch`), no en los pull requests, por el tamaño de las imágenes de SQL Server y Oracle.
+
+La prueba de punta a punta contra un portal desplegado (`test/e2e`) no está en el CI: necesita el despliegue y sus credenciales, y es parte de cada entrega.
+
 ## Variantes
 
 - La variante `canal` se compila con `-tags canal`. No incluye las APIs instantáneas ni drivers de bases de datos.
