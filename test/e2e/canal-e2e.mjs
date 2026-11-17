@@ -393,6 +393,11 @@ const NODE_CONTAINER = `${PROJECT}-rid-node-1`;
 const INSTALLER = process.env.RID_E2E_NODE === 'installer';
 const KIT = process.env.RID_E2E_KIT ?? resolve(here, '../../dist/rid-node-kit-0.1.0');
 const SERVER = resolve(here, '../install/ubuntu.sh');
+const TEST_SERVER = process.env.RID_TEST_SERVER ?? 'rid-install-test';
+// RID_E2E_SERVICE=instant (with RID_E2E_NODE=installer): the node is installed in modo completo
+// and publishes an instant API over a PostgreSQL view of the entity (K3 closing criterion).
+const INSTANT = process.env.RID_E2E_SERVICE === 'instant';
+const ROUTE_TEMPLATE = INSTANT ? '/salud/afiliados/{numero_documento}' : '/salud/afiliados/{numeroIdentificacion}';
 
 function onServer(command, extraEnv = {}) {
   return spawnSync('bash', [SERVER, '--exec', command], {
@@ -455,7 +460,7 @@ async function installWithInstaller(token) {
   ok('Reinstalar no pide token ni toca la identidad del nodo');
 
   const lan = readFileSync(resolve(here, '../install/.lan-address'), 'utf8').trim();
-  spawnSync('docker', ['cp', PORTAL_OPENAPI, 'rid-install-test:/root/salud.openapi.yaml'], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
+  spawnSync('docker', ['cp', PORTAL_OPENAPI, `${TEST_SERVER}:/root/salud.openapi.yaml`], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
   const svc = (name, path) =>
     onServer(`RID_INSTALL_SERVICE_NAME=${name} RID_INSTALL_SERVICE_PATH=${path} RID_INSTALL_SERVICE_UPSTREAM=http://${lan}:18000 ` +
       `RID_INSTALL_SERVICE_PLAIN_HTTP=s RID_INSTALL_SERVICE_CREDENTIAL=ninguna RID_INSTALL_SERVICE_OPENAPI=/root/salud.openapi.yaml ` +
@@ -496,18 +501,68 @@ async function installWithInstaller(token) {
   ok('Cambio de modo completo → canal sin perder el estado');
 }
 
+// K3: modo completo and an instant API over a view of the entity's PostgreSQL. Returns the
+// OpenAPI the installer generated (the one the publisher uploads).
+async function installInstant(token) {
+  step('Instalar en modo completo con install.sh en un Ubuntu 24.04 limpio', 'entidad');
+  const portal = API.replace(/\/api\/v1$/, '');
+  const installed = spawnSync('bash', [SERVER, KIT], {
+    encoding: 'utf8',
+    env: { ...process.env, MSYS_NO_PATHCONV: '1', RID_TEST_SERVER: TEST_SERVER, RID_INSTALL_MODE: 'completo', RID_INSTALL_PORTAL: portal, RID_INSTALL_TOKEN: token },
+  });
+  info(`${installed.stdout}`.trimEnd().split('\n').slice(-4).join('\n').replace(/^/gm, '  '));
+  expect(installed.status === 0, `install failed: ${installed.stdout}${installed.stderr}`);
+  ok('Nodo instalado en modo completo');
+
+  step('La base de la entidad: PostgreSQL con vistas y un usuario de solo lectura', 'DBA de la entidad');
+  const readerPassword = `${randomBytes(12).toString('hex')}@:/?x`; // the DSN must escape it
+  const load = spawnSync('bash', ['-c', `docker save postgres:17-alpine | docker exec -i ${TEST_SERVER} docker load -q`], {
+    encoding: 'utf8', env: { ...process.env, MSYS_NO_PATHCONV: '1' },
+  });
+  expect(load.status === 0, `loading postgres into the test server failed: ${load.stderr}`);
+  spawnSync('docker', ['cp', resolve(here, '../engines/postgres'), `${TEST_SERVER}:/root/bd-init`], { env: { ...process.env, MSYS_NO_PATHCONV: '1' } });
+  const db = onServer(`docker run -d --name bd-entidad --network rid-node_default --restart unless-stopped ` +
+    `-e POSTGRES_DB=entidad -e POSTGRES_PASSWORD=${randomBytes(12).toString('hex')} -e RID_READER_PASSWORD='${readerPassword}' ` +
+    `-e RID_WRITER_PASSWORD=${randomBytes(12).toString('hex')} -v /root/bd-init:/docker-entrypoint-initdb.d:ro postgres:17-alpine`);
+  expect(db.status === 0, `the entity's database did not start: ${db.stderr}`);
+  await waitFor(async () => onServer('docker exec bd-entidad pg_isready -h 127.0.0.1 -U postgres -d entidad').status === 0,
+    { timeoutMs: 120_000, everyMs: 2_000, what: "the entity's database is not ready" });
+  ok('PostgreSQL bd-entidad con salud.v_afiliados; rid_reader solo tiene SELECT sobre las vistas');
+
+  step('Agregar la API instantánea con install.sh servicio', 'entidad');
+  const added = onServer(`RID_INSTALL_SERVICE_TYPE=instant RID_INSTALL_SERVICE_NAME=afiliacion RID_INSTALL_SERVICE_PATH=/salud ` +
+    `RID_INSTALL_SERVICE_ENGINE=postgres RID_INSTALL_SERVICE_DB_HOST=bd-entidad RID_INSTALL_SERVICE_DB_PORT=5432 ` +
+    `RID_INSTALL_SERVICE_DB_NAME=entidad RID_INSTALL_SERVICE_DB_USER=rid_reader RID_INSTALL_SERVICE_DB_PASSWORD='${readerPassword}' ` +
+    `RID_INSTALL_SERVICE_DB_TLS=disable RID_INSTALL_SERVICE_SOURCE=salud.v_afiliados RID_INSTALL_SERVICE_KEY=numero_documento ` +
+    `RID_INSTALL_SERVICE_SUBJECT=CC RID_INSTALL_SERVICE_MANY=n bash /opt/rid-node/install.sh servicio </dev/null`);
+  info(`${added.stdout}`.trimEnd().split('\n').slice(-14).join('\n').replace(/^/gm, '  '));
+  expect(added.status === 0, `servicio instant failed: ${added.stdout}${added.stderr}`);
+  const openapi = onServer('cat /opt/rid-node/config/services/afiliacion.openapi.json').stdout;
+  const doc = JSON.parse(openapi);
+  expect(doc.paths?.['/afiliados/{numero_documento}']?.get?.operationId === 'getAfiliados', `generated OpenAPI: ${openapi.slice(0, 400)}`);
+  ok('Servicio instant "afiliacion": catálogo leído, recurso creado y OpenAPI generado (getAfiliados)');
+  const yaml = onServer('cat /opt/rid-node/config/services/afiliacion.yaml').stdout;
+  expect(!yaml.includes(readerPassword), 'the database password ended up in the service file');
+  return openapi;
+}
+
 async function main() {
-  console.log(bold(`K1: modo canal contra el portal ${VPS ? `desplegado (${API})` : 'local'}`));
+  console.log(bold(`${INSTANT ? 'K3: API instantánea (modo completo)' : 'K1: modo canal'} contra el portal ${VPS ? `desplegado (${API})` : 'local'}`));
   await preflight();
 
   step('Registrar el nodo y emitir el token de enrolamiento', 'elena.admin');
   let elena = await as('elena.admin');
   const salud = elena.entity('salud');
-  const issued = await elena.call('POST', `/entities/${salud}/nodes`, { name: `prueba-kit-canal-${RUN}` });
+  const issued = await elena.call('POST', `/entities/${salud}/nodes`, { name: `prueba-kit-${INSTANT ? 'instant' : 'canal'}-${RUN}` });
   const nodeId = issued.node.id;
   ok(`Nodo ${nodeId} · token de un solo uso`);
 
-  if (INSTALLER) {
+  let instantOpenapi;
+  if (INSTANT) {
+    expect(INSTALLER, 'RID_E2E_SERVICE=instant needs RID_E2E_NODE=installer');
+    instantOpenapi = await installInstant(issued.token);
+    elena = await as('elena.admin');
+  } else if (INSTALLER) {
     await installWithInstaller(issued.token);
     elena = await as('elena.admin'); // the installer phase can outlive the access token
   } else {
@@ -559,15 +614,17 @@ async function main() {
   const pedro = await as('pedro.publicador');
   const api = await pedro.call('POST', `/entities/${salud}/apis`, {
     slug: SLUG,
-    name: `Afiliación por el canal (prueba del kit ${RUN})`,
-    summary: 'API propia de la entidad publicada a través del nodo en modo canal.',
-    description: 'Datos sintéticos (proveedor de prueba del portal).',
+    name: INSTANT ? `Afiliación instantánea (prueba del kit ${RUN})` : `Afiliación por el canal (prueba del kit ${RUN})`,
+    summary: INSTANT
+      ? 'API instantánea sobre una vista de la base de la entidad, servida por el nodo.'
+      : 'API propia de la entidad publicada a través del nodo en modo canal.',
+    description: INSTANT ? 'Datos sintéticos (PostgreSQL de prueba de la entidad).' : 'Datos sintéticos (proveedor de prueba del portal).',
     sector: 'salud',
     tags: ['afiliacion'],
     classification: 'personal',
     ownerContact: 'apis@salud.demo.rid.example',
   });
-  const openapi = readFileSync(PORTAL_OPENAPI, 'utf8');
+  const openapi = INSTANT ? instantOpenapi : readFileSync(PORTAL_OPENAPI, 'utf8');
   const version = await pedro.call('POST', `/entities/${salud}/apis/${api.id}/versions`, {
     version: '1.0',
     openapi,
@@ -576,12 +633,14 @@ async function main() {
     exposedFields: [
       { name: 'regimen', personal: true, sensitive: false },
       { name: 'estado', personal: true, sensitive: false },
-      { name: 'aseguradora', personal: false, sensitive: false },
+      { name: INSTANT ? 'eps' : 'aseguradora', personal: false, sensitive: false },
     ],
   });
-  expect(
-    online.services?.[0]?.openapiSha256 === createHash('sha256').update(openapi).digest('hex'),
-    'the heartbeat does not carry the hash of the published OpenAPI',
+  // An instant service declares its OpenAPI's hash once its catalog compiled (a heartbeat later).
+  const sha = createHash('sha256').update(openapi).digest('hex');
+  await waitFor(
+    async () => (await elena.call('GET', `/entities/${salud}/nodes/${nodeId}`)).services?.[0]?.openapiSha256 === sha,
+    { timeoutMs: 120_000, everyMs: 5_000, what: 'the heartbeat does not carry the hash of the published OpenAPI' },
   );
   ok('El hash del OpenAPI en el heartbeat coincide con el publicado');
   await pedro.call('POST', `/entities/${salud}/apis/${api.id}/versions/${version.id}/submit`);
@@ -647,7 +706,8 @@ async function main() {
   );
   ok('Suscripción activa');
 
-  step('Llamar por el gateway → hub → túnel → nodo (canal) → API propia', 'terminal');
+  step(INSTANT ? 'Llamar por el gateway → hub → túnel → nodo (completo) → vista de PostgreSQL'
+    : 'Llamar por el gateway → hub → túnel → nodo (canal) → API propia', 'terminal');
   const requestId = randomUUID();
   const allowed = await callGateway(token, {
     'x-rid-purpose': 'eligibility_check',
@@ -656,12 +716,17 @@ async function main() {
   });
   expect(allowed.status === 200, `expected 200, got ${allowed.status} ${allowed.reason} ${JSON.stringify(allowed.body)}`);
   ok(`200 · ${JSON.stringify(allowed.body)}`);
+  if (INSTANT) {
+    expect(allowed.body?.numero_documento === PERSON && allowed.body?.eps === 'EPS Dos' && allowed.body?.fecha_afiliacion === '2025-11-25',
+      `the instant API did not return the view's row: ${JSON.stringify(allowed.body)}`);
+    ok('La respuesta trae los campos de la vista salud.v_afiliados');
+  }
   await sleep(1000);
   const access = events('access').find((e) => e.request_id === requestId);
   expect(access, 'the node did not log the call');
   info(`  access: ${JSON.stringify(access)}`);
   expect(access.client === 'rid-gateway.salud', 'the node did not see the gateway by name');
-  expect(access.route === '/salud/afiliados/{numeroIdentificacion}', `route template ${access.route}`);
+  expect(access.route === ROUTE_TEMPLATE, `route template ${access.route}`);
   expect(!nodeLogs().some((l) => l.includes(PERSON)), 'the node logged the document number');
   ok('El nodo vio al gateway por su nombre, registró la plantilla de la ruta y no el número de documento');
 

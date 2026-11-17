@@ -45,3 +45,19 @@ La prueba recorre:
 6. el cambio de modo;
 7. la publicación y el consumo por el gateway.
 
+
+## API instantánea (modo `completo`)
+
+Con `RID_E2E_SERVICE=instant` (junto con `RID_E2E_NODE=installer`), la prueba cierra K3:
+1. Instala el nodo en modo `completo` en un servidor de prueba limpio (`RID_TEST_SERVER`, por defecto `rid-install-test`).
+2. Levanta en ese servidor la base de la entidad: PostgreSQL con los datos sintéticos de `test/engines/postgres`, en la red del nodo, y un usuario `rid_reader` que solo puede leer las vistas.
+3. Corre `install.sh servicio` de tipo `instant` sobre `salud.v_afiliados`, con clave `numero_documento` y titular `CC`.
+4. Publica en el portal el OpenAPI que generó el instalador y espera que el heartbeat lleve su hash.
+5. Comprueba que el consumidor recibe por el gateway la fila de la vista, y que el log del nodo tiene la plantilla `/salud/afiliados/{numero_documento}` y no el número de documento.
+6. Corre `status` y `doctor`. `doctor` revisa la conexión, el catálogo, que el usuario no pueda escribir y la transacción de solo lectura.
+
+```
+RID_E2E_TARGET=vps RID_E2E_NODE=installer RID_E2E_SERVICE=instant RID_TEST_SERVER=rid-install-instant node test/e2e/canal-e2e.mjs
+```
+
+Con otro `RID_TEST_SERVER`, el servidor de una corrida anterior queda como estaba.

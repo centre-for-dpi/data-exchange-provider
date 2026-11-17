@@ -96,36 +96,57 @@ En el host, todo vive en `/opt/rid-node/`:
 
 El estado vive en el volumen `rid-node-state`, montado en `/var/lib/rid-node`. Ahí están la clave del nodo, el certificado, la clave WireGuard y la configuración recibida.
 
-`node.yaml`:
+`node.yaml` tiene el portal. Cada servicio va en su propio archivo, `services/<servicio>.yaml` (un solo documento por archivo):
 
 ```yaml
+# node.yaml
 portal: https://portal.red.example     # API del portal para el enrolamiento
-services:
-  - name: afiliacion                   # nombre en el heartbeat: [a-z0-9-]
-    path: /salud-afiliacion            # servicePath que se registra en el portal
-    type: instant
-    declaration: services/afiliacion.yaml
-    database:
-      engine: postgres                 # sqlserver | postgres | mysql | oracle
-      host: bd.interna
-      port: 5432
-      name: entidad                    # base (Oracle: servicio, p. ej. ORCLPDB1)
-      user: rid_reader
-      passwordFile: /run/secrets/afiliacion_db_password
-      tls: require                     # disable | require | verify (+ caFile)
-      maxConnections: 4
-  - name: certificados
-    path: /certificados
-    type: proxy
-    upstream: https://api.interna.entidad/certificados/v1
-    caFile: /etc/rid-node/ca-interna.pem    # opcional: CA del API interna
-    credential: { header: X-Api-Key, file: /run/secrets/certificados_credential }
-    openapi: services/certificados.openapi.json   # opcional: plantillas de ruta para los logs
+services: []                           # también se pueden declarar aquí; install.sh usa services/
 ```
 
-Las declaraciones `instant` son las del spike S-2, con dos agregados:
-- `as` por columna, para ajustar el tipo expuesto (`boolean` para un `NUMBER(1)`, `date` para un `DATE` de Oracle);
-- `maxRows` para los recursos `many`. Por defecto es 100 y se declara como `maxItems` en el OpenAPI.
+```yaml
+# services/certificados.yaml: la API propia de la entidad
+name: certificados                     # nombre en el heartbeat: [a-z0-9-]
+path: /certificados                    # servicePath que se registra en el portal
+type: proxy
+upstream: https://api.interna.entidad/certificados/v1
+caFile: /etc/rid-node/ca-interna.pem   # opcional: CA del API interna
+credential: { header: X-Api-Key, file: /run/secrets/certificados_credential }
+openapi: /etc/rid-node/services/certificados.openapi.json   # opcional: plantillas de ruta para los logs
+```
+
+```yaml
+# services/afiliacion.yaml: una API instantánea (conexión y recursos en el mismo archivo)
+name: afiliacion
+path: /salud
+type: instant
+database:
+  engine: postgres                     # sqlserver | postgres | mysql | oracle
+  host: bd.interna
+  port: 5432
+  name: entidad                        # base (Oracle: servicio, p. ej. ORCLPDB1)
+  user: rid_reader
+  passwordFile: /run/secrets/afiliacion_db_password
+  tls: require                         # disable | require | verify (+ caFile; Oracle: solo las CA del sistema)
+  maxConnections: 4                    # por defecto 4
+  queryTimeout: 5s                     # por defecto 5 s
+resources:
+  - name: afiliados                    # GET /salud/afiliados/{numero_documento}
+    entity: Afiliado                   # esquema y operationId (getAfiliado) del OpenAPI
+    source: salud.v_afiliados          # esquema.vista; se compara sin distinguir mayúsculas
+    key: { column: numero_documento }  # pattern opcional; por defecto, según el tipo
+    dataSubject: { documentType: CC }  # x-rid-data-subject; sin esto, "none"
+    many: false                        # true: lista, hasta maxRows (por defecto 100, máximo 1000)
+    columns:
+      - { name: numero_documento }
+      - { name: activo, as: boolean }  # as: string | integer | number | boolean | date | date-time
+```
+
+Las declaraciones son las del spike S-2, con estos agregados:
+- `as` por columna, para ajustar el tipo expuesto (`boolean` para un `NUMBER(1)`, `date` para un `DATE` de Oracle). Solo se aceptan conversiones fieles.
+- `maxRows` para los recursos `many`, que el OpenAPI declara como `maxItems`.
+- `columns` es obligatorio: una columna nueva en la vista no se expone sin declararla. `rid-node scaffold` la escribe con todas las columnas exponibles, y anota como comentario las que omite.
+- Un servicio `instant` sin recursos es válido, pero no se sirve: el instalador escribe primero la conexión.
 
 Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, se aplica con un reinicio: no hay recarga en caliente.
 
@@ -133,7 +154,7 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 
 **Arranque.**
 1. Valida la configuración.
-2. Para cada servicio `instant`, conecta a la base, lee el catálogo y compila la declaración. Si falla, el nodo **no arranca** y dice por qué.
+2. Para cada servicio `instant`, abre el pool y empieza a compilar la declaración contra el catálogo, en segundo plano. Si la base no responde, el servicio contesta 503 y se reintenta (de 1 s a 30 s). Si la declaración no coincide con el catálogo, no se sirve ningún recurso del servicio (todo o nada), y `validate` y `doctor` dicen por qué.
 3. Si no hay estado, se enrola. El token sale de `/run/secrets/enrollment_token`. Después se registra el aviso de que ese secreto ya se puede borrar.
 4. Levanta el túnel, sirve y empieza el ciclo de control.
 
@@ -176,8 +197,10 @@ Si la configuración no cambia, el nodo se reinicia sin perder nada. Si cambia, 
 
 **APIs instantáneas.** Funcionan como en S-2:
 - `GET /{recurso}/{clave}` con SQL parametrizado, cuyos identificadores salen del catálogo.
+- Solo lectura en tres capas: el usuario de la base (que `doctor` verifica), una transacción `READ ONLY` en PostgreSQL, MySQL y Oracle (SQL Server no la tiene), y un `SELECT` generado con la clave como único parámetro.
 - La clave se valida con un patrón. Cualquier query string se rechaza con 400.
-- Respuestas: 404 si no existe, objeto o lista (`many`) si existe, y 500 `non_unique_key` si una clave declarada única trae dos filas.
+- Respuestas: 404 si no existe, objeto o lista (`many`) si existe, 500 `non_unique_key` si una clave declarada única trae dos filas, y 500 `too_many_rows` si una lista pasa de `maxRows` (nunca se trunca en silencio).
+- Los errores de la base se registran por clase (`connection`, `timeout`, `query`), nunca con el mensaje del driver, que puede llevar valores. Tres errores seguidos hacen releer el catálogo; cuando la base vuelve, el servicio se recupera sin reiniciar.
 - Errores en problem+json, con títulos en español y códigos estables.
 - `GET /` del servicio responde `{"status":"ok"}`, o 503 si la base no responde. Lo usa el healthcheck del portal.
 - El OpenAPI es determinista, y `rid-node openapi` produce exactamente el archivo cuyo hash va en el heartbeat.

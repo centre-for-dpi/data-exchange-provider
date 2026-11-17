@@ -54,17 +54,19 @@ Cerrado con `RID_E2E_NODE=installer` (`test/e2e/canal-e2e.mjs` + `test/install/u
   - respaldo, actualización y problemas comunes.
 - **Criterio de cierre:** instalación limpia en una VM con Ubuntu 24.04 siguiendo solo la guía, hasta una API propia publicada y consumida por el gateway.
 
-## K3 — APIs instantáneas (modo `completo`)
+## K3 — APIs instantáneas (modo `completo`) ✅ (2026-11-16)
 
 - Declaraciones (`as` por columna, `maxRows`) y compilación contra el catálogo.
 - Dialectos SQL Server, PostgreSQL, MySQL y Oracle, con pruebas de integración por motor.
-- **Primero en K3:** probar go-ora con las versiones de Oracle que reporten las entidades del piloto. Si falla, el plan B (node-oracledb *thin*) sería un contenedor aparte detrás del mismo nodo, y rompería la imagen única. Se decide con ese resultado.
+- **Pendiente tras el bootcamp:** probar go-ora con las versiones de Oracle que reporten las entidades del piloto (K3 se probó con Oracle 23ai Free). Si falla, el plan B (node-oracledb *thin*) sería un contenedor aparte detrás del mismo nodo, y rompería la imagen única. Se decide con ese resultado.
 - Handler, errores y raíz del servicio con la salud de la base.
 - OpenAPI determinista, igual al hash del heartbeat.
 - CLI: `catalog`, `scaffold`, `validate` y `openapi`.
 - En el instalador: modo `completo` y `servicio` de tipo `instant` (conexión, catálogo, vista, clave, titular).
 - En la guía: la sección de APIs instantáneas.
 - **Criterio de cierre:** punta a punta con un servicio `instant` publicado y consumido por el gateway, y el lint del portal en 0 errores con los cuatro motores.
+- **Cerrado:** `make test-engines` en verde con SQL Server 2019, PostgreSQL 17, MySQL 8.4 y Oracle 23ai, con el lint del portal en 0 errores en los cuatro. Punta a punta con el instalador en modo `completo` y una vista de PostgreSQL contra el portal desplegado (`RID_E2E_SERVICE=instant`).
+- **Para después:** un comando del instalador para agregar un segundo recurso a un servicio existente (hoy se edita el archivo y se regenera el OpenAPI); normalizar `timestamptz` de PostgreSQL a UTC, que hoy sale en la zona del proceso (la imagen corre en UTC).
 
 ## K4 — Endurecimiento y lo que viene del portal
 
