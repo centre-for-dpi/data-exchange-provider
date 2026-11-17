@@ -192,5 +192,31 @@ t_instant_catalog_failure_undoes() (
 )
 check "a catalog that cannot be read undoes the service" t_instant_catalog_failure_undoes
 
+t_instant_verify_ca_and_names() (
+  src
+  instant_env "$(mktemp -d)" ""
+  instant_answers
+  local ca
+  ca=$(mktemp)
+  printf -- '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n' >"$ca"
+  export RID_INSTALL_SERVICE_DB_TLS=verify RID_INSTALL_SERVICE_DB_CA=$ca RID_INSTALL_SERVICE_RESOURCE=personas RID_INSTALL_SERVICE_ENTITY=Persona
+  cmd_servicio >/dev/null 2>&1 || return 1
+  grep -q "  caFile: /run/secrets/afiliacion_db_ca.pem" "$HOME_DIR/config/services/afiliacion.yaml" &&
+    [[ $(stat -c %a "$HOME_DIR/secrets/afiliacion_db_ca.pem") == 400 ]] &&
+    grep -q -- "--resource personas --entity Persona" "$HOME_DIR/calls"
+)
+check "servicio instant with verify takes the CA, and the resource and entity names" t_instant_verify_ca_and_names
+
+t_instant_ca_prompt_defaults_to_system() (
+  src
+  instant_env "$(mktemp -d)" ""
+  instant_answers
+  export RID_INSTALL_SERVICE_DB_TLS=verify
+  # No CA given and no terminal: the question's default ("-") is the system's roots.
+  cmd_servicio </dev/null >"$HOME_DIR/out" 2>&1 || return 1
+  ! grep -q "caFile" "$HOME_DIR/config/services/afiliacion.yaml" && grep -q "CA de la base" "$HOME_DIR/out"
+)
+check "the CA question defaults to the system's roots" t_instant_ca_prompt_defaults_to_system
+
 echo "passed $PASS, failed $FAILS"
 [[ $FAILS -eq 0 ]]

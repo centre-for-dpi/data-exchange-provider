@@ -162,7 +162,7 @@ El nodo lee el tipo de cada columna en el catálogo de la base y lo publica así
 | texto | `varchar`, `nvarchar`, `char`, `nchar` | `varchar`, `char`, `text` | `varchar`, `char`, `*text`, `enum` | `varchar2`, `nvarchar2`, `char`, `nchar` |
 | entero | `int`, `smallint`, `tinyint`, `bigint` | `integer`, `smallint`, `bigint` | `int`, `smallint`, `tinyint`, `mediumint`, `bigint`, `year` | `number` sin decimales |
 | número | `decimal`, `numeric`, `money`, `float`, `real` | `numeric`, `real`, `double precision` | `decimal`, `float`, `double` | `number` con decimales, `float`, `binary_*` |
-| sí/no | `bit` | `boolean` | `bit` | `boolean` |
+| sí/no | `bit` | `boolean` | `bit(1)` | `boolean` |
 | fecha (`2026-11-18`) | `date` | `date` | `date` | — |
 | fecha y hora con zona (RFC 3339) | `datetimeoffset` | `timestamp with time zone` | — | `timestamp with time zone` |
 | fecha y hora sin zona | `datetime2`, `datetime`, `smalldatetime` | `timestamp` | `datetime`, `timestamp` | `date`, `timestamp` |
@@ -188,8 +188,7 @@ La clave llega en la URL y se valida **antes** de consultar la base. Un formato 
 | Tipo de la columna clave | Formato que acepta por defecto |
 | :-- | :-- |
 | Texto | Letras, números y guiones, hasta el largo de la columna. Sin espacios, comillas ni separadores |
-| Entero | Hasta 18 dígitos |
-| Número sin decimales | Hasta 38 dígitos |
+| Entero o número | Hasta 38 dígitos. Una clave que no cabe en la columna da 404 sin consultar la base |
 | UUID | `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
 | Fecha | `AAAA-MM-DD` |
 
@@ -200,7 +199,7 @@ Si las claves de la entidad tienen otro formato (por ejemplo, con puntos o letra
 | Respuesta | Cuándo |
 | :-- | :-- |
 | `200` con un objeto | La clave existe (recurso sin `many`) |
-| `200` con una lista | La clave existe (recurso con `many`) |
+| `200` con una lista | La clave existe (recurso con `many`). La lista sale ordenada por sus columnas, siempre en el mismo orden |
 | `404 not_found` | La clave no existe, o el recurso no existe |
 | `400 invalid_key` | La clave no tiene el formato del recurso |
 | `400 query_not_allowed` | La URL trae parámetros (`?...`). Las claves van siempre en la ruta |
@@ -208,7 +207,8 @@ Si las claves de la entidad tienen otro formato (por ejemplo, con puntos o letra
 | `500 non_unique_key` | Una clave declarada única trajo dos filas. Revisa la vista, o declara `many: true` |
 | `500 too_many_rows` | Una lista pasó de `maxRows`. Nunca se corta en silencio |
 | `500 response_too_large` | La respuesta pasó de 8 MiB |
-| `503 service_unavailable` | La base no responde, o el archivo del servicio no coincide con la base |
+| `500 unrepresentable_value` | Un valor de la base no cabe en el tipo que declara el OpenAPI (por ejemplo `NaN`, `Infinity` o una fecha `0000-00-00`). El log dice qué columna, nunca el valor. Corrígelo en la vista, por ejemplo con `NULLIF` |
+| `503 service_unavailable` | La base no responde, o el archivo del servicio no coincide con la base (una columna cambió, o el usuario no tiene `SELECT` sobre la vista) |
 
 Los errores van en `application/problem+json`, con un título en español y un `code` estable. `GET {ruta del servicio}/` responde `{"status":"ok"}`, o 503 si la base no responde: es lo que usa el portal para saber si el servicio está sano.
 

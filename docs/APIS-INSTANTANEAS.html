@@ -517,7 +517,7 @@ resources:
             <tr><td>texto</td><td class="wrap"><code>varchar</code>, <code>nvarchar</code>, <code>char</code>, <code>nchar</code></td><td class="wrap"><code>varchar</code>, <code>char</code>, <code>text</code></td><td class="wrap"><code>varchar</code>, <code>char</code>, <code>*text</code>, <code>enum</code></td><td class="wrap"><code>varchar2</code>, <code>nvarchar2</code>, <code>char</code>, <code>nchar</code></td></tr>
             <tr><td>entero</td><td class="wrap"><code>int</code>, <code>smallint</code>, <code>tinyint</code>, <code>bigint</code></td><td class="wrap"><code>integer</code>, <code>smallint</code>, <code>bigint</code></td><td class="wrap"><code>int</code>, <code>smallint</code>, <code>tinyint</code>, <code>mediumint</code>, <code>bigint</code>, <code>year</code></td><td class="wrap"><code>number</code> sin decimales</td></tr>
             <tr><td>número</td><td class="wrap"><code>decimal</code>, <code>numeric</code>, <code>money</code>, <code>float</code>, <code>real</code></td><td class="wrap"><code>numeric</code>, <code>real</code>, <code>double precision</code></td><td class="wrap"><code>decimal</code>, <code>float</code>, <code>double</code></td><td class="wrap"><code>number</code> con decimales, <code>float</code>, <code>binary_*</code></td></tr>
-            <tr><td>sí/no</td><td class="wrap"><code>bit</code></td><td class="wrap"><code>boolean</code></td><td class="wrap"><code>bit</code></td><td class="wrap"><code>boolean</code></td></tr>
+            <tr><td>sí/no</td><td class="wrap"><code>bit</code></td><td class="wrap"><code>boolean</code></td><td class="wrap"><code>bit(1)</code></td><td class="wrap"><code>boolean</code></td></tr>
             <tr><td>fecha</td><td class="wrap"><code>date</code></td><td class="wrap"><code>date</code></td><td class="wrap"><code>date</code></td><td class="wrap">—</td></tr>
             <tr><td>fecha y hora con zona</td><td class="wrap"><code>datetimeoffset</code></td><td class="wrap"><code>timestamp with time zone</code></td><td class="wrap">—</td><td class="wrap"><code>timestamp with time zone</code></td></tr>
             <tr><td>fecha y hora sin zona</td><td class="wrap"><code>datetime2</code>, <code>datetime</code>, <code>smalldatetime</code></td><td class="wrap"><code>timestamp</code></td><td class="wrap"><code>datetime</code>, <code>timestamp</code></td><td class="wrap"><code>date</code>, <code>timestamp</code></td></tr>
@@ -551,8 +551,7 @@ resources:
           <thead><tr><th>Tipo de la columna clave</th><th>Formato que acepta por defecto</th></tr></thead>
           <tbody>
             <tr><td>Texto</td><td class="wrap">Letras, números y guiones, hasta el largo de la columna. Sin espacios, comillas ni separadores</td></tr>
-            <tr><td>Entero</td><td class="wrap">Hasta 18 dígitos</td></tr>
-            <tr><td>Número sin decimales</td><td class="wrap">Hasta 38 dígitos</td></tr>
+            <tr><td>Entero o número</td><td class="wrap">Hasta 38 dígitos. Una clave que no cabe en la columna da 404 sin consultar la base</td></tr>
             <tr><td>UUID</td><td class="wrap"><code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code></td></tr>
             <tr><td>Fecha</td><td class="wrap"><code>AAAA-MM-DD</code></td></tr>
           </tbody>
@@ -568,7 +567,7 @@ resources:
           <thead><tr><th>Respuesta</th><th>Cuándo</th></tr></thead>
           <tbody>
             <tr><td><span class="tag ok">200</span> objeto</td><td class="wrap">La clave existe (recurso sin <code>many</code>)</td></tr>
-            <tr><td><span class="tag ok">200</span> lista</td><td class="wrap">La clave existe (recurso con <code>many</code>)</td></tr>
+            <tr><td><span class="tag ok">200</span> lista</td><td class="wrap">La clave existe (recurso con <code>many</code>). La lista sale ordenada por sus columnas, siempre en el mismo orden</td></tr>
             <tr><td><span class="tag plain">404</span> <code>not_found</code></td><td class="wrap">La clave no existe, o el recurso no existe</td></tr>
             <tr><td><span class="tag warn">400</span> <code>invalid_key</code></td><td class="wrap">La clave no tiene el formato del recurso</td></tr>
             <tr><td><span class="tag warn">400</span> <code>query_not_allowed</code></td><td class="wrap">La URL trae parámetros (<code>?...</code>). Las claves van siempre en la ruta</td></tr>
@@ -576,7 +575,8 @@ resources:
             <tr><td><span class="tag bad">500</span> <code>non_unique_key</code></td><td class="wrap">Una clave declarada única trajo dos filas. Revisa la vista, o declara <code>many: true</code></td></tr>
             <tr><td><span class="tag bad">500</span> <code>too_many_rows</code></td><td class="wrap">Una lista pasó de <code>maxRows</code>. Nunca se corta en silencio</td></tr>
             <tr><td><span class="tag bad">500</span> <code>response_too_large</code></td><td class="wrap">La respuesta pasó de 8 MiB</td></tr>
-            <tr><td><span class="tag bad">503</span> <code>service_unavailable</code></td><td class="wrap">La base no responde, o el archivo del servicio no coincide con la base</td></tr>
+            <tr><td><span class="tag bad">500</span> <code>unrepresentable_value</code></td><td class="wrap">Un valor de la base no cabe en el tipo que declara el OpenAPI (por ejemplo <code>NaN</code>, <code>Infinity</code> o una fecha <code>0000-00-00</code>). El log dice qué columna, nunca el valor. Corrígelo en la vista, por ejemplo con <code>NULLIF</code></td></tr>
+            <tr><td><span class="tag bad">503</span> <code>service_unavailable</code></td><td class="wrap">La base no responde, o el archivo del servicio no coincide con la base (una columna cambió, o el usuario no tiene <code>SELECT</code> sobre la vista)</td></tr>
           </tbody>
         </table>
       </div>

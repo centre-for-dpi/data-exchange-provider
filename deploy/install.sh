@@ -489,15 +489,17 @@ cmd_servicio() {
 
 # service_instant NAME PATH FILE: RID_INSTALL_SERVICE_ENGINE (sqlserver|postgres|mysql|oracle),
 # _DB_HOST, _DB_PORT, _DB_NAME, _DB_USER, _DB_PASSWORD, _DB_TLS (require|verify|disable), _DB_CA
-# (verify, optional; "-" omits), _SOURCE (esquema.vista), _KEY, _SUBJECT (tipo de documento o
-# ninguno), _MANY (s/n). The connection is written first and checked against the catalog;
-# any failure removes everything this run created.
+# (verify, not Oracle; "-": the system's roots), _SOURCE (esquema.vista), _KEY, _SUBJECT (tipo de
+# documento o ninguno), _MANY (s/n), _RESOURCE and _ENTITY ("-": derived from the view). The
+# connection is written first and checked against the catalog; any failure removes everything
+# this run created.
 service_instant() {
   local name=$1 path=$2 file=$3
   local engine=${RID_INSTALL_SERVICE_ENGINE:-} host=${RID_INSTALL_SERVICE_DB_HOST:-} port=${RID_INSTALL_SERVICE_DB_PORT:-}
   local db=${RID_INSTALL_SERVICE_DB_NAME:-} user=${RID_INSTALL_SERVICE_DB_USER:-} password=${RID_INSTALL_SERVICE_DB_PASSWORD:-}
   local tls=${RID_INSTALL_SERVICE_DB_TLS:-} ca=${RID_INSTALL_SERVICE_DB_CA:-} source=${RID_INSTALL_SERVICE_SOURCE:-}
   local key=${RID_INSTALL_SERVICE_KEY:-} subject=${RID_INSTALL_SERVICE_SUBJECT:-} many=${RID_INSTALL_SERVICE_MANY:-}
+  local resource=${RID_INSTALL_SERVICE_RESOURCE:-} entity=${RID_INSTALL_SERVICE_ENTITY:-}
   step "Base de datos"
   ask engine "Motor (sqlserver, postgres, mysql, oracle)"
   local default_port
@@ -521,6 +523,10 @@ service_instant() {
   ask tls "TLS hacia la base (require: cifrado; verify: cifrado y certificado verificado; disable: sin cifrar)" require
   [[ $tls =~ ^(require|verify|disable)$ ]] || fail "TLS \"$tls\" desconocido: require, verify o disable"
   [[ $tls == disable ]] && warn "La conexión con la base irá sin cifrar (solo dentro de la red de la entidad)"
+  if [[ $tls == verify && $engine != oracle ]]; then
+    ask ca "Certificado de la CA que firmó el de la base (PEM; \"-\" para usar las CA del sistema)" -
+    [[ $ca == - ]] && info "CA de la base: las del sistema"
+  fi
 
   trap undo_service EXIT
   CREATED=("$file")
@@ -552,7 +558,11 @@ service_instant() {
   if [[ -z $many ]]; then
     if yes_no "¿Una misma clave puede traer varias filas (p. ej. un hogar con varias personas)?" n; then many=s; else many=n; fi
   fi
+  ask resource "Nombre del recurso en la URL (\"-\": el de la vista, sin v_)" -
+  ask entity "Nombre de la entidad en el OpenAPI (\"-\": el del recurso, p. ej. Afiliados)" -
   local args=(scaffold --print --service-file "$cfile" --source "$source" --key "$key")
+  [[ $resource != - ]] && args+=(--resource "$resource")
+  [[ $entity != - ]] && args+=(--entity "$entity")
   [[ $subject != ninguno ]] && args+=(--subject "$subject")
   [[ $many == s ]] && args+=(--many)
   local updated

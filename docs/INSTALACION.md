@@ -140,8 +140,10 @@ sudo /opt/rid-node/install.sh servicio
 | Servidor, puerto y base de datos (en Oracle, el nombre del servicio) | `bd.interna.entidad`, `5432`, `entidad` |
 | Usuario de solo lectura y su contraseña | `rid_reader` |
 | TLS hacia la base | `require` (cifrado), `verify` (cifrado y certificado verificado) o `disable` |
+| CA de la base (solo con `verify`; en Oracle no se pregunta) | La ruta del PEM de la CA interna, o `-` para las CA del sistema |
 | Vista a exponer | `salud.v_afiliados` |
 | Columna clave | `numero_documento` |
+| Nombre del recurso en la URL y de la entidad en el OpenAPI | `-` para derivarlos de la vista (`v_afiliados` da `afiliados` y `Afiliados`) |
 | Tipo de documento, si la clave identifica a una persona | `CC`, o `ninguno` |
 | ¿Una clave puede traer varias filas? | `n` (una fila) o `s` (una lista, hasta 100 filas) |
 
