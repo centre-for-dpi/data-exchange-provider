@@ -278,6 +278,4 @@ sudo docker compose restart den-node
 ## 11. Límites de esta versión
 
 - Solo `GET` por clave. No hay listados, filtros ni búsquedas por cuerpo (POST).
-- Un recurso nuevo en un servicio existente se agrega editando el archivo (sección 8): el instalador solo crea servicios nuevos.
-- Oracle se probó con la versión 23ai. Con versiones más antiguas, se prueba con cada entidad.
-- En PostgreSQL, las columnas `timestamp with time zone` salen en UTC.
+- Versiones probadas: SQL Server 2019, PostgreSQL 17, MySQL 8.4, y Oracle 11g XE, 21c XE y 23ai. Cualquier otra versión se prueba con la entidad antes de instalar.

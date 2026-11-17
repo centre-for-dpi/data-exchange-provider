@@ -172,7 +172,7 @@ The gateway sets these headers and removes any the consumer tries to send. The n
 | `X-DEN-Subject-Ref` | Pseudonym of the data subject, if the operation declares one |
 | `X-Request-Id` | Correlation identifier, the same as in the network's log |
 
-Later on, the gateway will sign each call in an `X-DEN-Assertion` header, so the entity can prove who queried it and verify that the query comes from the gateway.
+When the network has it enabled, the gateway also signs each call in an `X-DEN-Assertion` header, so the entity can prove who queried it and verify that the query comes from the gateway. The node verifies that signature and records the result in its log. By default it never rejects a call because of it; it can be set to require it once the operator confirms the network signs calls (see the [installation guide](../INSTALL.md#7-verify-and-operate)).
 
 ## 7. Recommendations for the entity's service
 

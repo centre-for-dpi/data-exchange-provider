@@ -104,6 +104,9 @@ State lives in the `den-node-state` volume, mounted at `/var/lib/den-node`. It h
 # node.yaml
 portal: https://portal.red.example     # portal API for enrollment
 services: []                           # they can also be declared here; install.sh uses services/
+gatewayAssertion:                      # optional: the gateway's signed assertion (X-DEN-Assertion, portal M6-10)
+  mode: verify                         # verify (default: log verified | absent | invalid, never reject) | require (401) | off
+  # audience: salud                    # the entity's slug; by default, from the gateway's client name
 ```
 
 ```yaml
@@ -254,13 +257,14 @@ All commands run with the same binary and the same configuration: `docker compos
 
 ## 8. Installation and operation (`install.sh`)
 
-It follows the pattern of the portal's `install.sh`: step-by-step questions, messages in Spanish, subcommands for operation, and an installation that can be repeated without changing the secrets of a running node.
+It follows the pattern of the portal's `install.sh`: step-by-step questions, messages in English (Spanish with `DEN_LANG=es`), subcommands for operation, and an installation that can be repeated without changing the secrets of a running node.
 
 ```
 sudo ./install.sh              # installs: asks for the mode, prepares Docker, configures and starts
 sudo ./install.sh status       # den-node status (enrollment, tunnel, heartbeat, certificate, services)
 sudo ./install.sh doctor       # connectivity and configuration
 sudo ./install.sh service      # adds a service: proxy (internal URL) or instant (view); validates and shows the OpenAPI
+sudo ./install.sh service resource NAME   # adds another view to an instant service; restores it if anything fails
 sudo ./install.sh logs         # follows the logs (metadata only)
 sudo ./install.sh backup       # copy of the state (keys, certificate, tunnel) and of the configuration
 sudo ./install.sh update       # backup, new image version and restart
@@ -307,7 +311,6 @@ The images are published to a container registry, for amd64 and arm64 and in bot
 
 ## 10. Out of scope for now
 
-- Verifying `X-DEN-Assertion`: when the gateway sends it (portal M6-10).
 - A sandbox with synthetic data served by the node.
 - Prometheus metrics.
 - Image signing.

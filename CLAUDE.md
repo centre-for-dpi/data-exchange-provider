@@ -16,9 +16,9 @@ El kit es el segundo de dos entregables (ADR-0011 del portal). El primero, **por
 
 El primer despliegue es Colombia (entidades públicas; el gateway lo opera la AND y lo gobierna MinTIC), pero el kit debe servir en **cualquier país**.
 
-## Estado (2026-11-16)
+## Estado (2026-11-17)
 
-**Herramienta decidida, sin código del kit todavía.**
+**K0–K3 cerrados; K4 (endurecimiento) en curso** (`docs/BACKLOG.md`). El modo `canal` y el modo `completo` (APIs instantáneas en los cuatro motores) están probados de punta a punta contra el portal, con el instalador y el paquete. La red se llama DEN (ADR-0005) y la documentación va en inglés con su versión en `docs/es/` (ADR-0004). Para las entidades: `docs/guides/providers.md` y `docs/INSTANT-APIS.md` (cada una con su `.html` para proyectar) y `docs/INSTALL.md`.
 
 - La discusión terminó en el **ADR-0001** (`docs/adr/0001-nodo-en-go-con-apis-instantaneas-propias.md`). El nodo es el canal seguro de **toda** entidad proveedora, tenga API propia o use las APIs instantáneas.
 - Es un solo binario en **Go**: agente, WireGuard en espacio de usuario, mTLS validando el nombre del gateway y enrutador por `servicePath`.

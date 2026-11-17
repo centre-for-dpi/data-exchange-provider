@@ -4,7 +4,7 @@
 
 Nodo que se instala en cada entidad proveedora de la Red de Intercambio de Datos. Expone vistas de su base de datos como APIs REST, a través de un túnel cifrado y con mTLS, solo hacia el gateway de la red.
 
-Estado: en diseño. Ver `CLAUDE.md` y `docs/es/CONTEXT.md`.
+Estado: el modo `canal` (canal seguro para las APIs propias de la entidad) y el modo `completo` (APIs instantáneas sobre SQL Server, PostgreSQL, MySQL y Oracle) están construidos y probados de punta a punta contra el portal (hitos K0–K3; el endurecimiento de K4 sigue en curso, ver `docs/BACKLOG.md`). Diseño: `docs/es/ARCHITECTURE.md`.
 
 Para las entidades:
 

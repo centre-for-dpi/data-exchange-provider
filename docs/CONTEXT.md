@@ -66,7 +66,7 @@ Descriptions in Spanish are **not** validated today, although they are expected.
 **What it receives on each call**
 
 - `X-DEN-*` headers (`ARCHITECTURE.md §6`): consumer entity and application, subscription, purpose, operation, official's hash, data subject pseudonym and `X-Request-Id`.
-- Later on (M6-10, ADR-0024), a signed assertion `X-DEN-Assertion` (JWS ES256). The provider must verify the signature, `aud`, `exp` and `uri_sha256` against a cached JWKS. It fits naturally in the kit.
+- When the network enables it (portal M6-10, ADR-0024), a signed assertion `X-DEN-Assertion` (JWS ES256). The provider verifies the signature, `aud`, `exp` and `uri_sha256` against a cached JWKS. The node does it (`gatewayAssertion` in `node.yaml`).
 
 **Privacy**
 
@@ -91,7 +91,7 @@ Descriptions in Spanish are **not** validated today, although they are expected.
 
 The kit's server requirements (operating system, CPU, memory, Docker or not) are not defined yet. This repository defines them.
 
-## 5. For the tool discussion (pending)
+## 5. For the tool discussion (resolved in ADR-0001; kept as the record of the questions)
 
 The user's preference is an existing tool, such as **Data API builder** (Microsoft, MIT): REST and GraphQL over SQL Server, PostgreSQL and MySQL, without Oracle. Oracle gets solved later.
 

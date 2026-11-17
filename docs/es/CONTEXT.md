@@ -66,7 +66,7 @@ Las descripciones en español **no** se validan hoy, aunque se espera que las ha
 **Lo que recibe en cada llamada**
 
 - Cabeceras `X-DEN-*` (`ARCHITECTURE.md §6`): entidad y aplicación consumidora, suscripción, finalidad, operación, hash del funcionario, seudónimo del titular y `X-Request-Id`.
-- Más adelante (M6-10, ADR-0024), una aserción firmada `X-DEN-Assertion` (JWS ES256). El proveedor debe verificar la firma, `aud`, `exp` y `uri_sha256` contra un JWKS en caché. Encaja de forma natural en el kit.
+- Cuando la red la activa (M6-10 del portal, ADR-0024), una aserción firmada `X-DEN-Assertion` (JWS ES256). El proveedor verifica la firma, `aud`, `exp` y `uri_sha256` contra un JWKS en caché. El nodo lo hace (`gatewayAssertion` en `node.yaml`).
 
 **Privacidad**
 
@@ -91,7 +91,7 @@ Las descripciones en español **no** se validan hoy, aunque se espera que las ha
 
 Los requisitos de servidor del kit (sistema operativo, CPU, memoria, Docker o no) todavía no están definidos. Los define este repositorio.
 
-## 5. Para la discusión de la herramienta (pendiente)
+## 5. Para la discusión de la herramienta (resuelta en el ADR-0001; queda como registro de las preguntas)
 
 La preferencia del usuario es una herramienta existente, como **Data API builder** (Microsoft, MIT): REST y GraphQL sobre SQL Server, PostgreSQL y MySQL, sin Oracle. Oracle se resuelve después.
 

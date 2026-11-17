@@ -4,7 +4,7 @@
 
 A node installed at each provider entity of the Data Exchange Network. It exposes views of the entity's database as REST APIs, through an encrypted tunnel and over mTLS, to the network gateway only.
 
-Status: in design. See `CLAUDE.md` and `docs/CONTEXT.md`.
+Status: the `canal` mode (secure channel for the entity's own APIs) and the `completo` mode (instant APIs over SQL Server, PostgreSQL, MySQL and Oracle) are built and tested end to end against the portal (milestones K0–K3; K4 hardening in progress, see `docs/BACKLOG.md`). Design: `docs/ARCHITECTURE.md`.
 
 For entities:
 

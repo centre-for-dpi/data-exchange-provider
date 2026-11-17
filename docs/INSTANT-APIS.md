@@ -278,6 +278,4 @@ sudo docker compose restart den-node
 ## 11. Limits of this version
 
 - Only `GET` by key. There are no listings, filters or searches by body (POST).
-- A new resource in an existing service is added by editing the file (section 8): the installer only creates new services.
-- Oracle was tested with version 23ai. With older versions, it is tested with each entity.
-- On PostgreSQL, `timestamp with time zone` columns go out in UTC.
+- Versions tested: SQL Server 2019, PostgreSQL 17, MySQL 8.4, and Oracle 11g XE, 21c XE and 23ai. Any other version is tested with the entity before installation.

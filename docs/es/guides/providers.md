@@ -172,7 +172,7 @@ El gateway pone estas cabeceras y borra las que intente mandar el consumidor. El
 | `X-DEN-Subject-Ref` | Seudónimo del titular de los datos, si la operación lo declara |
 | `X-Request-Id` | Identificador de correlación, el mismo en la bitácora de la red |
 
-Más adelante el gateway firmará cada llamada en una cabecera `X-DEN-Assertion`, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway.
+Cuando la red lo tiene activado, el gateway además firma cada llamada en una cabecera `X-DEN-Assertion`, para que la entidad pueda probar quién le consultó y verificar que la consulta viene del gateway. El nodo verifica esa firma y registra el resultado en su log. Por defecto nunca rechaza una llamada por eso; se puede configurar para exigirla cuando el operador confirme que la red ya firma (ver la [guía de instalación](../INSTALL.md#7-verificar-y-operar)).
 
 ## 7. Recomendaciones para el servicio de la entidad
 

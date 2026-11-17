@@ -104,6 +104,9 @@ El estado vive en el volumen `den-node-state`, montado en `/var/lib/den-node`. A
 # node.yaml
 portal: https://portal.red.example     # API del portal para el enrolamiento
 services: []                           # también se pueden declarar aquí; install.sh usa services/
+gatewayAssertion:                      # opcional: la aserción firmada del gateway (X-DEN-Assertion, M6-10 del portal)
+  mode: verify                         # verify (por defecto: registra verified | absent | invalid, nunca rechaza) | require (401) | off
+  # audience: salud                    # el slug de la entidad; por defecto, del nombre de cliente del gateway
 ```
 
 ```yaml
@@ -254,13 +257,14 @@ Todos los comandos corren con el mismo binario y la misma configuración: `docke
 
 ## 8. Instalación y operación (`install.sh`)
 
-Sigue el patrón del `install.sh` del portal: preguntas paso a paso, mensajes en español, subcomandos para operar y una instalación que se puede repetir sin cambiar los secretos de un nodo en marcha.
+Sigue el patrón del `install.sh` del portal: preguntas paso a paso, mensajes en inglés (en español con `DEN_LANG=es`), subcomandos para operar y una instalación que se puede repetir sin cambiar los secretos de un nodo en marcha.
 
 ```
 sudo ./install.sh              # instala: pregunta el modo, prepara Docker, configura y arranca
 sudo ./install.sh status       # den-node status (enrolamiento, túnel, heartbeat, certificado, servicios)
 sudo ./install.sh doctor       # conectividad y configuración
 sudo ./install.sh servicio     # agrega un servicio: proxy (URL interna) o instant (vista); valida y muestra el OpenAPI
+sudo ./install.sh servicio recurso NOMBRE   # agrega otra vista a un servicio instant; lo restaura si algo falla
 sudo ./install.sh logs         # sigue los logs (solo metadatos)
 sudo ./install.sh backup       # copia del estado (claves, certificado, túnel) y de la configuración
 sudo ./install.sh update       # backup, nueva versión de la imagen y reinicio
@@ -307,7 +311,6 @@ Las imágenes se publican en un registro de contenedores, para amd64 y arm64 y e
 
 ## 10. Fuera de alcance por ahora
 
-- Verificar `X-DEN-Assertion`: cuando el gateway la envíe (M6-10 del portal).
 - Un sandbox con datos sintéticos servido por el nodo.
 - Métricas Prometheus.
 - Firma de imágenes.

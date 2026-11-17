@@ -612,7 +612,7 @@ sudo ./install.sh</code></pre></div></span></li>
           </tbody>
         </table>
       </div>
-      <p>Later on, the gateway will sign each call in an <code>X-DEN-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway.</p>
+      <p>When the network has it enabled, the gateway also signs each call in an <code>X-DEN-Assertion</code> header, so the entity can prove who queried it and verify that the query comes from the gateway. The node verifies that signature and records the result in its log. By default it never rejects a call because of it; it can be set to require it once the operator confirms the network signs calls (see <a href="../INSTALL.md"><code>docs/INSTALL.md</code></a>, section 7).</p>
     </section>
 
     <section id="recomendaciones">
