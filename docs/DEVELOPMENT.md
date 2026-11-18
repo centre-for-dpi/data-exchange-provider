@@ -23,6 +23,7 @@
 | `internal/agent/` | Enrollment, heartbeat, health, renewal, `/config` and state. `fakeportal/` is a portal for tests |
 | `internal/testpki/` | In-memory PKI for tests |
 | `tools/licensecheck/` | License check of the Go modules (rule 1) |
+| `tools/imagearch/` | Checks that the binary in each image of the bundle is for the image's architecture |
 | `deploy/` | Dockerfile for both variants |
 | `test/e2e/` | End-to-end test against the real portal |
 | `spikes/` | Throwaway code from ADR-0001. Not part of the kit |
@@ -36,7 +37,8 @@ make check                 # gofmt, vet, go mod verify, tests, licenses, vulnera
 make image image-canal     # images den-node:<version> and den-node:<version>-canal
 make e2e                   # canal image + end to end against the real portal
 make test-engines          # instant APIs against real SQL Server, PostgreSQL, MySQL and Oracle
-make bundle                # delivery bundle in dist/ (both variants, amd64 and arm64, SBOM and SHA256SUMS)
+make bundle                # delivery bundle in dist/ (both variants, amd64 and arm64, SBOM and SHA256SUMS);
+                           # it stops if an image carries a binary for another architecture
 ```
 
 ### Bundle signature

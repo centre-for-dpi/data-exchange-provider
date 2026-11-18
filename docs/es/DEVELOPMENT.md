@@ -23,6 +23,7 @@
 | `internal/agent/` | Enrolamiento, heartbeat, salud, renovación, `/config` y estado. `fakeportal/` es un portal para pruebas |
 | `internal/testpki/` | PKI en memoria para pruebas |
 | `tools/licensecheck/` | Verificación de licencias de los módulos Go (regla 1) |
+| `tools/imagearch/` | Comprueba que el binario de cada imagen del paquete sea de la arquitectura de la imagen |
 | `deploy/` | Dockerfile de las dos variantes |
 | `test/e2e/` | Prueba de punta a punta contra el portal real |
 | `spikes/` | Código desechable del ADR-0001. No forma parte del kit |
@@ -36,7 +37,8 @@ make check                 # gofmt, vet, go mod verify, pruebas, licencias, vuln
 make image image-canal     # imágenes den-node:<versión> y den-node:<versión>-canal
 make e2e                   # imagen canal + punta a punta contra el portal real
 make test-engines          # APIs instantáneas contra SQL Server, PostgreSQL, MySQL y Oracle reales
-make bundle                # paquete de entrega en dist/ (las dos variantes, amd64 y arm64, SBOM y SHA256SUMS)
+make bundle                # paquete de entrega en dist/ (las dos variantes, amd64 y arm64, SBOM y SHA256SUMS);
+                           # se detiene si una imagen trae un binario de otra arquitectura
 ```
 
 ### Firma del paquete

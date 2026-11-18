@@ -13,10 +13,12 @@ COPY cmd ./cmd
 COPY internal ./internal
 ARG VARIANT=completo
 ARG VERSION=0.1.0-dev
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+# No default here: BuildKit fills TARGETOS/TARGETARCH from --platform only when the stage declares
+# them bare. With a default (=amd64) every image got an x86-64 binary, the arm64 ones too.
+ARG TARGETOS
+ARG TARGETARCH
 RUN case "$VARIANT" in completo) tags="" ;; canal) tags="canal" ;; *) echo "VARIANT must be completo or canal" >&2; exit 1 ;; esac \
- && CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -tags "$tags" \
+ && CGO_ENABLED=0 GOOS="${TARGETOS:-linux}" GOARCH="${TARGETARCH:-amd64}" go build -trimpath -tags "$tags" \
       -ldflags "-s -w -X github.com/centre-for-dpi/data-exchange-provider/internal/buildinfo.Version=${VERSION}" \
       -o /out/den-node ./cmd/den-node
 

@@ -19,6 +19,13 @@ for arch in amd64 arm64; do
     docker buildx build -q --platform "linux/$arch" -f deploy/Dockerfile --build-arg VARIANT=$variant       --build-arg VERSION="$VERSION" -t "den-node:$VERSION$suffix"       --output "type=docker,dest=$(native_path "$OUT/images/den-node-$VERSION$suffix-$arch.tar")" . >/dev/null
   done
 done
+# Every image must carry a binary for its own architecture: an arm64 image with an x86-64 binary
+# passes every label and only fails on an ARM server.
+for image in "$OUT"/images/*.tar; do
+  arch=$(basename "$image" .tar)
+  arch=${arch##*-}
+  go run ./tools/imagearch -arch "$arch" "$(native_path "$image")"
+done
 install -m 0755 deploy/install.sh "$OUT/install.sh"
 install -m 0644 deploy/compose.yaml deploy/env.example LICENSE NOTICE "$OUT/"
 mkdir -p "$OUT/es"
